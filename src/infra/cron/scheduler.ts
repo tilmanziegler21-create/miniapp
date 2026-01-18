@@ -78,7 +78,11 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   const stats: Map<string, number> = new Map();
   for (const r of deliveredOrders) {
     try {
-      const items = JSON.parse(String(r.items_json || "[]"));
+      let items: any[] = [];
+      try {
+        const parsed = JSON.parse(String(r.items_json || "[]"));
+        if (Array.isArray(parsed)) items = parsed;
+      } catch {}
       for (const it of items) {
         const pid = normalizeProductId(it.product_id ?? it.id);
         const prod = prodMap.get(pid);
@@ -342,6 +346,30 @@ export async function registerCron() {
       logger.info("Synced items to Sheets for upcoming orders", { count: rows.length });
     } catch (e) {
       logger.error("Items sync to Sheets error", { error: String(e) });
+    }
+  }, { timezone });
+  cron.schedule("*/2 * * * *", async () => {
+    try {
+      const db = getDb();
+      const rows = db.prepare("SELECT id, order_id, updates_json, city_code, attempts FROM sheets_repair_queue ORDER BY id ASC LIMIT 20").all() as any[];
+      if (!rows.length) return;
+      const { getBot } = await import("../../bot/Bot");
+      for (const r of rows) {
+        try {
+          const updates = JSON.parse(String(r.updates_json || "{}"));
+          const ok = await (await import("../../bot/flows/courierFlow")).updateOrderInSheets(Number(r.order_id), updates, String(r.city_code));
+          if (ok) {
+            db.prepare("DELETE FROM sheets_repair_queue WHERE id = ?").run(Number(r.id));
+          } else {
+            db.prepare("UPDATE sheets_repair_queue SET attempts = attempts + 1, last_error = ? WHERE id = ?").run("retry_failed", Number(r.id));
+          }
+        } catch (e) {
+          db.prepare("UPDATE sheets_repair_queue SET attempts = attempts + 1, last_error = ? WHERE id = ?").run(String(e), Number(r.id));
+        }
+      }
+      logger.info("Sheets repair queue processed", { count: rows.length });
+    } catch (e) {
+      logger.error("Sheets repair queue error", { error: String(e) });
     }
   }, { timezone });
 }

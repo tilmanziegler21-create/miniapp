@@ -31,7 +31,7 @@ function sheetsApiAuthed() {
   return google.sheets({ version: "v4", auth });
 }
 
-async function updateOrderInSheets(orderId: number, updates: Record<string, any>, cityCodeOverride?: string): Promise<boolean> {
+export async function updateOrderInSheets(orderId: number, updates: Record<string, any>, cityCodeOverride?: string): Promise<boolean> {
   const api = sheetsApiAuthed();
   const sheet = env.GOOGLE_SHEETS_SPREADSHEET_ID;
   const city = String(cityCodeOverride || shopConfig.cityCode);
@@ -212,16 +212,16 @@ async function syncOrdersFromSheets(courierId?: number, cityCode?: string) {
           const arr = JSON.parse(itemsRaw || "[]");
           if (Array.isArray(arr) && arr.length > 0) {
             itemsEnriched = JSON.stringify(arr.map((it: any) => {
-              const pid = Number(it.product_id);
-              let name = pmap.get(String(pid)) || pmap.get(String(it.product_id)) || null;
+              const pidNorm = normalizeProductId(it.product_id ?? it.id);
+              let name = pmap.get(String(pidNorm)) || pmap.get(String(String(pidNorm).toLowerCase())) || null;
               if (!name) {
                 try {
                   const db = getDb();
-                  const row = db.prepare("SELECT title FROM products WHERE product_id = ? OR id = ?").get(String(it.product_id), String(it.product_id)) as any;
+                  const row = db.prepare("SELECT title FROM products WHERE product_id = ? OR id = ?").get(String(pidNorm), String(pidNorm)) as any;
                   if (row && row.title) name = String(row.title);
                 } catch {}
               }
-              name = name || `Товар #${it.product_id}`;
+              name = name || `Товар #${pidNorm}`;
               const qty = it.quantity ?? it.qty ?? 1;
               return { ...it, name, quantity: qty };
             }));

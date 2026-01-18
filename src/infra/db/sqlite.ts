@@ -125,4 +125,17 @@ export async function initDb() {
       );
     `);
   } catch {}
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sheets_repair_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        updates_json TEXT NOT NULL,
+        city_code TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT
+      );
+    `);
+  } catch {}
 }
