@@ -115,6 +115,51 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
     total_with_discount: Number(totalIdxO>=0 ? r[totalIdxO]||0 : 0)
   }));
   const allProdMap = await getProductsMap(sheetCity);
+  const idProdMap = new Map<string, { title: string; brand?: string | null }>();
+  try {
+    const tabs = [`products_${sheetCity}`, `Products_${sheetCity}`, "products", "Products"];
+    let valuesP: string[][] = [];
+    let headersP: string[] = [];
+    for (const t of tabs) {
+      const vrp = await batchGet([`${t}!A:Z`]);
+      valuesP = vrp[0]?.values || [];
+      headersP = valuesP[0] || [];
+      if (valuesP.length) break;
+    }
+    const rowsP = valuesP.slice(1);
+    const idxAny = (...names: string[]) => {
+      const lowered = names.map((n) => n.toLowerCase());
+      for (let i = 0; i < headersP.length; i++) {
+        const h = String(headersP[i] || "").toLowerCase();
+        if (lowered.includes(h)) return i;
+      }
+      return -1;
+    };
+    const idIdx = idxAny("id","product_id");
+    const skuIdx = idxAny("sku");
+    const nameIdx = idxAny("name","title");
+    const brandIdx = idxAny("brand","vendor","producer","марка");
+    const djb2 = (s: string) => {
+      let h = 5381;
+      for (let k = 0; k < s.length; k++) h = ((h << 5) + h) + s.charCodeAt(k);
+      return Math.abs(h >>> 0);
+    };
+    for (const r of rowsP) {
+      const nm = String(nameIdx>=0 ? r[nameIdx]||"" : "");
+      if (!nm) continue;
+      const br = brandIdx>=0 ? (r[brandIdx]||null) : null;
+      const idRaw = idIdx>=0 ? r[idIdx] : "";
+      const pidNum = Number(String(idRaw).match(/\d+/)?.[0] || "");
+      const sku = String(skuIdx>=0 ? r[skuIdx]||"" : "");
+      const skuHash = sku ? djb2(sku) : NaN;
+      if (Number.isFinite(pidNum)) {
+        idProdMap.set(String(pidNum), { title: nm, brand: br });
+      }
+      if (Number.isFinite(skuHash)) {
+        idProdMap.set(String(skuHash), { title: nm, brand: br });
+      }
+    }
+  } catch {}
   try {
     console.log(`📦 Товаров загружено: ${allProdMap.size}`);
     let shown = 0;
@@ -165,11 +210,21 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
         let name: string;
         if (prod) {
           name = formatProductName(prod as any);
-        } else if (it.name) {
+        } else {
+          let byId = null as { title: string; brand?: string | null } | null;
+          for (const k of keysToTry) {
+            const cand2 = idProdMap.get(String(k));
+            if (cand2) { byId = cand2; break; }
+          }
+          if (byId) {
+            const brandPart = byId.brand ? `${String(byId.brand).toUpperCase()} · ` : "";
+            name = `${brandPart}${byId.title}`;
+          } else if (it.name) {
           const brandPart = it.brand ? `${String(it.brand).toUpperCase()} · ` : "";
           name = `${brandPart}${String(it.name)}`;
-        } else {
-          name = `#${pid}`;
+          } else {
+            name = `#${pid}`;
+          }
         }
         const qty = Number(it.qty ?? it.quantity ?? 0);
         console.log(`\n    Товар:`);
