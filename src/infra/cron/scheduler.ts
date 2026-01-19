@@ -115,6 +115,24 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
     total_with_discount: Number(totalIdxO>=0 ? r[totalIdxO]||0 : 0)
   }));
   const allProdMap = await getProductsMap(sheetCity);
+  try {
+    console.log(`📦 Товаров загружено: ${allProdMap.size}`);
+    let shown = 0;
+    for (const [key, product] of allProdMap.entries()) {
+      if (shown < 5) {
+        console.log(`  Ключ: ${String(key)} (${typeof key}) → ${formatProductName(product as any)}`);
+        shown++;
+      } else {
+        break;
+      }
+    }
+    const testIds = [3204076806, 2655319381, 3204076800];
+    for (const tid of testIds) {
+      const foundNum = allProdMap.get(tid as any);
+      const foundStr = allProdMap.get(String(tid));
+      console.log(`🔍 ID ${tid}: get(${tid})=${!!foundNum} get("${tid}")=${!!foundStr}`);
+    }
+  } catch {}
   const stats: Map<string, number> = new Map();
   let itemsTotal = 0;
   console.log("\n═══ ПАРСИНГ ТОВАРОВ ═══");
@@ -137,41 +155,19 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
       }
       for (const it of items) {
         const pid = normalizeProductId(it.product_id ?? it.id);
-        let prod: any = allProdMap.get(pid);
-        const rawIdNum = Number(it.product_id ?? it.id);
-        if (!prod && Number.isFinite(rawIdNum) && rawIdNum < 1000) {
-          try {
-            const old = db.prepare("SELECT id, name, brand FROM old_products WHERE id=?").get(String(rawIdNum)) as any;
-            if (old) prod = { title: old.name, brand: old.brand };
-          } catch {}
+        const keysToTry = [pid, String(pid), String(Number(pid)), String(String(pid)).toLowerCase()];
+        let prod: any = null;
+        for (const k of keysToTry) {
+          const cand = allProdMap.get(k);
+          if (cand) { prod = cand; break; }
         }
-        if (!prod) {
-          try {
-            const row = db.prepare("SELECT id, title AS name, brand FROM products WHERE id=? OR product_id=? UNION SELECT id, name, brand FROM old_products WHERE id=?").get(String(pid), String(pid), String(pid)) as any;
-            if (row) prod = { title: row.name, brand: row.brand };
-          } catch {}
-        }
+        console.log(`      В карте (${allProdMap.size} товаров): ${!!prod}`);
         const name = prod ? formatProductName(prod as any) : `#${pid}`;
         const qty = Number(it.qty ?? it.quantity ?? 0);
         console.log(`\n    Товар:`);
         console.log(`      raw item:`, it);
-        console.log(`      raw_id: ${String(it.product_id ?? it.id)}`);
         console.log(`      normalized_id: ${pid}`);
         console.log(`      В карте (${allProdMap.size} товаров): ${!!prod}`);
-        if (!prod) {
-          console.log(`      Ищу в SQLite...`);
-          try {
-            const row = db.prepare("SELECT id, title AS name, brand FROM products WHERE id=? OR product_id=?").get(String(pid), String(pid)) as any;
-            if (row) {
-              console.log(`      В SQLite: true`);
-              console.log(`      Данные:`, row);
-            } else {
-              console.log(`      В SQLite: false`);
-            }
-          } catch (e) {
-            console.log(`      Ошибка SQLite:`, String(e));
-          }
-        }
         console.log(`      Название: ${name}`);
         console.log(`      Количество: ${qty}`);
         stats.set(name, (stats.get(name) || 0) + qty);
