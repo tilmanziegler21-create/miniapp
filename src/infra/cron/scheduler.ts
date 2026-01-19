@@ -68,14 +68,57 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   } catch {}
   const effectiveOffers = Math.max(upsellOffered - upsellRerolls, 1);
   const conv = Math.round((upsellAccepted / effectiveOffers) * 1000) / 10;
-  // Recompute items block based on delivered orders in SQLite
-  const deliveredOrders = db
-    .prepare(
-      "SELECT items_json FROM orders WHERE status='delivered' AND ((delivered_at_ms >= ? AND delivered_at_ms < ?) OR (delivered_at_ms IS NULL AND substr(delivered_timestamp,1,10)=?))"
+  // Diagnostic: list all delivered orders for the day
+  const allDelivered = db.prepare(`
+    SELECT order_id, status, delivery_date, delivered_timestamp, delivered_at_ms, total_with_discount, items_json
+    FROM orders
+    WHERE status='delivered'
+    AND (
+      (delivered_at_ms IS NOT NULL AND delivered_at_ms >= ? AND delivered_at_ms < ?)
+      OR (delivered_at_ms IS NULL AND substr(delivered_timestamp,1,10)=?)
     )
-    .all(start, end, today) as any[];
-  const prodMap = await getProductsMap(shopConfig.cityCode);
+  `).all(start, end, today) as any[];
+  console.log("═══════════════════════════════");
+  console.log(`📊 ВСЕ delivered за ${today}:`);
+  console.log(`  Найдено: ${allDelivered.length} заказов`);
+  let totalCheck = 0;
+  let itemsCheck = 0;
+  for (const o of allDelivered) {
+    let itemsArr: any[] = [];
+    try {
+      const parsed = JSON.parse(String(o.items_json || "[]"));
+      if (Array.isArray(parsed)) itemsArr = parsed;
+    } catch {}
+    totalCheck += Number(o.total_with_discount || 0);
+    itemsCheck += itemsArr.length;
+    console.log(`  Order #${o.order_id}:`);
+    console.log(`    Сумма: ${Number(o.total_with_discount || 0)}€`);
+    console.log(`    Товаров: ${itemsArr.length}`);
+    console.log(`    delivered_timestamp: ${String(o.delivered_timestamp || "")}`);
+  }
+  console.log(`  ИТОГО: ${totalCheck}€, ${itemsCheck} товаров`);
+  console.log("═══════════════════════════════");
+
+  // Recompute items block and totals based on delivered orders
+  const deliveredOrders = allDelivered;
+  // Load products across cities
+  const allProdMap = new Map<string, any>();
+  const cityCodes = (process.env.CITY_CODES || shopConfig.cityCode || "FFM").split(",").map(s=>s.trim()).filter(Boolean);
+  for (const code of cityCodes) {
+    try {
+      console.log(`📦 Загружаю товары ${code}...`);
+      const m = await getProductsMap(code);
+      for (const [k, v] of m.entries()) {
+        if (!allProdMap.has(k)) allProdMap.set(k, v);
+      }
+      console.log(`  ✅ ${m.size} товаров`);
+    } catch (e) {
+      console.log(`  ❌ Ошибка загрузки карты товаров для ${code}:`, String(e));
+    }
+  }
   const stats: Map<string, number> = new Map();
+  let ordersCount = deliveredOrders.length;
+  let revenueSum = 0;
   for (const r of deliveredOrders) {
     try {
       let items: any[] = [];
@@ -85,11 +128,18 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
       } catch {}
       for (const it of items) {
         const pid = normalizeProductId(it.product_id ?? it.id);
-        const prod = prodMap.get(pid);
+        let prod = allProdMap.get(pid);
+        if (!prod) {
+          try {
+            const row = db.prepare("SELECT title AS name, brand FROM products WHERE product_id = ? OR id = ?").get(String(pid), String(pid)) as any;
+            if (row) prod = { title: row.name, brand: row.brand };
+          } catch {}
+        }
         const name = prod ? formatProductName(prod) : `#${pid}`;
         const qty = Number(it.qty ?? it.quantity ?? 0);
         stats.set(name, (stats.get(name) || 0) + qty);
       }
+      revenueSum += Number(r.total_with_discount || 0);
     } catch {}
   }
   const itemsBlock =
@@ -98,14 +148,12 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
       .map(([name, count]) => `• ${name}: ${count} шт`)
       .join("\n") || "(нет данных)";
   const summary = [
-    `📊 Отчёт за сегодня (${report.date})`,
+    `📊 Отчёт за сегодня (${today})`,
     ``,
     `🏪 Магазин: ${shopConfig.shopName}`,
     `🏙 Город: ${shopConfig.cityCode}`,
-    `📦 Заказов: ${report.orders}`,
-    `💰 Выручка: ${report.revenue.toFixed(2)}€`,
-    `💵 Доля (5%): ${report.yourShare.toFixed(2)}€`,
-    `🔥 Топ товар: ${report.topItem}`,
+    `📦 Заказов: ${ordersCount}`,
+    `💰 Выручка: ${revenueSum.toFixed(2)}€`,
     ``,
     `💳 Способы оплаты:`,
     `Cash: ${cash.toFixed(2)}€`,
@@ -154,16 +202,24 @@ export async function sendDailySummary() {
         const st = String(statusIdx>=0 ? r[statusIdx]||"" : "").toLowerCase();
         return d===today && st==="delivered";
       });
-      const products = await getProducts();
-      const map: Record<number, { qty: number; sum: number; title: string; brand: string }> = {};
+      const cityCodes = (process.env.CITY_CODES || shopConfig.cityCode || "FFM").split(",").map(s=>s.trim()).filter(Boolean);
+      const prodGlobal = new Map<string, any>();
+      for (const code of cityCodes) {
+        try {
+          const m = await getProductsMap(code);
+          for (const [k, v] of m.entries()) if (!prodGlobal.has(k)) prodGlobal.set(k, v);
+        } catch {}
+      }
+      const map: Record<string, { qty: number; sum: number; title: string; brand: string }> = {};
       for (const r of deliveredRows) {
         const itemsJson = String(itemsIdx>=0 ? r[itemsIdx]||"[]" : "[]");
         try {
           const items = JSON.parse(itemsJson) as Array<{ product_id: number; qty: number; price: number }>;
           for (const it of items) {
-            const p = products.find(x=>x.product_id===it.product_id);
-            const key = it.product_id;
-            const cur = map[key] || { qty: 0, sum: 0, title: p ? p.title : `#${key}`, brand: p?.brand || "" };
+            const key = normalizeProductId(it.product_id);
+            const p = prodGlobal.get(key);
+            const title = p ? formatProductName(p) : `#${key}`;
+            const cur = map[key] || { qty: 0, sum: 0, title, brand: p?.brand || "" };
             cur.qty += Number(it.qty||0);
             cur.sum += Number(it.price||0) * Number(it.qty||0);
             map[key] = cur;
