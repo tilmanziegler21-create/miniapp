@@ -159,7 +159,9 @@ async function syncOrdersFromSheets(courierId?: number, cityCode?: string) {
       for (const n of names) { const i = headers.indexOf(n); if (i >= 0) return i; }
       return -1;
     };
-    const idIdx = idx("order_id");
+    const idCandidates = headers.map((h, i) => ({ h: String(h).toLowerCase(), i })).filter(x => x.h === "order_id").map(x => x.i);
+    const idIdx = idCandidates.length ? idCandidates[idCandidates.length - 1] : idx("order_id");
+    try { console.log("📋 order_id indices:", idCandidates, "→ using:", idIdx); } catch {}
     const userIdx = (idx("user_id") >= 0 ? idx("user_id") : idx("user_tg_id"));
     const usernameIdx = idx("username");
     const statusIdx = idx("status");
