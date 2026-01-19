@@ -23,19 +23,42 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
     : new Intl.DateTimeFormat("sv-SE", { timeZone: tz }).format(new Date());
   const start = Date.parse(`${today}T00:00:00.000Z`);
   const end = start + 86400000;
-  const rs = new ReportService();
-  const report = await rs.getTodayReport(shopConfig.cityCode);
-  const pay = db
-    .prepare(
-      "SELECT payment_method, SUM(total_with_discount) AS sum FROM orders WHERE status='delivered' AND ((delivered_at_ms >= ? AND delivered_at_ms < ?) OR (delivered_at_ms IS NULL AND substr(delivered_timestamp,1,10)=?)) GROUP BY payment_method"
-    )
-    .all(start, end, today) as any[];
-  const cash = Number(
-    (pay.find((x) => String(x.payment_method || "").toLowerCase() === "cash")?.sum) || 0
-  );
-  const card = Number(
-    (pay.find((x) => String(x.payment_method || "").toLowerCase() === "card")?.sum) || 0
-  );
+  const sheetCity = shopConfig.cityCode;
+  const sheetName = (process.env.GOOGLE_SHEETS_MODE === "TABS_PER_CITY") ? `orders_${sheetCity}` : "orders";
+  const vrOrders = await batchGet([`${sheetName}!A:Z`]);
+  const valuesOrders = vrOrders[0]?.values || [];
+  const headersOrders = valuesOrders[0] || [];
+  const rowsOrders = valuesOrders.slice(1);
+  const idxO = (n: string) => headersOrders.indexOf(n);
+  const idxOCI = (...names: string[]) => {
+    const lowered = names.map((n) => n.toLowerCase());
+    for (let i = 0; i < headersOrders.length; i++) {
+      const h = String(headersOrders[i] || "").toLowerCase();
+      if (lowered.includes(h)) return i;
+    }
+    return -1;
+  };
+  const idIdxO = idxOCI("order_id","order id","orderid","id");
+  const statusIdxO = idxOCI("status");
+  const deliveredAtIdxO = idxOCI("delivered_at","delivered timestamp");
+  const totalIdxO = idxOCI("total_amount","total");
+  const itemsIdxO = idxOCI("items_json","items");
+  const paymentIdxO = idxOCI("payment_method","payment");
+  const deliveredSheetRows = rowsOrders.filter(r => {
+    const st = String(statusIdxO>=0 ? r[statusIdxO]||"" : "").toLowerCase();
+    const d = String(deliveredAtIdxO>=0 ? r[deliveredAtIdxO]||"" : "");
+    const dayPart = d.slice(0,10);
+    return st==="delivered" && dayPart===today;
+  });
+  let ordersCount = deliveredSheetRows.length;
+  let revenueSum = 0;
+  let cashSum = 0, cardSum = 0;
+  for (const r of deliveredSheetRows) {
+    const total = Number(totalIdxO>=0 ? r[totalIdxO]||0 : 0);
+    revenueSum += total;
+    const pm = String(paymentIdxO>=0 ? r[paymentIdxO]||"" : "").toLowerCase();
+    if (pm === "card") cardSum += total; else cashSum += total;
+  }
   let upsellOffered = 0,
     upsellAccepted = 0,
     upsellRerolls = 0,
@@ -71,91 +94,19 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   } catch {}
   const effectiveOffers = Math.max(upsellOffered - upsellRerolls, 1);
   const conv = Math.round((upsellAccepted / effectiveOffers) * 1000) / 10;
-  // Diagnostic: list all delivered orders for the day
-  const allDeliveredRaw = db.prepare(`
-    SELECT order_id, status, delivery_date, delivered_timestamp, delivered_at_ms, total_with_discount, items_json
-    FROM orders
-    WHERE status='delivered'
-    AND (
-      (delivered_at_ms IS NOT NULL AND delivered_at_ms >= ? AND delivered_at_ms < ?)
-      OR (delivered_at_ms IS NULL AND substr(delivered_timestamp,1,10)=?)
-    )
-  `).all(start, end, today) as any[];
-  const isOnLocalDay = (o: any) => {
-    const dms = Number(o.delivered_at_ms || 0);
-    if (Number.isFinite(dms) && dms > 0) {
-      const d = new Intl.DateTimeFormat("sv-SE", { timeZone: tz }).format(new Date(dms));
-      return d === today;
-    }
-    const ts = String(o.delivered_timestamp || "");
-    if (ts) return ts.slice(0, 10) === today;
-    const dd = String(o.delivery_date || "");
-    if (dd) return dd === today;
-    return false;
-  };
-  const allDelivered = allDeliveredRaw.filter(isOnLocalDay);
   console.log("═══════════════════════════════");
-  console.log(`📊 ВСЕ delivered за ${today}:`);
-  console.log(`  Найдено: ${allDelivered.length} заказов`);
-  let totalCheck = 0;
-  let itemsCheck = 0;
-  for (const o of allDelivered) {
-    let itemsArr: any[] = [];
-    try {
-      const parsed = JSON.parse(String(o.items_json || "[]"));
-      if (Array.isArray(parsed)) itemsArr = parsed;
-    } catch {}
-    totalCheck += Number(o.total_with_discount || 0);
-    itemsCheck += itemsArr.length;
-    console.log(`  Order #${o.order_id}:`);
-    console.log(`    Сумма: ${Number(o.total_with_discount || 0)}€`);
-    console.log(`    Товаров: ${itemsArr.length}`);
-    console.log(`    delivered_timestamp: ${String(o.delivered_timestamp || "")}`);
-  }
-  console.log(`  ИТОГО: ${totalCheck}€, ${itemsCheck} товаров`);
+  console.log(`📊 Delivered из Sheets (${sheetName}) за ${today}: ${ordersCount}`);
   console.log("═══════════════════════════════");
-  console.log(`🔍 SQL: SUBSTR(delivered_timestamp, 1, 10) = '${today}'`);
-  const ordersSubstr = db.prepare(`
-    SELECT order_id, delivered_timestamp, total_with_discount
-    FROM orders
-    WHERE status='delivered'
-    AND SUBSTR(delivered_timestamp, 1, 10) = ?
-  `).all(today) as any[];
-  console.log(`✅ Найдено по SUBSTR: ${ordersSubstr.length}`);
-  if (!ordersSubstr.length) {
-    const examples = db.prepare(`
-      SELECT order_id, status, delivered_timestamp, SUBSTR(delivered_timestamp,1,10) AS date_part
-      FROM orders
-      WHERE status='delivered'
-      ORDER BY delivered_timestamp DESC
-      LIMIT 3
-    `).all() as any[];
-    console.log("📋 Примеры delivered в БД:");
-    for (const ex of examples) {
-      console.log(`  #${ex.order_id}: ${ex.delivered_timestamp} → SUBSTR=${ex.date_part}`);
-    }
-  }
 
   // Recompute items block and totals based on delivered orders
-  const deliveredOrders = allDelivered;
-  // Load products across cities
-  const allProdMap = new Map<string, any>();
-  const cityCodes = (process.env.CITY_CODES || shopConfig.cityCode || "FFM").split(",").map(s=>s.trim()).filter(Boolean);
-  for (const code of cityCodes) {
-    try {
-      console.log(`📦 Загружаю товары ${code}...`);
-      const m = await getProductsMap(code);
-      for (const [k, v] of m.entries()) {
-        if (!allProdMap.has(k)) allProdMap.set(k, v);
-      }
-      console.log(`  ✅ ${m.size} товаров`);
-    } catch (e) {
-      console.log(`  ❌ Ошибка загрузки карты товаров для ${code}:`, String(e));
-    }
-  }
+  const deliveredOrders = deliveredSheetRows.map(r => ({
+    order_id: String(idIdxO>=0 ? r[idIdxO]||"" : ""),
+    items_json: String(itemsIdxO>=0 ? r[itemsIdxO]||"[]" : "[]"),
+    total_with_discount: Number(totalIdxO>=0 ? r[totalIdxO]||0 : 0)
+  }));
+  const allProdMap = await getProductsMap(sheetCity);
   const stats: Map<string, number> = new Map();
-  let ordersCount = deliveredOrders.length;
-  let revenueSum = 0;
+  let itemsTotal = 0;
   for (const r of deliveredOrders) {
     try {
       let items: any[] = [];
@@ -165,18 +116,12 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
       } catch {}
       for (const it of items) {
         const pid = normalizeProductId(it.product_id ?? it.id);
-        let prod = allProdMap.get(pid);
-        if (!prod) {
-          try {
-            const row = db.prepare("SELECT title AS name, brand FROM products WHERE product_id = ? OR id = ?").get(String(pid), String(pid)) as any;
-            if (row) prod = { title: row.name, brand: row.brand };
-          } catch {}
-        }
+        const prod = allProdMap.get(pid);
         const name = prod ? formatProductName(prod) : `#${pid}`;
         const qty = Number(it.qty ?? it.quantity ?? 0);
         stats.set(name, (stats.get(name) || 0) + qty);
+        itemsTotal += qty;
       }
-      revenueSum += Number(r.total_with_discount || 0);
     } catch {}
   }
   const itemsBlock =
@@ -193,8 +138,8 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
     `💰 Выручка: ${revenueSum.toFixed(2)}€`,
     ``,
     `💳 Способы оплаты:`,
-    `Cash: ${cash.toFixed(2)}€`,
-    `Card: ${card.toFixed(2)}€`,
+    `Cash: ${cashSum.toFixed(2)}€`,
+    `Card: ${cardSum.toFixed(2)}€`,
     ``,
     `🎲 Upsell (геймификация):`,
     `Предложено: ${upsellOffered}`,
