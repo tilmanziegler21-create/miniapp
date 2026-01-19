@@ -65,6 +65,39 @@ export function registerAdminFlow(bot: TelegramBot) {
       await bot.sendMessage(msg.chat.id, `❌ Ошибка: ${e.message || e}`);
     }
   });
+  bot.onText(/\/debug_products(?:\s+([A-Z]+))?/, async (msg, match) => {
+    const adminIds = process.env.TELEGRAM_ADMIN_IDS?.split(',') || [];
+    if (!adminIds.includes(msg.from?.id.toString() || '')) return;
+    const city = (match?.[1] || shopConfig.cityCode || "FFM").trim();
+    const sheet = `products_${city}`;
+    try {
+      await bot.sendMessage(msg.chat.id, `🔍 Читаю ${sheet}...`);
+      const vr = await batchGet([`${sheet}!A:Z`]);
+      const values = vr[0]?.values || [];
+      if (!values.length) {
+        await bot.sendMessage(msg.chat.id, `⚠️ ${sheet} пустая`);
+        return;
+      }
+      const headers = values[0] || [];
+      await bot.sendMessage(msg.chat.id, `📋 Колонки: ${headers.join(" | ")}`);
+      const idIdx = headers.indexOf("id")>=0?headers.indexOf("id")
+        : (headers.indexOf("product_id")>=0?headers.indexOf("product_id"):-1);
+      const skuIdx = headers.indexOf("sku");
+      const nameIdx = headers.indexOf("name")>=0?headers.indexOf("name")
+        : (headers.indexOf("title")>=0?headers.indexOf("title"):-1);
+      let lines: string[] = [];
+      for (let i = 1; i < Math.min(values.length, 6); i++) {
+        const r = values[i] || [];
+        const id = idIdx>=0 ? r[idIdx] : "";
+        const sku = skuIdx>=0 ? r[skuIdx] : "";
+        const nm = nameIdx>=0 ? r[nameIdx] : "";
+        lines.push(`ID: ${id} → SKU: ${sku} → Name: ${nm}`);
+      }
+      await bot.sendMessage(msg.chat.id, lines.join("\n") || "(нет строк)");
+    } catch (e: any) {
+      await bot.sendMessage(msg.chat.id, `❌ Ошибка: ${e.message||e}`);
+    }
+  });
 
   bot.on("message", async (msg) => {
     if (!isAdmin(msg.from?.id || 0)) return;
