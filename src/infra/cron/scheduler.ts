@@ -107,6 +107,7 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   const allProdMap = await getProductsMap(sheetCity);
   const stats: Map<string, number> = new Map();
   let itemsTotal = 0;
+  console.log("\n═══ ПАРСИНГ ТОВАРОВ ═══");
   for (const r of deliveredOrders) {
     try {
       let items: any[] = [];
@@ -114,16 +115,64 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
         const parsed = JSON.parse(String(r.items_json || "[]"));
         if (Array.isArray(parsed)) items = parsed;
       } catch {}
+      console.log(`\n📦 Заказ #${r.order_id}:`);
+      console.log(`  items_json длина: ${String(r.items_json||"").length} символов`);
+      console.log(`  items_json: ${String(r.items_json||"").substring(0,100)}...`);
+      console.log(`  ✅ Парсинг OK`);
+      console.log(`  Тип: ${Array.isArray(items) ? "массив" : typeof items}`);
+      console.log(`  Товаров в массиве: ${items.length}`);
+      if (!Array.isArray(items)) {
+        console.log(`  ❌ Не массив - пропускаю`);
+        continue;
+      }
       for (const it of items) {
         const pid = normalizeProductId(it.product_id ?? it.id);
         const prod = allProdMap.get(pid);
         const name = prod ? formatProductName(prod) : `#${pid}`;
         const qty = Number(it.qty ?? it.quantity ?? 0);
+        console.log(`\n    Товар:`);
+        console.log(`      raw item:`, it);
+        console.log(`      raw_id: ${String(it.product_id ?? it.id)}`);
+        console.log(`      normalized_id: ${pid}`);
+        console.log(`      В карте (${allProdMap.size} товаров): ${!!prod}`);
+        if (!prod) {
+          console.log(`      Ищу в SQLite...`);
+          try {
+            const row = db.prepare("SELECT id, title AS name, brand FROM products WHERE id=? OR product_id=?").get(String(pid), String(pid)) as any;
+            if (row) {
+              console.log(`      В SQLite: true`);
+              console.log(`      Данные:`, row);
+            } else {
+              console.log(`      В SQLite: false`);
+            }
+          } catch (e) {
+            console.log(`      Ошибка SQLite:`, String(e));
+          }
+        }
+        console.log(`      Название: ${name}`);
+        console.log(`      Количество: ${qty}`);
         stats.set(name, (stats.get(name) || 0) + qty);
         itemsTotal += qty;
+        if (stats.has(name)) {
+          const cur = stats.get(name)!;
+          console.log(`      Добавлено к существующему: ${cur}`);
+        } else {
+          console.log(`      Создана новая запись`);
+        }
       }
     } catch {}
   }
+  console.log('\n═══════════════════════════════');
+  console.log(`📊 ИТОГО товаров в статистике: ${stats.size}`);
+  if (stats.size > 0) {
+    console.log('📋 Список:');
+    for (const [name, count] of stats.entries()) {
+      console.log(`  ${name}: ${count} шт`);
+    }
+  } else {
+    console.log('⚠️ НЕТ ТОВАРОВ!');
+  }
+  console.log('═══════════════════════════════\n');
   const itemsBlock =
     Array.from(stats.entries())
       .sort((a, b) => b[1] - a[1])
