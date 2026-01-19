@@ -38,12 +38,22 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
     }
     return -1;
   };
+  console.log("📋 HEADERS:", headersOrders);
   const idIdxO = idxOCI("order_id","order id","orderid","id");
   const statusIdxO = idxOCI("status");
   const deliveredAtIdxO = idxOCI("delivered_at","delivered timestamp");
   const totalIdxO = idxOCI("total_amount","total");
-  const itemsIdxO = idxOCI("items_json","items");
+  const itemsIdxO = (() => {
+    let i = idxOCI("items_json","items (json)","items");
+    if (i >= 0) return i;
+    for (let j = 0; j < headersOrders.length; j++) {
+      const h = String(headersOrders[j] || "").toLowerCase();
+      if (h.includes("items")) return j;
+    }
+    return -1;
+  })();
   const paymentIdxO = idxOCI("payment_method","payment");
+  console.log(`📋 Индекс колонки items: ${itemsIdxO}`);
   const deliveredSheetRows = rowsOrders.filter(r => {
     const st = String(statusIdxO>=0 ? r[statusIdxO]||"" : "").toLowerCase();
     const d = String(deliveredAtIdxO>=0 ? r[deliveredAtIdxO]||"" : "");
@@ -127,8 +137,21 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
       }
       for (const it of items) {
         const pid = normalizeProductId(it.product_id ?? it.id);
-        const prod = allProdMap.get(pid);
-        const name = prod ? formatProductName(prod) : `#${pid}`;
+        let prod: any = allProdMap.get(pid);
+        const rawIdNum = Number(it.product_id ?? it.id);
+        if (!prod && Number.isFinite(rawIdNum) && rawIdNum < 1000) {
+          try {
+            const old = db.prepare("SELECT id, name, brand FROM old_products WHERE id=?").get(String(rawIdNum)) as any;
+            if (old) prod = { title: old.name, brand: old.brand };
+          } catch {}
+        }
+        if (!prod) {
+          try {
+            const row = db.prepare("SELECT id, title AS name, brand FROM products WHERE id=? OR product_id=? UNION SELECT id, name, brand FROM old_products WHERE id=?").get(String(pid), String(pid), String(pid)) as any;
+            if (row) prod = { title: row.name, brand: row.brand };
+          } catch {}
+        }
+        const name = prod ? formatProductName(prod as any) : `#${pid}`;
         const qty = Number(it.qty ?? it.quantity ?? 0);
         console.log(`\n    Товар:`);
         console.log(`      raw item:`, it);
