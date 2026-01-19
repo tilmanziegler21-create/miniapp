@@ -162,7 +162,15 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
           if (cand) { prod = cand; break; }
         }
         console.log(`      В карте (${allProdMap.size} товаров): ${!!prod}`);
-        const name = prod ? formatProductName(prod as any) : `#${pid}`;
+        let name: string;
+        if (prod) {
+          name = formatProductName(prod as any);
+        } else if (it.name) {
+          const brandPart = it.brand ? `${String(it.brand).toUpperCase()} · ` : "";
+          name = `${brandPart}${String(it.name)}`;
+        } else {
+          name = `#${pid}`;
+        }
         const qty = Number(it.qty ?? it.quantity ?? 0);
         console.log(`\n    Товар:`);
         console.log(`      raw item:`, it);
