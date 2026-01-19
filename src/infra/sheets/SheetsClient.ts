@@ -162,7 +162,26 @@ function columnLetter(n: number) {
 }
 
 export async function getProducts(): Promise<Product[]> {
-  const { headers, rows } = await readSheet("products");
+  const now = Date.now();
+  // simple in-memory cache for products
+  // reuse within SHEETS_CACHE_TTL_SECONDS to avoid hitting read quota
+  const ttlMs = (env.SHEETS_CACHE_TTL_SECONDS || 300) * 1000;
+  // @ts-ignore
+  const globalAny = global as any;
+  if (!globalAny.__products_cache) globalAny.__products_cache = { ts: 0, data: null as null | { headers: string[]; rows: string[][] } };
+  const cached = globalAny.__products_cache;
+  let headers: string[] = [];
+  let rows: string[][] = [];
+  if (cached.data && (now - cached.ts) < ttlMs) {
+    headers = cached.data.headers;
+    rows = cached.data.rows;
+  } else {
+    const res = await readSheet("products");
+    headers = res.headers;
+    rows = res.rows;
+    cached.ts = now;
+    cached.data = { headers, rows };
+  }
   const idIdx = headerIndexAny(headers, ["product_id", "sku", "id"]);
   const titleIdx = headerIndexAny(headers, ["title", "name"]);
   const priceIdx = headerIndexAny(headers, ["price"]);

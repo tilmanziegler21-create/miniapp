@@ -159,10 +159,22 @@ async function syncOrdersFromSheets(courierId?: number, cityCode?: string) {
       for (const n of names) { const i = headers.indexOf(n); if (i >= 0) return i; }
       return -1;
     };
-    const idCandidates = headers.map((h, i) => ({ h: String(h).toLowerCase(), i })).filter(x => x.h === "order_id").map(x => x.i);
-    const idIdx = idCandidates.length ? idCandidates[idCandidates.length - 1] : idx("order_id");
-    try { console.log("📋 order_id indices:", idCandidates, "→ using:", idIdx); } catch {}
-    const userIdx = (idx("user_id") >= 0 ? idx("user_id") : idx("user_tg_id"));
+    const idxCI = (...names: string[]) => {
+      const lowered = names.map((n) => n.toLowerCase());
+      for (let i = 0; i < headers.length; i++) {
+        const h = String(headers[i] || "").toLowerCase();
+        if (lowered.includes(h)) return i;
+      }
+      return -1;
+    };
+    const idIdx = (() => {
+      const i = idxCI("order_id", "order id", "orderid", "id");
+      return i >= 0 ? i : 0; // fallback: A колонка
+    })();
+    const userIdx = (() => {
+      const i = idxCI("user_id", "user id", "userid", "user_tg_id", "tg_id", "telegram_id", "chat_id");
+      return i >= 0 ? i : 1; // fallback: B колонка
+    })();
     const usernameIdx = idx("username");
     const statusIdx = idx("status");
     const dateIdx = idx("delivery_date");
@@ -317,8 +329,12 @@ async function refreshCourierPanel(bot: TelegramBot, chatId: number, messageId: 
   for (const r of rows) {
     if (!r.username) {
       try {
-        const uname = await loadUsername(Number(r.user_id || 0), bot);
-        r.username = uname?.startsWith("@") ? uname.slice(1) : null;
+        const chat = await bot.getChat(Number(r.user_id || 0));
+        const uname = chat?.username || null;
+        if (uname) {
+          r.username = String(uname);
+          try { db.prepare("INSERT INTO users(user_id, username) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET username=?").run(Number(r.user_id), uname, uname); } catch {}
+        }
       } catch {}
     }
   }
@@ -333,11 +349,11 @@ async function refreshCourierPanel(bot: TelegramBot, chatId: number, messageId: 
   const months = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
   const fmtDate = (s: string) => { try { const d = new Date(s); return `${d.getDate()} ${months[d.getMonth()]}`; } catch { return s; } };
   const mk = (r: any) => {
-    const uname = r.username ? `@${r.username}` : "Клиент";
+    const uname = r.username ? `<a href="https://t.me/${r.username}">@${r.username}</a>` : `<a href="tg://user?id=${r.user_id}">Клиент</a>`;
     const it = itemsText(String(r.items_json||"[]"), products, pmapProducts);
     const time = String(r.delivery_exact_time||"").split(" ").pop() || "?";
     const total = Number(r.total_with_discount||0).toFixed(2);
-    return `📦 #${r.order_id} ${uname} · ${time}\n${it}\n💰 ${total}€`;
+    return `📦 <b>#${r.order_id}</b> ${uname} · ${time}\n${it}\n💰 <b>${total}€</b>`;
   };
   const lines: string[] = [];
   const addSec = (title: string, date: string) => {
@@ -363,7 +379,7 @@ async function refreshCourierPanel(bot: TelegramBot, chatId: number, messageId: 
   keyboard.push([{ text: "🏠 Главное меню", callback_data: encodeCb("back:main") }]);
   try {
     if (messageId) {
-      await bot.editMessageText(lines.join("\n"), { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: keyboard } });
+      await bot.editMessageText(lines.join("\n"), { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: keyboard }, parse_mode: "HTML" });
       lastPanelMessageId.set(courierId, messageId);
       savePanelMessageId(courierId, chatId, messageId);
       return messageId;
@@ -371,7 +387,7 @@ async function refreshCourierPanel(bot: TelegramBot, chatId: number, messageId: 
     const saved = getPanelMessageId(courierId);
     if (saved) {
       try {
-        await bot.editMessageText(lines.join("\n"), { chat_id: saved.chatId, message_id: saved.messageId, reply_markup: { inline_keyboard: keyboard } });
+        await bot.editMessageText(lines.join("\n"), { chat_id: saved.chatId, message_id: saved.messageId, reply_markup: { inline_keyboard: keyboard }, parse_mode: "HTML" });
         lastPanelMessageId.set(courierId, saved.messageId);
         savePanelMessageId(courierId, saved.chatId, saved.messageId);
         return saved.messageId;
@@ -379,7 +395,7 @@ async function refreshCourierPanel(bot: TelegramBot, chatId: number, messageId: 
         deletePanelMessageId(courierId);
       }
     }
-    const msg = await bot.sendMessage(chatId, lines.join("\n"), { reply_markup: { inline_keyboard: keyboard } });
+    const msg = await bot.sendMessage(chatId, lines.join("\n"), { reply_markup: { inline_keyboard: keyboard }, parse_mode: "HTML" });
     lastPanelMessageId.set(courierId, msg.message_id);
     savePanelMessageId(courierId, chatId, msg.message_id);
     return msg.message_id;
@@ -391,7 +407,7 @@ async function refreshCourierPanel(bot: TelegramBot, chatId: number, messageId: 
       } catch {}
       deletePanelMessageId(courierId);
     }
-    const msg = await bot.sendMessage(chatId, lines.join("\n"), { reply_markup: { inline_keyboard: keyboard } });
+    const msg = await bot.sendMessage(chatId, lines.join("\n"), { reply_markup: { inline_keyboard: keyboard }, parse_mode: "HTML" });
     lastPanelMessageId.set(courierId, msg.message_id);
     savePanelMessageId(courierId, chatId, msg.message_id);
     return msg.message_id;
