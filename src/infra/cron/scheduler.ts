@@ -17,7 +17,10 @@ import { getProductsMap, normalizeProductId, formatProductName } from "../../uti
 
 export async function generateDailySummaryText(dateOverride?: string): Promise<string> {
   const db = getDb();
-  const today = (dateOverride && /^\d{4}-\d{2}-\d{2}$/.test(dateOverride)) ? dateOverride : new Date().toISOString().slice(0, 10);
+  const tz = process.env.TIMEZONE || "Europe/Berlin";
+  const today = (dateOverride && /^\d{4}-\d{2}-\d{2}$/.test(dateOverride))
+    ? dateOverride
+    : new Intl.DateTimeFormat("sv-SE", { timeZone: tz }).format(new Date());
   const start = Date.parse(`${today}T00:00:00.000Z`);
   const end = start + 86400000;
   const rs = new ReportService();
@@ -69,7 +72,7 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   const effectiveOffers = Math.max(upsellOffered - upsellRerolls, 1);
   const conv = Math.round((upsellAccepted / effectiveOffers) * 1000) / 10;
   // Diagnostic: list all delivered orders for the day
-  const allDelivered = db.prepare(`
+  const allDeliveredRaw = db.prepare(`
     SELECT order_id, status, delivery_date, delivered_timestamp, delivered_at_ms, total_with_discount, items_json
     FROM orders
     WHERE status='delivered'
@@ -78,6 +81,19 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
       OR (delivered_at_ms IS NULL AND substr(delivered_timestamp,1,10)=?)
     )
   `).all(start, end, today) as any[];
+  const isOnLocalDay = (o: any) => {
+    const dms = Number(o.delivered_at_ms || 0);
+    if (Number.isFinite(dms) && dms > 0) {
+      const d = new Intl.DateTimeFormat("sv-SE", { timeZone: tz }).format(new Date(dms));
+      return d === today;
+    }
+    const ts = String(o.delivered_timestamp || "");
+    if (ts) return ts.slice(0, 10) === today;
+    const dd = String(o.delivery_date || "");
+    if (dd) return dd === today;
+    return false;
+  };
+  const allDelivered = allDeliveredRaw.filter(isOnLocalDay);
   console.log("═══════════════════════════════");
   console.log(`📊 ВСЕ delivered за ${today}:`);
   console.log(`  Найдено: ${allDelivered.length} заказов`);
