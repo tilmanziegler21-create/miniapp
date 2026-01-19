@@ -114,6 +114,27 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   }
   console.log(`  ИТОГО: ${totalCheck}€, ${itemsCheck} товаров`);
   console.log("═══════════════════════════════");
+  console.log(`🔍 SQL: SUBSTR(delivered_timestamp, 1, 10) = '${today}'`);
+  const ordersSubstr = db.prepare(`
+    SELECT order_id, delivered_timestamp, total_with_discount
+    FROM orders
+    WHERE status='delivered'
+    AND SUBSTR(delivered_timestamp, 1, 10) = ?
+  `).all(today) as any[];
+  console.log(`✅ Найдено по SUBSTR: ${ordersSubstr.length}`);
+  if (!ordersSubstr.length) {
+    const examples = db.prepare(`
+      SELECT order_id, status, delivered_timestamp, SUBSTR(delivered_timestamp,1,10) AS date_part
+      FROM orders
+      WHERE status='delivered'
+      ORDER BY delivered_timestamp DESC
+      LIMIT 3
+    `).all() as any[];
+    console.log("📋 Примеры delivered в БД:");
+    for (const ex of examples) {
+      console.log(`  #${ex.order_id}: ${ex.delivered_timestamp} → SUBSTR=${ex.date_part}`);
+    }
+  }
 
   // Recompute items block and totals based on delivered orders
   const deliveredOrders = allDelivered;
