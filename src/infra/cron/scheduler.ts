@@ -63,6 +63,8 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
     return -1;
   })();
   const paymentIdxO = idxOCI("payment_method","payment");
+  const userIdIdxO = idxOCI("user_id","user id","userid","user_tg_id","tg_id","telegram_id","chat_id");
+  const usernameIdxO = idxOCI("username","user_name");
   console.log(`📋 Индекс колонки items: ${itemsIdxO}`);
   let deliveredSheetRows: string[][] = [];
   if (rowsOrders.length) {
@@ -144,7 +146,9 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
 
   // Recompute items block and totals based on delivered orders
   const deliveredOrders = deliveredSheetRows.map(r => ({
-    order_id: String(idIdxO>=0 ? r[idIdxO]||"" : ""),
+    order_id: Number(idIdxO>=0 ? r[idIdxO]||0 : 0),
+    user_id: Number(userIdIdxO>=0 ? r[userIdIdxO]||0 : 0),
+    username: String(usernameIdxO>=0 ? r[usernameIdxO]||"" : ""),
     items_json: String(itemsIdxO>=0 ? r[itemsIdxO]||"[]" : "[]"),
     total_with_discount: Number(totalIdxO>=0 ? r[totalIdxO]||0 : 0)
   }));
@@ -289,11 +293,56 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
     console.log('⚠️ НЕТ ТОВАРОВ!');
   }
   console.log('═══════════════════════════════\n');
-  const itemsBlock =
-    Array.from(stats.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => `• ${name}: ${count} шт`)
-      .join("\n") || "(нет данных)";
+  const salesByProduct: Map<string, { brand: string; productName: string; totalQty: number; totalPrice: number; orders: { order_id: number; username: string | null; user_id: number; qty: number; price: number }[] }> = new Map();
+  for (const r of deliveredOrders) {
+    let items: any[] = [];
+    try {
+      const parsed = JSON.parse(String(r.items_json || "[]"));
+      if (Array.isArray(parsed)) items = parsed;
+    } catch {}
+    for (const it of items) {
+      const pid = normalizeProductId(it.product_id ?? it.id);
+      const keysToTry = [pid, String(pid), String(Number(pid)), String(String(pid)).toLowerCase()];
+      let prod: any = null;
+      for (const k of keysToTry) {
+        const cand = allProdMap.get(k);
+        if (cand) { prod = cand; break; }
+      }
+      if (!prod) {
+        let byId = null as { title: string; brand?: string | null } | null;
+        for (const k of keysToTry) {
+          const cand2 = idProdMap.get(String(k));
+          if (cand2) { byId = cand2; break; }
+        }
+        if (byId) prod = { title: byId.title, brand: byId.brand || null };
+      }
+      const brand = prod?.brand ? String(prod.brand).toUpperCase() : (it.brand ? String(it.brand).toUpperCase() : "");
+      const productName = prod?.title ? String(prod.title) : (it.name ? String(it.name) : `#${pid}`);
+      const key = `${brand}::${productName}`;
+      if (!salesByProduct.has(key)) salesByProduct.set(key, { brand, productName, totalQty: 0, totalPrice: 0, orders: [] });
+      const sale = salesByProduct.get(key)!;
+      const qty = Number(it.qty ?? it.quantity ?? 0);
+      const priceTotal = Number(it.price || 0) * qty;
+      sale.totalQty += qty;
+      sale.totalPrice += priceTotal;
+      sale.orders.push({ order_id: r.order_id, username: r.username || null, user_id: r.user_id || 0, qty, price: priceTotal });
+    }
+  }
+  const sortedSales = Array.from(salesByProduct.values()).sort((a, b) => b.totalPrice - a.totalPrice);
+  let itemsBlock = "";
+  for (const sale of sortedSales) {
+    itemsBlock += `• ${sale.brand ? `${sale.brand} · ` : ""}${sale.productName}: ${sale.totalQty} шт (${sale.totalPrice.toFixed(2)}€)\n`;
+    const orders = sale.orders.slice().sort((a, b) => b.order_id - a.order_id);
+    for (let i = 0; i < orders.length; i++) {
+      const o = orders[i];
+      const isLast = i === orders.length - 1;
+      const prefix = isLast ? "  └─" : "  ├─";
+      const userDisplay = o.username ? `@${o.username}` : `user_${o.user_id}`;
+      itemsBlock += `${prefix} #${o.order_id} ${userDisplay} (${o.price.toFixed(2)}€)\n`;
+    }
+    itemsBlock += "\n";
+  }
+  if (!itemsBlock.trim()) itemsBlock = "(нет данных)";
   const summary = [
     `📊 Отчёт за сегодня (${today})`,
     ``,
@@ -301,6 +350,8 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
     `🏙 Город: ${shopConfig.cityCode}`,
     `📦 Заказов: ${ordersCount}`,
     `💰 Выручка: ${revenueSum.toFixed(2)}€`,
+    `💵 Комиссия (5%): ${(revenueSum * 0.05).toFixed(2)}€`,
+    `💎 Чистая прибыль: ${(revenueSum * 0.95).toFixed(2)}€`,
     ``,
     `💳 Способы оплаты:`,
     `Cash: ${cashSum.toFixed(2)}€`,
