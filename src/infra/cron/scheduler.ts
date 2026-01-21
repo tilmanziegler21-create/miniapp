@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { getDb } from "../db/sqlite";
+import { getDb, initDb } from "../db/sqlite";
 import { expireOrder } from "../../domain/orders/OrderService";
 import { computeDailyMetrics, writeDailyMetricsRow } from "../../domain/metrics/MetricsService";
 import { formatDate } from "../../core/time";
@@ -16,7 +16,8 @@ import { getProducts } from "../data";
 import { getProductsMap, normalizeProductId, formatProductName } from "../../utils/products";
 
 export async function generateDailySummaryText(dateOverride?: string): Promise<string> {
-  const db = getDb();
+  let db = getDb();
+  if (!db) { try { await initDb(); db = getDb(); } catch {} }
   const tz = process.env.TIMEZONE || "Europe/Berlin";
   const today = (dateOverride && /^\d{4}-\d{2}-\d{2}$/.test(dateOverride))
     ? dateOverride
@@ -25,10 +26,19 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   const end = start + 86400000;
   const sheetCity = shopConfig.cityCode;
   const sheetName = (process.env.GOOGLE_SHEETS_MODE === "TABS_PER_CITY") ? `orders_${sheetCity}` : "orders";
-  const vrOrders = await batchGet([`${sheetName}!A:Z`]);
-  const valuesOrders = vrOrders[0]?.values || [];
-  const headersOrders = valuesOrders[0] || [];
-  const rowsOrders = valuesOrders.slice(1);
+  let valuesOrders: string[][] = [];
+  let headersOrders: string[] = [];
+  let rowsOrders: string[][] = [];
+  try {
+    const vrOrders = await batchGet([`${sheetName}!A:Z`]);
+    valuesOrders = vrOrders[0]?.values || [];
+    headersOrders = valuesOrders[0] || [];
+    rowsOrders = valuesOrders.slice(1);
+  } catch (e) {
+    console.log("⚠️ Sheets недоступен, перехожу на SQLite fallback:", String(e));
+    headersOrders = [];
+    rowsOrders = [];
+  }
   const idxO = (n: string) => headersOrders.indexOf(n);
   const idxOCI = (...names: string[]) => {
     const lowered = names.map((n) => n.toLowerCase());
@@ -54,12 +64,36 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   })();
   const paymentIdxO = idxOCI("payment_method","payment");
   console.log(`📋 Индекс колонки items: ${itemsIdxO}`);
-  const deliveredSheetRows = rowsOrders.filter(r => {
-    const st = String(statusIdxO>=0 ? r[statusIdxO]||"" : "").toLowerCase();
-    const d = String(deliveredAtIdxO>=0 ? r[deliveredAtIdxO]||"" : "");
-    const dayPart = d.slice(0,10);
-    return st==="delivered" && dayPart===today;
-  });
+  let deliveredSheetRows: string[][] = [];
+  if (rowsOrders.length) {
+    deliveredSheetRows = rowsOrders.filter(r => {
+      const st = String(statusIdxO>=0 ? r[statusIdxO]||"" : "").toLowerCase();
+      const d = String(deliveredAtIdxO>=0 ? r[deliveredAtIdxO]||"" : "");
+      const dayPart = d.slice(0,10);
+      return st==="delivered" && dayPart===today;
+    });
+  } else {
+    console.log("⚠️ Нет данных из Sheets, используем SQLite delivered fallback");
+    const fallback = db.prepare(`
+      SELECT order_id, total_with_discount AS total, items_json, payment_method, delivered_timestamp
+      FROM orders
+      WHERE status='delivered' AND SUBSTR(delivered_timestamp,1,10)=?
+    `).all(today) as any[];
+    deliveredSheetRows = fallback.map(r => [
+      String(r.order_id),
+      "", // user_id
+      "delivered",
+      String(r.total || 0),
+      "", // courier_id
+      "", // delivery_date
+      "", // delivery_time
+      String(r.payment_method || ""),
+      String(r.delivered_timestamp || ""),
+      String(r.items_json || "[]")
+    ]);
+    headersOrders = ["order_id","user_id","status","total_amount","courier_id","delivery_date","delivery_time","payment_method","delivered_at","items (JSON)"];
+    // override indexes for fallback layout
+  }
   let ordersCount = deliveredSheetRows.length;
   let revenueSum = 0;
   let cashSum = 0, cardSum = 0;

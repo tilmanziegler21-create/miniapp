@@ -317,7 +317,18 @@ async function refreshCourierPanel(bot: TelegramBot, chatId: number, messageId: 
   const idB = Number(map?.courier_id || courierId);
   const startDate = getDateString(-1);
   const endDate = getDateString(2);
-  const rows = db.prepare("SELECT o.order_id, o.user_id, o.items_json, o.total_with_discount, o.delivery_date, o.delivery_exact_time, u.username FROM orders o LEFT JOIN users u ON o.user_id=u.user_id WHERE o.courier_id IN (?, ?) AND o.status IN ('pending','confirmed','courier_assigned') AND o.status NOT IN ('cancelled','delivered') AND o.delivery_date >= ? AND o.delivery_date <= ? ORDER BY o.delivery_date ASC, o.order_id DESC").all(idA, idB, startDate, endDate) as any[];
+  console.log("━━━ COURIER PANEL DEBUG ━━━");
+  console.log("Courier IDs:", { tg_id: idA, courier_id: idB });
+  console.log("Date range:", startDate, "to", endDate);
+  const rows = db.prepare("SELECT o.order_id, o.user_id, o.items_json, o.total_with_discount, o.delivery_date, o.delivery_exact_time, o.status, o.courier_id, u.username FROM orders o LEFT JOIN users u ON o.user_id=u.user_id WHERE o.courier_id IN (?, ?) AND o.status IN ('pending','confirmed','courier_assigned') AND o.status NOT IN ('cancelled','delivered') AND o.delivery_date >= ? AND o.delivery_date <= ? ORDER BY o.delivery_date ASC, o.order_id DESC").all(idA, idB, startDate, endDate) as any[];
+  console.log("Raw SQL result:", rows.length, "orders");
+  try { rows.forEach((r: any) => console.log(`#${r.order_id}: delivery=${r.delivery_date}, status=${r.status}, courier=${r.courier_id}`)); } catch {}
+  const testDate = getDateString(0);
+  try {
+    const all21 = db.prepare("SELECT order_id, delivery_date, status, courier_id FROM orders WHERE delivery_date = ?").all(testDate) as any[];
+    console.log(`ALL orders for ${testDate} (no filters):`, all21.length);
+    all21.forEach((o: any) => console.log(`#${o.order_id}: status=${o.status}, courier=${o.courier_id}`));
+  } catch {}
   // Resolve city for product mapping
   let cityCode = shopConfig.cityCode;
   try {

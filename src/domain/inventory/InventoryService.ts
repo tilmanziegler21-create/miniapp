@@ -29,14 +29,39 @@ export async function restoreReservations() {
 }
 
 function getReserved(product_id: number) {
-  return qtyReserved.get(product_id) || 0;
+  console.log("  Calculating reserved for product_id:", product_id);
+  const v = qtyReserved.get(product_id) || 0;
+  console.log("  Reserved result:", v);
+  return v;
 }
 
 export async function validateStock(product_id: number, qty: number): Promise<boolean> {
+  console.log("━━━ STOCK VALIDATION ━━━");
+  console.log("Requested product_id:", product_id, "type:", typeof product_id);
+  console.log("Requested qty:", qty);
   const products = await getProducts();
+  console.log("Total products loaded:", products.length);
   const p = products.find((x) => x.product_id === product_id);
-  if (!p) return false;
-  return p.qty_available - getReserved(product_id) >= qty;
+  if (!p) {
+    console.log("❌ PRODUCT NOT FOUND");
+    console.log("Available product_ids:", products.map((x) => x.product_id).slice(0, 10));
+    const byName = products.filter((x) => x.title.toLowerCase().includes("green grape"));
+    console.log('Search by name "green grape":', byName.length, "found");
+    byName.forEach((x) => console.log(`  → product_id=${x.product_id}, title=${x.title}, stock=${x.qty_available}`));
+    console.log("━━━ END ━━━");
+    return false;
+  }
+  console.log("✅ Product found:", p.title);
+  console.log("Stock (qty_available):", p.qty_available);
+  console.log("Active:", p.active);
+  const reserved = getReserved(product_id);
+  console.log("Reserved:", reserved);
+  const available = p.qty_available - reserved;
+  console.log("Available:", available);
+  const ok = available >= qty;
+  console.log("Result:", ok ? "✅ OK" : "❌ INSUFFICIENT");
+  console.log("━━━ END ━━━");
+  return ok;
 }
 
 export async function reserveItems(items: OrderItem[], order_id?: number): Promise<void> {
