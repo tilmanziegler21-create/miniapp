@@ -315,7 +315,7 @@ async function refreshCourierPanel(bot: TelegramBot, chatId: number, messageId: 
   const map = db.prepare("SELECT tg_id, courier_id FROM couriers WHERE tg_id = ? OR courier_id = ?").get(courierId, courierId) as any;
   const idA = Number(map?.tg_id || courierId);
   const idB = Number(map?.courier_id || courierId);
-  const startDate = getDateString(-1);
+  const startDate = getDateString(0);
   const endDate = getDateString(2);
   console.log("━━━ COURIER PANEL DEBUG ━━━");
   console.log("Courier IDs:", { tg_id: idA, courier_id: idB });
@@ -468,6 +468,15 @@ export function registerCourierFlow(bot: TelegramBot) {
       await refreshCourierPanel(bot, chatId, q.message?.message_id, q.from.id);
     } else if (data.startsWith("courier_issue:")) {
       const id = Number(data.split(":")[1]);
+      try {
+        const row = getDb().prepare("SELECT delivery_date FROM orders WHERE order_id = ?").get(id) as any;
+        const today = getDateString(0);
+        const od = String(row?.delivery_date || "");
+        if (od !== today) {
+          await bot.answerCallbackQuery({ callback_query_id: q.id, text: `❌ Нельзя отметить! Заказ на: ${od}. Сегодня: ${today}. Откройте /courier.`, show_alert: true } as any).catch(()=>{});
+          return;
+        }
+      } catch {}
       await setDelivered(id, q.from.id);
       try {
         let cityCode = shopConfig.cityCode;
@@ -486,6 +495,15 @@ export function registerCourierFlow(bot: TelegramBot) {
       if (order) { try { await bot.sendMessage(order.user_id, "Спасибо за заказ! Приходите к нам ещё."); } catch {} }
     } else if (data.startsWith("courier_not_issued:")) {
       const id = Number(data.split(":")[1]);
+      try {
+        const row = getDb().prepare("SELECT delivery_date FROM orders WHERE order_id = ?").get(id) as any;
+        const today = getDateString(0);
+        const od = String(row?.delivery_date || "");
+        if (od !== today) {
+          await bot.answerCallbackQuery({ callback_query_id: q.id, text: `❌ Нельзя отменить! Заказ на: ${od}. Сегодня: ${today}. Откройте /courier.`, show_alert: true } as any).catch(()=>{});
+          return;
+        }
+      } catch {}
       try {
         const { setNotIssued, getOrderById } = await import("../../domain/orders/OrderService");
         await setNotIssued(id);

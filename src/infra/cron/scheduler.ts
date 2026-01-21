@@ -52,6 +52,7 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   const idIdxO = idxOCI("order_id","order id","orderid","id");
   const statusIdxO = idxOCI("status");
   const deliveredAtIdxO = idxOCI("delivered_at","delivered timestamp");
+  const deliveryDateIdxO = idxOCI("delivery_date","delivery date");
   const totalIdxO = idxOCI("total_amount","total");
   const itemsIdxO = (() => {
     let i = idxOCI("items_json","items (json)","items");
@@ -70,9 +71,8 @@ export async function generateDailySummaryText(dateOverride?: string): Promise<s
   if (rowsOrders.length) {
     deliveredSheetRows = rowsOrders.filter(r => {
       const st = String(statusIdxO>=0 ? r[statusIdxO]||"" : "").toLowerCase();
-      const d = String(deliveredAtIdxO>=0 ? r[deliveredAtIdxO]||"" : "");
-      const dayPart = d.slice(0,10);
-      return st==="delivered" && dayPart===today;
+      const dd = String(deliveryDateIdxO>=0 ? r[deliveryDateIdxO]||"" : "");
+      return st==="delivered" && dd===today;
     });
   } else {
     console.log("⚠️ Нет данных из Sheets, используем SQLite delivered fallback");
@@ -484,6 +484,68 @@ export async function registerCron() {
 
   cron.schedule("0 22 * * *", async () => {
     await sendDailySummary();
+  }, { timezone });
+
+  cron.schedule("30 23 * * *", async () => {
+    try {
+      const bot = getBot();
+      const db = getDb();
+      const todayLocal = new Intl.DateTimeFormat("sv-SE", { timeZone: timezone }).format(new Date());
+      console.log(`📊 Checking unconfirmed orders for ${todayLocal}`);
+      const rows = db.prepare(`
+        SELECT o.order_id, o.courier_id, o.delivery_date, o.status, o.total_with_discount, u.username AS courier_username
+        FROM orders o
+        LEFT JOIN users u ON o.courier_id = u.user_id
+        WHERE o.delivery_date = ? AND o.status NOT IN ('delivered','cancelled')
+        ORDER BY o.courier_id, o.order_id
+      `).all(todayLocal) as any[];
+      const adminIds = (process.env.TELEGRAM_ADMIN_IDS || "").split(",").map(s=>Number(s.trim())).filter(x=>x);
+      if (!rows.length) {
+        for (const id of adminIds) { try { await bot.sendMessage(id, `✅ Все заказы подтверждены\n\nДата: ${todayLocal}`); } catch {} }
+      } else {
+        const byCourier = new Map<number|string, any[]>();
+        for (const r of rows) {
+          const key = r.courier_id || "unassigned";
+          if (!byCourier.has(key)) byCourier.set(key, []);
+          byCourier.get(key)!.push(r);
+        }
+        let message = `⚠️ НЕПОДТВЕРЖДЁННЫЕ ЗАКАЗЫ\n\nДата: ${todayLocal}\nВсего: ${rows.length} заказов\n`;
+        byCourier.forEach((orders, courierId) => {
+          const courierName = orders[0]?.courier_username || `ID: ${courierId}`;
+          message += `\n📍 Курьер: ${courierName}\n   Не отметил: ${orders.length} заказов\n`;
+          for (const o of orders) message += `   • #${o.order_id} (${Number(o.total_with_discount||0).toFixed(2)}€) - ${o.status}\n`;
+        });
+        message += `\n⏰ В 00:01 просроченные заказы будут автоматически отменены.`;
+        for (const id of adminIds) { try { await bot.sendMessage(id, message); } catch {} }
+      }
+    } catch (e) { console.log("❌ Unconfirmed report error:", String(e)); }
+  }, { timezone });
+
+  cron.schedule("1 0 * * *", async () => {
+    try {
+      const db = getDb();
+      const bot = getBot();
+      const yesterdayLocal = new Intl.DateTimeFormat("sv-SE", { timeZone: timezone }).format(new Date(Date.now() - 86400000));
+      console.log(`🔍 Auto-cancelling overdue orders (${yesterdayLocal})`);
+      const overdue = db.prepare(`
+        SELECT order_id, courier_id, delivery_date, total_with_discount
+        FROM orders
+        WHERE delivery_date < ? AND status NOT IN ('delivered','cancelled')
+      `).all(yesterdayLocal) as any[];
+      if (!overdue.length) { console.log("✅ No overdue orders"); return; }
+      console.log(`⚠️ Auto-cancelling ${overdue.length} orders`);
+      const tx = db.transaction(() => {
+        for (const o of overdue) {
+          db.prepare(`UPDATE orders SET status='cancelled', updated_at=? WHERE order_id=?`).run(new Date().toISOString(), Number(o.order_id));
+        }
+      });
+      tx();
+      const adminIds = (process.env.TELEGRAM_ADMIN_IDS || "").split(",").map(s=>Number(s.trim())).filter(x=>x);
+      for (const id of adminIds) {
+        try { await bot.sendMessage(id, `❌ АВТООТМЕНА ПРОСРОЧЕННЫХ\n\nОтменено: ${overdue.length} заказов\nДата: до ${yesterdayLocal}`); } catch {}
+      }
+      console.log("✅ Auto-cancel complete");
+    } catch (e) { console.log("❌ Auto-cancel error:", String(e)); }
   }, { timezone });
 
   cron.schedule("0 0 * * *", async () => {
