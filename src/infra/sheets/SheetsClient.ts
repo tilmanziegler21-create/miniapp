@@ -235,9 +235,23 @@ export async function updateProductQty(product_id: number, new_qty: number): Pro
   let rowNumber = -1;
   for (let i = 0; i < rows.length; i++) {
     const raw = idIdx >= 0 ? rows[i][idIdx] : String(i + 1);
-    const n = Number(raw);
-    const id = Number.isFinite(n) ? n : (String(raw).match(/\d+/)?.[0] ? Number(String(raw).match(/\d+/)![0]) : -1);
-    if (id === product_id) { rowNumber = i + 1; break; }
+    const s = String(raw ?? "");
+    const n = Number(s);
+    const djb2 = (str: string) => {
+      let h = 5381;
+      for (let k = 0; k < str.length; k++) h = ((h << 5) + h) + str.charCodeAt(k);
+      return Math.abs(h >>> 0);
+    };
+    const candidates: number[] = [];
+    if (Number.isFinite(n)) candidates.push(n);
+    const digits = s.match(/\d+/g);
+    if (digits && digits.length) {
+      const joined = Number(digits.join(""));
+      if (Number.isFinite(joined)) candidates.push(joined);
+    }
+    const hash = djb2(s);
+    if (Number.isFinite(hash)) candidates.push(hash);
+    if (candidates.includes(product_id)) { rowNumber = i + 1; break; }
   }
   if (rowNumber < 0) throw new Error("Product not found");
   if (qtyIdx < 0) throw new Error("Quantity column not found");
@@ -252,9 +266,23 @@ export async function updateProductPrice(product_id: number, new_price: number):
   let rowNumber = -1;
   for (let i = 0; i < rows.length; i++) {
     const raw = idIdx >= 0 ? rows[i][idIdx] : String(i + 1);
-    const n = Number(raw);
-    const id = Number.isFinite(n) ? n : (String(raw).match(/\d+/)?.[0] ? Number(String(raw).match(/\d+/)![0]) : -1);
-    if (id === product_id) { rowNumber = i + 1; break; }
+    const s = String(raw ?? "");
+    const n = Number(s);
+    const djb2 = (str: string) => {
+      let h = 5381;
+      for (let k = 0; k < str.length; k++) h = ((h << 5) + h) + str.charCodeAt(k);
+      return Math.abs(h >>> 0);
+    };
+    const candidates: number[] = [];
+    if (Number.isFinite(n)) candidates.push(n);
+    const digits = s.match(/\d+/g);
+    if (digits && digits.length) {
+      const joined = Number(digits.join(""));
+      if (Number.isFinite(joined)) candidates.push(joined);
+    }
+    const hash = djb2(s);
+    if (Number.isFinite(hash)) candidates.push(hash);
+    if (candidates.includes(product_id)) { rowNumber = i + 1; break; }
   }
   if (rowNumber < 0) throw new Error("Product not found");
   if (priceIdx < 0) throw new Error("Price column not found");
