@@ -110,6 +110,12 @@ export async function finalDeduction(items: OrderItem[]): Promise<void> {
       const newQty = p.qty_available - it.qty;
       if (newQty < 0) throw new Error("Negative stock");
       await updateProductQty(it.product_id, newQty);
+      try {
+        if (newQty <= 0) {
+          const { updateProductActive } = await import("../../infra/sheets/SheetsClient");
+          await updateProductActive(it.product_id, false);
+        }
+      } catch {}
       try { logger.info("finalDeduction", { product_id: it.product_id, new_qty: newQty }); } catch {}
     });
   }

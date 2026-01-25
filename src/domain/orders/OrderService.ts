@@ -240,8 +240,14 @@ export async function setNotIssued(order_id: number): Promise<void> {
   const row = db.prepare("SELECT items_json FROM orders WHERE order_id = ?").get(order_id) as { items_json: string } | undefined;
   if (!row) return;
   const items: OrderItem[] = JSON.parse(row.items_json || "[]");
+  try { await returnToInventory(items); } catch {}
   await releaseReservation(items, order_id);
   db.prepare("UPDATE orders SET status = 'not_issued', not_issued_timestamp = ? WHERE order_id = ?").run(new Date().toISOString(), order_id);
+  try {
+    const { getBackend } = await import("../../infra/backend");
+    const backend = getBackend();
+    await (backend as any).updateOrderDeliveryStatus?.(order_id, "cancelled");
+  } catch {}
 }
 
 export async function purgeNotIssuedOlderThan(minutes: number): Promise<number> {

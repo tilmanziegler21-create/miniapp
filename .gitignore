@@ -9,3 +9,6 @@ data/
 .env
 .env.sa
 service-account.json
+# SSH keys
+trae_deploy_key
+trae_deploy_key.pub

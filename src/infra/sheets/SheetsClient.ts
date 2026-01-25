@@ -256,6 +256,14 @@ export async function updateProductQty(product_id: number, new_qty: number): Pro
   if (rowNumber < 0) throw new Error("Product not found");
   if (qtyIdx < 0) throw new Error("Quantity column not found");
   await writeCell(writeSheet, rowNumber, qtyIdx, String(new_qty));
+  try {
+    // @ts-ignore
+    const globalAny = global as any;
+    if (globalAny.__products_cache) {
+      globalAny.__products_cache.ts = 0;
+      globalAny.__products_cache.data = null;
+    }
+  } catch {}
 }
 
 export async function updateProductPrice(product_id: number, new_price: number): Promise<void> {
@@ -318,8 +326,26 @@ export async function updateProductActive(product_id: number, active: boolean): 
   if (rowNumber < 0) throw new Error("Product not found");
   if (activeIdx < 0) throw new Error("Active column not found");
   await writeCell(writeSheet, rowNumber, activeIdx, active ? "true" : "false");
+  try {
+    // @ts-ignore
+    const globalAny = global as any;
+    if (globalAny.__products_cache) {
+      globalAny.__products_cache.ts = 0;
+      globalAny.__products_cache.data = null;
+    }
+  } catch {}
 }
 
+export function invalidateProductsCache(): void {
+  try {
+    // @ts-ignore
+    const globalAny = global as any;
+    if (globalAny.__products_cache) {
+      globalAny.__products_cache.ts = 0;
+      globalAny.__products_cache.data = null;
+    }
+  } catch {}
+}
 export async function updateRange(sheetRange: string, values: string[][]): Promise<void> {
   const api = sheetsApi();
   await api.spreadsheets.values.update({
