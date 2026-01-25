@@ -304,40 +304,6 @@ export class GoogleSheetsBackend implements DataBackend {
     if (!row) return;
     if (String(row.status) !== "delivered") return;
     if (Number(row.sheets_committed) === 1) return;
-    const items = JSON.parse(row.items_json || "[]") as Array<{ product_id: number; qty: number; price: number; is_upsell: boolean }>;    
-    // decrement stock in products sheet (TABS_PER_CITY)
-    const prodSheet = sheetName("products", getDefaultCity());
-    let vrp = await batchGet([`${prodSheet}!A:Z`]);
-    let pvals = vrp[0]?.values || [];
-    if (!pvals.length) {
-      const up = prodSheet.replace(/^[a-z]/, (c) => c.toUpperCase());
-      vrp = await batchGet([`${up}!A:Z`]);
-      pvals = vrp[0]?.values || [];
-    }
-    const pHeaders = pvals[0] || [];
-    const pRows = pvals.slice(1);
-    const skuIdx = idx(pHeaders as string[], ["sku"]);
-    const nameIdx = idx(pHeaders as string[], ["name", "title"]);
-    const stockIdx = idx(pHeaders as string[], ["stock", "qty_available"]);
-    const activeIdxP = idx(pHeaders as string[], ["active", "is_active"]);
-    function pidForRow(r: any[], i: number) {
-      if (skuIdx >= 0 && r[skuIdx]) return stringHash(String(r[skuIdx]));
-      return i + 1;
-    }
-    for (let i = 0; i < pRows.length; i++) {
-      const r = pRows[i];
-      const pid = pidForRow(r, i);
-      const match = items.find((it) => it.product_id === pid);
-      if (!match) continue;
-      const cur = Number(r[stockIdx] || 0);
-      const next = Math.max(0, cur - Number(match.qty));
-      const colLetter = String.fromCharCode(65 + stockIdx);
-      await update(`${prodSheet}!${colLetter}${i + 2}`, [[String(next)]]);
-      if (activeIdxP >= 0 && next === 0) {
-        const activeLetter = String.fromCharCode(65 + activeIdxP);
-        await update(`${prodSheet}!${activeLetter}${i + 2}`, [["false"]]);
-      }
-    }
     const city = getDefaultCity();
     const s = sheetName("orders", city);
     const nowIso = new Date().toISOString();
@@ -362,6 +328,19 @@ export class GoogleSheetsBackend implements DataBackend {
       ]]);
     }
     db.prepare("UPDATE orders SET sheets_committed=1 WHERE order_id = ?").run(orderId);
+  }
+
+  async updateOrderDeliveryStatus(orderId: number, status: "delivered" | "cancelled"): Promise<void> {
+    const city = getDefaultCity();
+    const s = sheetName("orders", city);
+    const found = await findRowByKey(s, "order_id", String(orderId));
+    if (found) {
+      const nowIso = new Date().toISOString();
+      await update(`${s}!C${found.rowIndex + 1}`, [[status]]);
+      if (status === "delivered") {
+        await update(`${s}!J${found.rowIndex + 1}`, [[nowIso]]);
+      }
+    }
   }
 
   async upsertDailyMetrics(date: string, city: string, metrics: MetricsRow): Promise<void> {

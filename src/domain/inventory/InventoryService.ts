@@ -120,3 +120,22 @@ export function getQtyReservedSnapshot(): Record<number, number> {
   for (const [k, v] of qtyReserved.entries()) out[k] = v;
   return out;
 }
+
+export async function returnToInventory(items: OrderItem[]): Promise<void> {
+  for (const it of items) {
+    await runWithLock(it.product_id, async () => {
+      const products = await getProducts();
+      const p = products.find((x) => x.product_id === it.product_id);
+      if (!p) throw new Error("Product not found");
+      const newQty = p.qty_available + it.qty;
+      await updateProductQty(it.product_id, newQty);
+      try {
+        if (!p.active && newQty > 0) {
+          const { updateProductActive } = await import("../../infra/sheets/SheetsClient");
+          await updateProductActive(it.product_id, true);
+        }
+        logger.info("returnToInventory", { product_id: it.product_id, new_qty: newQty });
+      } catch {}
+    });
+  }
+}

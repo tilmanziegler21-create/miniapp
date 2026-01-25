@@ -289,6 +289,37 @@ export async function updateProductPrice(product_id: number, new_price: number):
   await writeCell(writeSheet, rowNumber, priceIdx, String(new_price));
 }
 
+export async function updateProductActive(product_id: number, active: boolean): Promise<void> {
+  const writeSheet = await resolveWriteSheet("products");
+  const { headers, rows } = await readSheet("products");
+  const idIdx = headerIndexAny(headers, ["product_id", "sku", "id"]);
+  const activeIdx = headerIndexAny(headers, ["active", "is_active", "активен", "enabled"]);
+  let rowNumber = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const raw = idIdx >= 0 ? rows[i][idIdx] : String(i + 1);
+    const s = String(raw ?? "");
+    const n = Number(s);
+    const djb2 = (str: string) => {
+      let h = 5381;
+      for (let k = 0; k < str.length; k++) h = ((h << 5) + h) + str.charCodeAt(k);
+      return Math.abs(h >>> 0);
+    };
+    const candidates: number[] = [];
+    if (Number.isFinite(n)) candidates.push(n);
+    const digits = s.match(/\d+/g);
+    if (digits && digits.length) {
+      const joined = Number(digits.join(""));
+      if (Number.isFinite(joined)) candidates.push(joined);
+    }
+    const hash = djb2(s);
+    if (Number.isFinite(hash)) candidates.push(hash);
+    if (candidates.includes(product_id)) { rowNumber = i + 1; break; }
+  }
+  if (rowNumber < 0) throw new Error("Product not found");
+  if (activeIdx < 0) throw new Error("Active column not found");
+  await writeCell(writeSheet, rowNumber, activeIdx, active ? "true" : "false");
+}
+
 export async function updateRange(sheetRange: string, values: string[][]): Promise<void> {
   const api = sheetsApi();
   await api.spreadsheets.values.update({

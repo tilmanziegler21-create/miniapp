@@ -7,7 +7,7 @@ import { Order, OrderItem } from "../../core/types";
 import { RESERVATION_TTL_MS, UPSellDiscountRate } from "../../core/constants";
 import { addMinutes, formatDate } from "../../core/time";
 import { updateAfterDelivery } from "../users/UserService";
-import { reserveItems, releaseReservation, finalDeduction } from "../inventory/InventoryService";
+import { reserveItems, releaseReservation, finalDeduction, returnToInventory } from "../inventory/InventoryService";
 
 function computeTotals(items: OrderItem[], purchaseCount: number) {
   const total = items.reduce((s, it) => s + it.price * it.qty, 0);
@@ -127,6 +127,10 @@ export async function confirmOrder(order_id: number): Promise<void> {
     )
     .get(order_id) as any;
   if (!row) return;
+  try {
+    const items: OrderItem[] = JSON.parse(String(row.items_json || "[]"));
+    await finalDeduction(items);
+  } catch {}
   const backend = getBackend();
   const city = getDefaultCity();
   await backend.appendOrder({
@@ -189,7 +193,6 @@ export async function setDelivered(order_id: number, courier_tg_id: number): Pro
     return;
   }
   const items: OrderItem[] = JSON.parse(row.items_json);
-  await finalDeduction(items);
   await releaseReservation(items, order_id);
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
@@ -213,8 +216,14 @@ export async function cancelOrder(order_id: number): Promise<void> {
   const row = db.prepare("SELECT items_json FROM orders WHERE order_id = ?").get(order_id) as { items_json: string } | undefined;
   if (!row) throw new Error("Order not found");
   const items: OrderItem[] = JSON.parse(row.items_json);
+  await returnToInventory(items);
   await releaseReservation(items, order_id);
   db.prepare("UPDATE orders SET status = 'cancelled' WHERE order_id = ?").run(order_id);
+  try {
+    const { getBackend } = await import("../../infra/backend");
+    const backend = getBackend();
+    await (backend as any).updateOrderDeliveryStatus?.(order_id, "cancelled");
+  } catch {}
 }
 
 export async function expireOrder(order_id: number): Promise<void> {
