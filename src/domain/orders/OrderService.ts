@@ -127,10 +127,6 @@ export async function confirmOrder(order_id: number): Promise<void> {
     )
     .get(order_id) as any;
   if (!row) return;
-  try {
-    const items: OrderItem[] = JSON.parse(String(row.items_json || "[]"));
-    await finalDeduction(items);
-  } catch {}
   const backend = getBackend();
   const city = getDefaultCity();
   await backend.appendOrder({

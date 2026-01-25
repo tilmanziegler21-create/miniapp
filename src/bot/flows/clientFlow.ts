@@ -4,6 +4,7 @@ import { getProducts, refreshProductsCache } from "../../infra/data";
 import { getUserSegment } from "../../domain/users/UserService";
 import { OrderItem, Product } from "../../core/types";
 import { createOrder, confirmOrder, setDeliverySlot, getOrderById, previewTotals, setOrderCourier, setCourierAssigned, setPaymentMethod } from "../../domain/orders/OrderService";
+import { finalDeduction } from "../../domain/inventory/InventoryService";
 import { getActiveCouriers } from "../../domain/couriers/CourierService";
 import { generateTimeSlots, validateSlot, getOccupiedSlots, isSlotAvailable } from "../../domain/delivery/DeliveryService";
 import { env } from "../../infra/config";
@@ -655,6 +656,10 @@ export function registerClientFlow(bot: TelegramBot) {
           payment_method: method,
           items: JSON.stringify(orderNow?.items || [])
         } as any);
+      } catch {}
+      try {
+        await finalDeduction(orderNow?.items || []);
+        await refreshProductsCache();
       } catch {}
       const productsAll = await getProducts();
       const { formatProductName } = await import("../../utils/products");
