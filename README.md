@@ -62,7 +62,6 @@ VITE_BRAND_ASSET_BASE_PATH=/assets/warsaw
 - `CITY_CODES` — код города
 - `TIMEZONE` — таймзона
 - `GROUP_URL` — ссылка на чат или канал
-- `REVIEWS_URL` — ссылка на отзывы
 - `SHOP_NAME` — внутреннее имя магазина для bot/server части
 
 ## Сборка

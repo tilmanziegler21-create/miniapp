@@ -11,7 +11,6 @@ type Env = {
   TIMEZONE: string;
   DATA_BACKEND: "sheets" | "mock";
   GROUP_URL: string;
-  REVIEWS_URL: string;
   GOOGLE_SHEETS_MODE: "TABS_PER_CITY" | "CITY_COLUMN";
   CITY_CODES: string;
   SHEETS_CACHE_TTL_SECONDS: number;
@@ -23,14 +22,6 @@ function requireEnv(key: keyof Env): string {
   const v = process.env[key as string];
   if (!v || v.trim() === "") throw new Error(`Missing env ${key}`);
   return v;
-}
-
-function requireEnvAny(keys: string[]): string {
-  for (const key of keys) {
-    const v = process.env[key];
-    if (v && v.trim() !== "") return v;
-  }
-  throw new Error(`Missing env ${keys.join(" or ")}`);
 }
 
 const DATA_BACKEND = (process.env.DATA_BACKEND as Env["DATA_BACKEND"]) || "mock";
@@ -47,7 +38,7 @@ if (DATA_BACKEND === "sheets") {
 }
 
 export const env: Env = {
-  TELEGRAM_BOT_TOKEN: requireEnvAny(["TELEGRAM_BOT_TOKEN", "BOT_TOKEN"]),
+  TELEGRAM_BOT_TOKEN: requireEnv("TELEGRAM_BOT_TOKEN"),
   TELEGRAM_ADMIN_IDS: process.env.TELEGRAM_ADMIN_IDS || "",
   METRICS_TOKEN: process.env.METRICS_TOKEN || "",
   GOOGLE_SHEETS_SPREADSHEET_ID:
@@ -62,7 +53,6 @@ export const env: Env = {
   TIMEZONE: process.env.TIMEZONE || "Europe/Moscow",
   DATA_BACKEND,
   GROUP_URL: process.env.GROUP_URL || "",
-  REVIEWS_URL: process.env.REVIEWS_URL || "",
   GOOGLE_SHEETS_MODE: (process.env.GOOGLE_SHEETS_MODE as Env["GOOGLE_SHEETS_MODE"]) || "CITY_COLUMN",
   CITY_CODES: process.env.CITY_CODES || "FFM",
   SHEETS_CACHE_TTL_SECONDS: Number(process.env.SHEETS_CACHE_TTL_SECONDS || 300),

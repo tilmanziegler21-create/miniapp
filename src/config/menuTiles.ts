@@ -16,7 +16,6 @@ export type MenuTile = {
 
 // Import images - these should be placed in src/assets/menu/
 // For now using placeholder images, replace with actual banner images
-const catalogImg = buildBrandAssetUrl("tiles/tile-catalog.jpg");
 const promoImg = buildBrandAssetUrl("tiles/tile-promo.jpg");
 const bonusesImg = buildBrandAssetUrl("tiles/tile-bonuses.jpg");
 const cartImg = buildBrandAssetUrl("tiles/tile-cart.jpg");
@@ -26,16 +25,6 @@ const referralImg = buildBrandAssetUrl("tiles/tile-referral.jpg");
 const supportImg = buildBrandAssetUrl("tiles/tile-support.jpg");
 
 export const menuTiles: MenuTile[] = [
-  {
-    id: "catalog",
-    title: "КАТАЛОГ",
-    subtitle: "все товары",
-    cta: "открыть",
-    route: "/catalog",
-    image: catalogImg,
-    focal: "center",
-    analyticsEvent: "menu_catalog_click"
-  },
   {
     id: "promo",
     title: "АКЦИИ И КОНКУРСЫ",

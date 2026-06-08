@@ -36,7 +36,7 @@ BRAND_ASSET_BASE_PATH=/assets/warsaw
 
 1. Скопируйте `.env.example` в `.env`
 2. Задайте брендовые переменные
-3. Обновите `CITY_CODES`, `GROUP_URL`, `REVIEWS_URL`, `MANAGER_USERNAME`, `MANAGER_PHONE`
+3. Обновите `CITY_CODES`, `GROUP_URL`, `MANAGER_USERNAME`
 4. Подмените изображения в папке ассетов
 5. Пересоберите фронт и backend
 

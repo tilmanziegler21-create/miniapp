@@ -26,6 +26,10 @@ function hmacHex(key, msg) {
   return crypto.createHmac('sha256', key).update(msg).digest('hex');
 }
 
+function hmacBuffer(key, msg) {
+  return crypto.createHmac('sha256', key).update(msg).digest();
+}
+
 function makeInitData(botToken, user) {
   const params = new URLSearchParams();
   params.set('user', JSON.stringify(user));
@@ -33,8 +37,8 @@ function makeInitData(botToken, user) {
   params.set('query_id', 'AAEAA-test');
   const entries = Array.from(params.entries()).sort(([a], [b]) => a.localeCompare(b));
   const dataCheckString = entries.map(([k, v]) => `${k}=${v}`).join('\n');
-  const secretKey = hmacHex('WebAppData', botToken);
-  const hash = hmacHex(secretKey, dataCheckString);
+  const secretKey = hmacBuffer('WebAppData', botToken);
+  const hash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
   params.set('hash', hash);
   return params.toString();
 }
@@ -79,7 +83,7 @@ function pickProduct(products) {
 
 async function main() {
   const env = readDotEnv();
-  const botToken = env.BOT_TOKEN;
+  const botToken = env.TELEGRAM_BOT_TOKEN;
 
   const out = [];
   out.push('ID;Раздел;Тест;Шаги;Ожидаемо;Факт;Статус');
@@ -94,8 +98,8 @@ async function main() {
     const ok2 = v2.status === 401;
     out.push(line('P0-02', 'Auth', 'Битый initData', "initData='x=y'", '401 + без токена', ok2 ? '401' : 'FAIL', ok2 ? 'PASS' : 'FAIL'));
   } else {
-    out.push(line('P0-01', 'Auth', 'Telegram initData verify', 'Отправить валидный initData', '/auth/verify=200 + JWT', 'SKIP (нет BOT_TOKEN)', 'FAIL'));
-    out.push(line('P0-02', 'Auth', 'Битый initData', "initData='x=y'", '401 + без токена', 'SKIP (нет BOT_TOKEN)', 'FAIL'));
+    out.push(line('P0-01', 'Auth', 'Telegram initData verify', 'Отправить валидный initData', '/auth/verify=200 + JWT', 'SKIP (нет TELEGRAM_BOT_TOKEN)', 'FAIL'));
+    out.push(line('P0-02', 'Auth', 'Битый initData', "initData='x=y'", '401 + без токена', 'SKIP (нет TELEGRAM_BOT_TOKEN)', 'FAIL'));
   }
 
   const devTry = await request('POST', '/auth/dev');

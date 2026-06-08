@@ -23,9 +23,7 @@
    - `CITY_CODES` = коды городов, например `WAW`
    - `TIMEZONE` = например `Europe/Warsaw`
    - `GROUP_URL` = ссылка на группу/чат
-   - `REVIEWS_URL` = ссылка на отзывы
    - `MANAGER_USERNAME` = username менеджера без лишних описаний
-   - `MANAGER_PHONE` = телефон менеджера
    - `FRONTEND_URL` = публичный URL Render сервиса, например `https://bluevape-warsaw.onrender.com`
    - `DB_PATH` = `/data/app.db`, если используешь SQLite с диском
    - `TELEGRAM_BOT_TOKEN` = your bot token

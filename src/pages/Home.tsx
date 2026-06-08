@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { theme, GlassCard, PrimaryButton, ChipBadge, ProductCard, SectionDivider, AddToCartModal } from '../ui';
+import { theme, GlassCard, PrimaryButton, ProductCard, SectionDivider, AddToCartModal } from '../ui';
 import { useCartStore } from '../store/useCartStore';
 import { cartAPI, catalogAPI } from '../services/api';
-import { Grid, Gift, Star, Search, Phone } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
@@ -84,41 +84,6 @@ const Home: React.FC = () => {
       color: theme.colors.dark.text,
       fontFamily: theme.typography.fontFamily,
     },
-    quickActionsGrid: {
-      padding: `0 ${theme.padding.screen}`,
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: theme.spacing.md,
-      marginBottom: theme.spacing.lg,
-    },
-    quickActionButton: {
-      height: 100,
-      borderRadius: theme.radius.lg,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: theme.spacing.sm,
-      background: 'linear-gradient(135deg, rgba(96,165,250,0.16) 0%, rgba(30,64,175,0.12) 100%)',
-      border: '1px solid rgba(96,165,250,0.24)',
-      color: theme.colors.dark.text,
-      textDecoration: 'none',
-      transition: 'all 0.2s ease',
-    },
-    quickActionIcon: {
-      width: 32,
-      height: 32,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    quickActionText: {
-      fontSize: theme.typography.fontSize.sm,
-      fontWeight: theme.typography.fontWeight.medium,
-      textAlign: 'center' as const,
-      textTransform: 'uppercase' as const,
-      letterSpacing: '0.08em',
-    },
     searchSection: {
       padding: `0 ${theme.padding.screen}`,
       marginBottom: theme.spacing.lg,
@@ -135,32 +100,51 @@ const Home: React.FC = () => {
       cursor: 'pointer',
       transition: 'all 0.2s ease',
     },
-    categoryGrid: {
+    categoryScrollerWrap: {
       padding: `0 ${theme.padding.screen}`,
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: theme.spacing.md,
       marginBottom: theme.spacing.xl,
     },
-    categoryCard: {
-      height: 160,
-      borderRadius: theme.radius.lg,
-      overflow: 'hidden',
-      position: 'relative' as const,
-      boxShadow: theme.shadow.card,
-      border: '1px solid rgba(255,255,255,0.14)',
+    categoryScroller: {
+      display: 'flex',
+      gap: theme.spacing.sm,
+      overflowX: 'auto' as const,
+      paddingBottom: 6,
+      scrollbarWidth: 'none' as const,
+      msOverflowStyle: 'none' as const,
     },
-    categoryTitle: {
-      position: 'absolute' as const,
-      inset: 0,
+    categoryCard: {
+      minWidth: 132,
+      width: 132,
+      minHeight: 44,
+      flex: '0 0 auto' as const,
+      borderRadius: theme.radius.md,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: theme.typography.fontSize.lg,
+      padding: '0 14px',
+      background: 'linear-gradient(135deg, rgba(96,165,250,0.14) 0%, rgba(30,64,175,0.12) 100%)',
+      border: '1px solid rgba(96,165,250,0.22)',
+      cursor: 'pointer',
+    },
+    categoryTitle: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: theme.typography.fontSize.xs,
       fontWeight: theme.typography.fontWeight.bold,
       textTransform: 'uppercase' as const,
-      letterSpacing: '0.14em',
-      textShadow: '0 10px 30px rgba(0,0,0,0.55)',
+      letterSpacing: '0.08em',
+      textAlign: 'center' as const,
+      color: theme.colors.dark.text,
+    },
+    categoryHint: {
+      padding: `0 ${theme.padding.screen}`,
+      marginTop: -theme.spacing.md,
+      marginBottom: theme.spacing.lg,
+      fontSize: theme.typography.fontSize.xs,
+      color: theme.colors.dark.textSecondary,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase' as const,
     },
     productGrid: {
       padding: `0 ${theme.padding.screen}`,
@@ -180,52 +164,6 @@ const Home: React.FC = () => {
 
   return (
     <div style={styles.container}>
-      <SectionDivider title="Быстрые действия" />
-
-      {/* Quick Action Buttons */}
-      <div style={styles.quickActionsGrid}>
-        <div
-          style={styles.quickActionButton}
-          onClick={() => navigate('/catalog')}
-          role="button"
-        >
-          <div style={styles.quickActionIcon}>
-            <Grid size={24} color={theme.colors.dark.primary} />
-          </div>
-          <div style={styles.quickActionText}>Каталог</div>
-        </div>
-        <div
-          style={styles.quickActionButton}
-          onClick={() => navigate('/promotions')}
-          role="button"
-        >
-          <div style={styles.quickActionIcon}>
-            <Gift size={24} color={theme.colors.dark.primary} />
-          </div>
-          <div style={styles.quickActionText}>Акции</div>
-        </div>
-        <div
-          style={styles.quickActionButton}
-          onClick={() => navigate('/bonuses')}
-          role="button"
-        >
-          <div style={styles.quickActionIcon}>
-            <Star size={24} color={theme.colors.dark.primary} />
-          </div>
-          <div style={styles.quickActionText}>Бонусы</div>
-        </div>
-        <div
-          style={styles.quickActionButton}
-          onClick={() => navigate('/support')}
-          role="button"
-        >
-          <div style={styles.quickActionIcon}>
-            <Phone size={24} color={theme.colors.dark.primary} />
-          </div>
-          <div style={styles.quickActionText}>Поддержка</div>
-        </div>
-      </div>
-
       {/* Search Section */}
       <div style={styles.searchSection}>
         <div
@@ -238,34 +176,24 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      <div style={styles.categoryGrid}>
-        {categories.map((category) => (
-          <div
-            key={category.name}
-            style={{
-              ...styles.categoryCard,
-              background: 'linear-gradient(135deg, rgba(14,27,51,0.92) 0%, rgba(11,20,36,0.96) 100%)',
-            }}
-            onClick={() => navigate(`/catalog?category=${encodeURIComponent(category.slug)}`)}
-            role="button"
-          >
-            {category.image ? (
-              <img
-                src={category.image}
-                alt=""
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : null}
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(8,17,31,0.30) 0%, rgba(8,17,31,0.76) 100%)' }} />
-            {category.badgeText ? (
-              <div style={{ position: 'absolute', top: theme.spacing.md, right: theme.spacing.md }}>
-                <ChipBadge variant="new" size="sm">{category.badgeText}</ChipBadge>
-              </div>
-            ) : null}
-            <div style={styles.categoryTitle}>{category.name}</div>
-          </div>
-        ))}
+      <SectionDivider title="Категории" />
+
+      <div style={styles.categoryScrollerWrap}>
+        <div style={styles.categoryScroller}>
+          {categories.map((category) => (
+            <div
+              key={category.name}
+              style={styles.categoryCard}
+              onClick={() => navigate(`/catalog?category=${encodeURIComponent(category.slug)}`)}
+              role="button"
+            >
+              <div style={styles.categoryTitle}>{category.name}</div>
+            </div>
+          ))}
+        </div>
       </div>
+
+      <div style={styles.categoryHint}>Листай категории влево и вправо</div>
 
       <SectionDivider title="Наш каталог" />
 

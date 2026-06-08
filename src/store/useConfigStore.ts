@@ -16,11 +16,9 @@ export type AppConfig = {
   currency: string;
   currencySymbol?: string;
   groupUrl: string;
-  reviewsUrl: string;
   reservationTtlMs: number;
   support: {
     managerUsername: string;
-    managerPhone: string;
     supportUrl?: string;
     faqBlocks?: Array<{ title: string; text: string }>;
   };

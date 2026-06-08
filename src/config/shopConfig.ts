@@ -1,5 +1,10 @@
+const primaryCityCode = String(process.env.CITY_CODES || '')
+  .split(',')
+  .map((value) => value.trim())
+  .find(Boolean) || 'HG';
+
 export const shopConfig = {
-  cityCode: process.env.CITY_CODE || "HG",
+  cityCode: primaryCityCode,
   shopName: process.env.SHOP_NAME || "Template Shop",
   welcomeMessage: (process.env.WELCOME_MESSAGE ||
     [
@@ -13,6 +18,5 @@ export const shopConfig = {
       "",
       "👇 Оформление заказа занимает меньше минуты.",
     ].join("\n")).trim(),
-  telegramGroupUrl: process.env.TELEGRAM_GROUP_URL || "",
-  reviewsUrl: process.env.REVIEWS_URL || "",
+  telegramGroupUrl: process.env.GROUP_URL || "",
 };

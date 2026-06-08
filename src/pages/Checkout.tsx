@@ -55,9 +55,9 @@ const Checkout: React.FC = () => {
   const [supportUrl, setSupportUrl] = React.useState<string>('');
 
   React.useEffect(() => {
-    const url = String(config?.support?.supportUrl || config?.groupUrl || config?.reviewsUrl || '');
+    const url = String(config?.support?.supportUrl || config?.groupUrl || '');
     setSupportUrl(url);
-  }, [config?.support?.supportUrl, config?.groupUrl, config?.reviewsUrl]);
+  }, [config?.support?.supportUrl, config?.groupUrl]);
 
   React.useEffect(() => {
     if (pickupPoint) return;

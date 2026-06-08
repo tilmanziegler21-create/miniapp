@@ -12,7 +12,7 @@ const Support: React.FC = () => {
     (async () => {
       try {
         const resp = await configAPI.get();
-        setUrl(String(resp.data.groupUrl || resp.data.reviewsUrl || ''));
+        setUrl(String(resp.data.groupUrl || ''));
       } catch (e) {
         console.error('Support config load failed:', e);
         setUrl('');

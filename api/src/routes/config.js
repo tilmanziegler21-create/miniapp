@@ -23,7 +23,7 @@ function currencySymbol() {
 
 router.get('/', (_req, res) => {
   const codes = listCities();
-  const supportUrl = process.env.GROUP_URL || process.env.REVIEWS_URL || '';
+  const supportUrl = process.env.GROUP_URL || '';
   const promos = db.getPromos().filter((p) => Boolean(p.active));
   const branding = getBranding();
   res.json({
@@ -38,11 +38,9 @@ router.get('/', (_req, res) => {
     currency: process.env.CURRENCY || 'RUB',
     currencySymbol: currencySymbol(),
     groupUrl: process.env.GROUP_URL || '',
-    reviewsUrl: process.env.REVIEWS_URL || '',
     reservationTtlMs: Number(process.env.RESERVATION_TTL_MS || 30 * 60 * 1000),
     support: {
       managerUsername: process.env.MANAGER_USERNAME || '',
-      managerPhone: process.env.MANAGER_PHONE || '',
       supportUrl,
       faqBlocks: [
         { title: 'Доставка', text: 'Доставка 24/7 (при наличии курьеров). Если курьеров нет — самовывоз.' },

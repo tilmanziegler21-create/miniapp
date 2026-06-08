@@ -292,8 +292,7 @@ export function registerClientFlow(bot: TelegramBot) {
         [{ text: "🛍️ Каталог", callback_data: "menu_catalog" }],
         [{ text: "🛒 Корзина", callback_data: encodeCb("cart_open") }],
         [{ text: "❓ Как заказать?", callback_data: "menu_howto" }],
-        [{ text: "👥 Группа в Telegram", url: env.GROUP_URL || "https://t.me/+OiFfOVteCMFhYjZi" }],
-        [{ text: "⭐ Отзывы", url: env.REVIEWS_URL || "https://t.me/" }]
+        [{ text: "👥 Группа в Telegram", url: env.GROUP_URL || "https://t.me/+OiFfOVteCMFhYjZi" }]
       ];
       try { await bot.deleteMessage(chatId, messageId); } catch {}
       await bot.sendMessage(chatId, "🍬 <b>Добро пожаловать</b>\n\nПремиальные жидкости ELFIQ/CHASER и электроника.\n💶 Цена автоматически зависит от количества и города.\n🚚 Курьерская выдача — выбираете удобный слот.\n\n👇 Выберите действие и соберите заказ за минуту", { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" });

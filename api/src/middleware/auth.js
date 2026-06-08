@@ -1,4 +1,4 @@
-import CryptoJS from 'crypto-js';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import db from '../services/database.js';
 
@@ -10,7 +10,7 @@ export const verifyTelegramAuth = (req, res, next) => {
       return res.status(401).json({ error: 'No initData provided' });
     }
 
-    const botToken = process.env.BOT_TOKEN;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {
       return res.status(500).json({ error: 'Bot token not configured' });
     }
@@ -29,14 +29,22 @@ export const verifyTelegramAuth = (req, res, next) => {
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
 
-    const secretKey = CryptoJS.HmacSHA256(botToken, 'WebAppData').toString();
-    const calculatedHash = CryptoJS.HmacSHA256(dataCheckString, secretKey).toString();
+    // Telegram WebApp verification uses a binary HMAC digest as the second-step key.
+    // Using the first digest as a hex string breaks verification for real initData payloads.
+    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+    const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
-    if (calculatedHash !== hash) {
+    const hashBuffer = Buffer.from(hash, 'hex');
+    const calculatedBuffer = Buffer.from(calculatedHash, 'hex');
+    if (hashBuffer.length !== calculatedBuffer.length || !crypto.timingSafeEqual(hashBuffer, calculatedBuffer)) {
       return res.status(401).json({ error: 'Invalid hash' });
     }
 
-    const userData = JSON.parse(params.get('user'));
+    const rawUser = params.get('user');
+    if (!rawUser) {
+      return res.status(401).json({ error: 'No user in initData' });
+    }
+    const userData = JSON.parse(rawUser);
     
     req.user = {
       tgId: userData.id.toString(),

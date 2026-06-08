@@ -458,20 +458,6 @@ const Product: React.FC = () => {
           В наличии: {product.qtyAvailable}
         </button>
 
-        {/* Reviews Section */}
-        {social?.reviews && social.reviews.length > 0 && (
-          <div style={styles.reviewsSection}>
-            <div style={{ fontSize: theme.typography.fontSize.sm, fontWeight: theme.typography.fontWeight.medium, marginBottom: theme.spacing.sm }}>
-              Последние отзывы:
-            </div>
-            {social.reviews.slice(0, 3).map((review, index) => (
-              <div key={index} style={styles.reviewItem}>
-                <div style={styles.reviewAuthor}>Артём, Kiel</div>
-                <div>"{review}"</div>
-              </div>
-            ))}
-          </div>
-        )}
       </GlassCard>
 
       {similar.length ? (
