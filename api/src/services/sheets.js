@@ -6,10 +6,36 @@ function getEnv(name, fallback = '') {
   return (process.env[name] || fallback || '').toString();
 }
 
+function normalizePrivateKey(raw) {
+  let cleaned = String(raw || '').trim();
+  if (!cleaned) return '';
+
+  // Allow pasting full JSON, quoted strings, or escaped PEM blocks into Render variables.
+  if (cleaned.startsWith('{') && cleaned.includes('"private_key"')) {
+    try {
+      const parsed = JSON.parse(cleaned);
+      cleaned = String(parsed.private_key || '').trim();
+    } catch {
+      // ignore and continue with raw value
+    }
+  }
+
+  cleaned = cleaned
+    .replace(/^"+|"+$/g, '')
+    .replace(/^'+|'+$/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim();
+
+  return cleaned;
+}
+
 function getServiceAccount() {
   const email = getEnv('GOOGLE_SHEETS_CLIENT_EMAIL', getEnv('GOOGLE_SERVICE_ACCOUNT_EMAIL'));
   const rawKey = getEnv('GOOGLE_SHEETS_PRIVATE_KEY', getEnv('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY'));
-  const key = rawKey.replace(/\\n/g, '\n');
+  const key = normalizePrivateKey(rawKey);
   if (!email || !key) {
     const err = new Error('Sheets not configured');
     err.status = 503;
@@ -20,6 +46,15 @@ function getServiceAccount() {
     ];
     throw err;
   }
+
+  if (!key.includes('-----BEGIN PRIVATE KEY-----') || !key.includes('-----END PRIVATE KEY-----')) {
+    const err = new Error('Invalid Google private key format');
+    err.status = 503;
+    err.code = 'SHEETS_NOT_CONFIGURED';
+    err.missing = ['GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY'];
+    throw err;
+  }
+
   return { email, key };
 }
 
