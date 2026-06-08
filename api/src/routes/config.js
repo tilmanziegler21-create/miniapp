@@ -35,7 +35,7 @@ router.get('/', (_req, res) => {
       managerChatUrl: supportUrl,
     })),
     cityCodes: codes,
-    currency: process.env.CURRENCY || 'RUB',
+    currency: process.env.CURRENCY || 'EUR',
     currencySymbol: currencySymbol(),
     groupUrl: process.env.GROUP_URL || '',
     reservationTtlMs: Number(process.env.RESERVATION_TTL_MS || 30 * 60 * 1000),

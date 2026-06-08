@@ -4,6 +4,7 @@ import { User, Star, Gift, Clock, Package, ChevronRight, Heart } from 'lucide-re
 import { useAuthStore } from '../store/useAuthStore';
 import { bonusesAPI, favoritesAPI, orderAPI } from '../services/api';
 import { useAnalytics } from '../hooks/useAnalytics';
+import { formatCurrency } from '../lib/currency';
 import WebApp from '@twa-dev/sdk';
 import { useCityStore } from '../store/useCityStore';
 
@@ -295,7 +296,7 @@ const Profile: React.FC = () => {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Сумма:</span>
-                        <span className="font-semibold">{order.totalAmount.toLocaleString()}₽</span>
+                        <span className="font-semibold">{formatCurrency(Number(order.totalAmount || 0))}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Доставка:</span>
@@ -371,7 +372,7 @@ const Profile: React.FC = () => {
                 <h3 className="font-semibold">Как получить бонусы?</h3>
               </div>
               <ul className="space-y-1 text-sm">
-                <li>• Совершайте покупки - 1₽ = 1 бонус</li>
+                <li>• Совершайте покупки - 1€ = 1 бонус</li>
                 <li>• Возвращайтесь за новыми заказами</li>
                 <li>• Приводите друзей</li>
                 <li>• Участвуйте в акциях</li>

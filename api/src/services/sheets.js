@@ -322,6 +322,7 @@ export async function getCouriers(city) {
   const activeIdx = headerIndexAny(headers, ['active', 'is_active']);
   const fromIdx = headerIndexAny(headers, ['time_from']);
   const toIdx = headerIndexAny(headers, ['time_to']);
+  const addressIdx = headerIndexAny(headers, ['address', 'delivery_address', 'pickup_address', 'meeting_point', 'location']);
   const out = [];
   for (const r of rows) {
     const active = activeIdx >= 0 ? toBool(r[activeIdx]) : true;
@@ -332,6 +333,7 @@ export async function getCouriers(city) {
       active,
       time_from: fromIdx >= 0 ? String(r[fromIdx] || '').trim() : '',
       time_to: toIdx >= 0 ? String(r[toIdx] || '').trim() : '',
+      address: addressIdx >= 0 ? String(r[addressIdx] || '').trim() : '',
     });
   }
   return out;

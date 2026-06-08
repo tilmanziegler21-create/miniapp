@@ -43,21 +43,13 @@ const Checkout: React.FC = () => {
   const idempotencyKeyRef = React.useRef<string>('');
 
   const [address, setAddress] = React.useState('');
-  const [phone, setPhone] = React.useState('');
-  const [couriers, setCouriers] = React.useState<Array<{ courier_id: string; name: string; tg_id: string; time_from?: string; time_to?: string }>>([]);
+  const [couriers, setCouriers] = React.useState<Array<{ courier_id: string; name: string; tg_id: string; time_from?: string; time_to?: string; address?: string }>>([]);
   const [courierId, setCourierId] = React.useState('');
   const [deliveryDate, setDeliveryDate] = React.useState('');
   const [deliveryTime, setDeliveryTime] = React.useState('');
 
   const [bonusBalance, setBonusBalance] = React.useState(0);
   const [bonusWant, setBonusWant] = React.useState('');
-
-  const [supportUrl, setSupportUrl] = React.useState<string>('');
-
-  React.useEffect(() => {
-    const url = String(config?.support?.supportUrl || config?.groupUrl || '');
-    setSupportUrl(url);
-  }, [config?.support?.supportUrl, config?.groupUrl]);
 
   React.useEffect(() => {
     if (pickupPoint) return;
@@ -104,6 +96,17 @@ const Checkout: React.FC = () => {
     })();
   }, [city]);
 
+  React.useEffect(() => {
+    if (deliveryMethod !== 'courier') return;
+    const selectedCourier = couriers.find((x) => x.courier_id === courierId);
+    const courierAddress = String(selectedCourier?.address || '').trim();
+    if (courierAddress) {
+      setAddress(courierAddress);
+    } else if (courierId) {
+      setAddress('');
+    }
+  }, [courierId, couriers, deliveryMethod]);
+
   const timeOptions = React.useMemo(() => {
     const c = couriers.find((x) => x.courier_id === courierId);
     const from = String(c?.time_from || '').trim();
@@ -131,14 +134,9 @@ const Checkout: React.FC = () => {
       return;
     }
 
-    if (!phone.trim()) {
-      toast.push('Укажи телефон', 'error');
-      return;
-    }
-
     if (deliveryMethod === 'courier') {
       if (!address.trim()) {
-        toast.push('Укажи адрес доставки', 'error');
+        toast.push('Для курьера не указан адрес в таблице', 'error');
         return;
       }
       if (!courierId) {
@@ -170,7 +168,7 @@ const Checkout: React.FC = () => {
       };
 
       const createResp = await orderAPI.createOrder(orderData, idempotencyKeyRef.current);
-      const { orderId, orderText, totalAmount } = createResp.data;
+      const { orderId, totalAmount } = createResp.data;
 
       let applied = 0;
       try {
@@ -194,7 +192,6 @@ const Checkout: React.FC = () => {
         delivery_time: deliveryMethod === 'courier' ? deliveryTime : '',
         courierData: {
           address: deliveryMethod === 'courier' ? address : pickupPoint,
-          phone,
           comment: String(comment || '').slice(0, 500),
           user: {
             tgId: user?.tgId || '',
@@ -211,16 +208,6 @@ const Checkout: React.FC = () => {
       setCart(refreshed.data.cart);
 
       toast.push(`Заказ ${orderId} оформлен`, 'success');
-
-      const msg = String(orderText || '').trim();
-      try {
-        if (supportUrl && WebApp.openTelegramLink) {
-          WebApp.openTelegramLink(`https://t.me/share/url?text=${encodeURIComponent(msg)}`);
-        }
-      } catch (e) {
-        console.error('Open chat failed:', e);
-        toast.push('Не удалось открыть чат', 'error');
-      }
 
       navigate('/orders');
     } catch (e) {
@@ -366,11 +353,6 @@ const Checkout: React.FC = () => {
             </>
           ) : (
             <>
-              <div style={styles.label}>Адрес доставки</div>
-              <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Введите адрес" style={styles.input} />
-
-              <div style={{ height: theme.spacing.md }} />
-
               <div style={styles.label}>Курьер</div>
               <select value={courierId} onChange={(e) => setCourierId(e.target.value)} style={styles.input}>
                 <option value="">Выберите курьера</option>
@@ -380,6 +362,16 @@ const Checkout: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              <div style={{ height: theme.spacing.md }} />
+
+              <div style={styles.label}>Адрес курьера</div>
+              <input
+                value={address}
+                readOnly
+                placeholder={courierId ? 'Адрес не указан в таблице курьеров' : 'Сначала выберите курьера'}
+                style={{ ...styles.input, opacity: 0.9 }}
+              />
 
               <div style={{ height: theme.spacing.md }} />
 
@@ -438,9 +430,6 @@ const Checkout: React.FC = () => {
       <div style={styles.row}>
         <GlassCard padding="lg" variant="elevated">
           <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={500} placeholder="Комментарий к заказу" style={{ ...styles.input, minHeight: 90, resize: 'none' }} />
-          <div style={{ height: theme.spacing.md }} />
-          <div style={styles.label}>Телефон</div>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 ..." style={styles.input} maxLength={40} />
         </GlassCard>
       </div>
 

@@ -2,10 +2,7 @@ import { useCallback } from 'react';
 import WebApp from '@twa-dev/sdk';
 import { analyticsAPI } from '../services/api';
 
-interface AnalyticsEvent {
-  event: string;
-  params?: Record<string, any>;
-}
+const CURRENCY = 'EUR';
 
 export const useAnalytics = () => {
   const trackEvent = useCallback((event: string, params?: Record<string, any>) => {
@@ -43,7 +40,7 @@ export const useAnalytics = () => {
       price,
       quantity,
       value: price * quantity,
-      currency: 'RUB'
+      currency: CURRENCY
     });
   }, [trackEvent]);
 
@@ -54,7 +51,7 @@ export const useAnalytics = () => {
       price,
       quantity,
       value: price * quantity,
-      currency: 'RUB'
+      currency: CURRENCY
     });
   }, [trackEvent]);
 
@@ -68,7 +65,7 @@ export const useAnalytics = () => {
         quantity: item.quantity
       })),
       total,
-      currency: 'RUB'
+      currency: CURRENCY
     });
   }, [trackEvent]);
 
@@ -77,7 +74,7 @@ export const useAnalytics = () => {
       order_id: orderId,
       total,
       items: items.length,
-      currency: 'RUB'
+      currency: CURRENCY
     });
   }, [trackEvent]);
 
