@@ -5,7 +5,7 @@ import WebApp from '@twa-dev/sdk';
 import { catalogAPI, cartAPI } from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { AddToCartModal, ProductCard, GlassCard, SecondaryButton, SectionDivider, theme } from '../ui';
+import { ProductCard, GlassCard, SecondaryButton, SectionDivider, theme } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { useCityStore } from '../store/useCityStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
@@ -41,9 +41,6 @@ const Catalog: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [query, setQuery] = useState('');
-  const [addOpen, setAddOpen] = useState(false);
-  const [addProduct, setAddProduct] = useState<Product | null>(null);
-  
   const [filters, setFilters] = useState({
     category: '',
     brand: '',
@@ -67,6 +64,7 @@ const Catalog: React.FC = () => {
   useEffect(() => {
     if (!city) return;
     loadCatalog(city);
+    loadFilters(city);
     favorites.load(city);
   }, [city]);
 
@@ -121,9 +119,26 @@ const Catalog: React.FC = () => {
     }
   };
 
-  const openAdd = (product: Product) => {
-    setAddProduct(product);
-    setAddOpen(true);
+  const addToCart = async (product: Product) => {
+    if (!city) {
+      toast.push('Выберите город', 'error');
+      return;
+    }
+    try {
+      await cartAPI.addItem({
+        productId: product.id,
+        quantity: 1,
+        city,
+        price: product.price,
+      });
+      const response = await cartAPI.getCart(city);
+      setCart(response.data.cart);
+      trackAddToCart(product.id, product.name, product.price, 1);
+      toast.push('Товар сразу добавлен в корзину', 'success');
+    } catch (error) {
+      console.error('Add to cart failed:', error);
+      toast.push('Ошибка добавления в корзину', 'error');
+    }
   };
 
   const resetFilters = () => {
@@ -305,7 +320,7 @@ const Catalog: React.FC = () => {
               showTasteProfile={true}
               showTrustIndicators={true}
               onClick={(id) => navigate(`/product/${id}`)}
-              onAddToCart={() => openAdd(p)}
+              onAddToCart={() => addToCart(p)}
               isFavorite={favorites.isFavorite(p.id)}
               onToggleFavorite={async () => {
                 if (!city) {
@@ -335,45 +350,6 @@ const Catalog: React.FC = () => {
           ))}
         </div>
       )}
-
-      <AddToCartModal
-        open={addOpen}
-        product={
-          addProduct
-            ? {
-                id: addProduct.id,
-                name: addProduct.name,
-                price: addProduct.price,
-                image: addProduct.image,
-                variants: ['Cool Menthol', 'Sour Strawberry Dragonfruit', 'Berry Ice'],
-              }
-            : null
-        }
-        onClose={() => setAddOpen(false)}
-        onConfirm={async ({ quantity, variant }) => {
-          if (!addProduct) return;
-          if (!city) {
-            toast.push('Выберите город', 'error');
-            return;
-          }
-          try {
-            await cartAPI.addItem({
-              productId: addProduct.id,
-              quantity,
-              city,
-              price: addProduct.price,
-              variant,
-            });
-            const response = await cartAPI.getCart(city);
-            setCart(response.data.cart);
-            trackAddToCart(addProduct.id, addProduct.name, addProduct.price, quantity);
-            toast.push('Товар добавлен в корзину', 'success');
-          } catch (error) {
-            console.error('Add to cart failed:', error);
-            toast.push('Ошибка добавления в корзину', 'error');
-          }
-        }}
-      />
 
       {showFilters ? (
         <div style={styles.overlay} onClick={() => setShowFilters(false)}>

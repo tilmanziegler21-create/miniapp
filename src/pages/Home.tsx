@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { theme, GlassCard, PrimaryButton, ProductCard, SectionDivider, AddToCartModal } from '../ui';
+import { theme, GlassCard, PrimaryButton, ProductCard, SectionDivider } from '../ui';
 import { useCartStore } from '../store/useCartStore';
 import { cartAPI, catalogAPI } from '../services/api';
 import { Search } from 'lucide-react';
@@ -27,8 +27,6 @@ const Home: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [addProduct, setAddProduct] = useState<Product | null>(null);
   const { city } = useCityStore();
   const favorites = useFavoritesStore();
   const { config } = useConfigStore();
@@ -75,6 +73,21 @@ const Home: React.FC = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addToCart = async (product: Product) => {
+    if (!city) {
+      toast.push('Выберите город', 'error');
+      return;
+    }
+    try {
+      await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price });
+      const resp = await cartAPI.getCart(city);
+      setCart(resp.data.cart);
+      toast.push('Товар сразу добавлен в корзину', 'success');
+    } catch {
+      toast.push('Ошибка добавления в корзину', 'error');
     }
   };
 
@@ -218,10 +231,7 @@ const Home: React.FC = () => {
               key={product.id}
               {...product}
               onClick={(id) => navigate(`/product/${id}`)}
-              onAddToCart={() => {
-                setAddProduct(product);
-                setAddOpen(true);
-              }}
+              onAddToCart={() => addToCart(product)}
                 isFavorite={favorites.isFavorite(product.id)}
                 onToggleFavorite={async () => {
                   if (!city) {
@@ -286,27 +296,6 @@ const Home: React.FC = () => {
           Пригласить друга
         </PrimaryButton>
       </div>
-
-      <AddToCartModal
-        open={addOpen}
-        product={addProduct ? { id: addProduct.id, name: addProduct.name, price: addProduct.price, image: addProduct.image, variants: ['Cool Menthol', 'Sour Strawberry Dragonfruit', 'Berry Ice'] } : null}
-        onClose={() => setAddOpen(false)}
-        onConfirm={async ({ quantity, variant }) => {
-          if (!addProduct) return;
-          if (!city) {
-            toast.push('Выберите город', 'error');
-            return;
-          }
-          try {
-            await cartAPI.addItem({ productId: addProduct.id, quantity, city, price: addProduct.price, variant });
-            const resp = await cartAPI.getCart(city);
-            setCart(resp.data.cart);
-            toast.push('Товар добавлен в корзину', 'success');
-          } catch {
-            toast.push('Ошибка добавления в корзину', 'error');
-          }
-        }}
-      />
     </div>
   );
 };

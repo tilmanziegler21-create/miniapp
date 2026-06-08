@@ -1,8 +1,9 @@
 import React from 'react';
 import WebApp from '@twa-dev/sdk';
+import { useNavigate } from 'react-router-dom';
 import { cartAPI } from '../services/api';
 import { useCartStore } from '../store/useCartStore';
-import { AddToCartModal, GlassCard, ProductCard, SectionDivider, theme } from '../ui';
+import { GlassCard, ProductCard, SectionDivider, theme } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { useCityStore } from '../store/useCityStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
@@ -17,12 +18,11 @@ type FavItem = {
 };
 
 const Favorites: React.FC = () => {
+  const navigate = useNavigate();
   const toast = useToastStore();
   const { setCart } = useCartStore();
   const { city } = useCityStore();
   const favorites = useFavoritesStore();
-  const [addOpen, setAddOpen] = React.useState(false);
-  const [addItem, setAddItem] = React.useState<FavItem | null>(null);
 
   const load = async () => {
     try {
@@ -60,6 +60,21 @@ const Favorites: React.FC = () => {
       toast.push('Удалено из избранного', 'success');
     } catch {
       toast.push('Ошибка избранного', 'error');
+    }
+  };
+
+  const addToCart = async (item: FavItem) => {
+    try {
+      if (!city) {
+        toast.push('Выберите город', 'error');
+        return;
+      }
+      await cartAPI.addItem({ productId: item.id, quantity: 1, city, price: item.price });
+      const resp = await cartAPI.getCart(city);
+      setCart(resp.data.cart);
+      toast.push('Товар сразу добавлен в корзину', 'success');
+    } catch {
+      toast.push('Ошибка добавления в корзину', 'error');
     }
   };
 
@@ -111,12 +126,9 @@ const Favorites: React.FC = () => {
               price={p.price}
               image={p.image}
               isFavorite
-              onClick={() => setAddItem(p)}
+              onClick={() => navigate(`/product/${p.id}`)}
               onToggleFavorite={() => remove(p.id)}
-              onAddToCart={() => {
-                setAddItem(p);
-                setAddOpen(true);
-              }}
+              onAddToCart={() => addToCart(p)}
             />
           ))
         ) : (
@@ -128,26 +140,6 @@ const Favorites: React.FC = () => {
         )}
       </div>
 
-      <AddToCartModal
-        open={addOpen}
-        product={addItem ? { id: addItem.id, name: addItem.name, price: addItem.price, image: addItem.image, variants: ['Cool Menthol', 'Sour Strawberry Dragonfruit', 'Berry Ice'] } : null}
-        onClose={() => setAddOpen(false)}
-        onConfirm={async ({ quantity, variant }) => {
-          if (!addItem) return;
-          if (!city) {
-            toast.push('Выберите город', 'error');
-            return;
-          }
-          try {
-            await cartAPI.addItem({ productId: addItem.id, quantity, city, price: addItem.price, variant });
-            const resp = await cartAPI.getCart(city);
-            setCart(resp.data.cart);
-            toast.push('Товар добавлен в корзину', 'success');
-          } catch {
-            toast.push('Ошибка добавления в корзину', 'error');
-          }
-        }}
-      />
     </div>
   );
 };
