@@ -4,7 +4,7 @@ import path from "path";
 import { env } from "../config";
 import { logger } from "../logger";
 
-let db: Database.Database;
+let db: any;
 
 function ensureDir(filePath: string) {
   const dir = path.dirname(filePath);

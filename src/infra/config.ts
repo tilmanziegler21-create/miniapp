@@ -25,6 +25,14 @@ function requireEnv(key: keyof Env): string {
   return v;
 }
 
+function requireEnvAny(keys: string[]): string {
+  for (const key of keys) {
+    const v = process.env[key];
+    if (v && v.trim() !== "") return v;
+  }
+  throw new Error(`Missing env ${keys.join(" or ")}`);
+}
+
 const DATA_BACKEND = (process.env.DATA_BACKEND as Env["DATA_BACKEND"]) || "mock";
 const SA_PATH = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH || "service-account.json";
 let SA_EMAIL = "";
@@ -39,7 +47,7 @@ if (DATA_BACKEND === "sheets") {
 }
 
 export const env: Env = {
-  TELEGRAM_BOT_TOKEN: requireEnv("TELEGRAM_BOT_TOKEN"),
+  TELEGRAM_BOT_TOKEN: requireEnvAny(["TELEGRAM_BOT_TOKEN", "BOT_TOKEN"]),
   TELEGRAM_ADMIN_IDS: process.env.TELEGRAM_ADMIN_IDS || "",
   METRICS_TOKEN: process.env.METRICS_TOKEN || "",
   GOOGLE_SHEETS_SPREADSHEET_ID:

@@ -1,32 +1,11 @@
 services:
-  - type: worker
-    name: botee-bot-worker
+  - type: web
+    name: miniapp-template
     env: node
-    autoDeploy: true
+    plan: free
     buildCommand: npm ci && npm run build
-    startCommand: node dist/index.js
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1
+    startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
-        value: 16
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: DATA_BACKEND
-        value: sheets
-      - key: TIMEZONE
-        value: Europe/Berlin
-      - key: CITY_CODES
-        value: FFM
-      - key: DB_PATH
-        value: /data/app.db
-      - key: GOOGLE_SHEETS_SPREADSHEET_ID
-        sync: false
-      - key: GOOGLE_SERVICE_ACCOUNT_EMAIL
-        sync: false
-      - key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
-        sync: false
-      - key: GOOGLE_SERVICE_ACCOUNT_JSON_PATH
-        value: /etc/secrets/google.json
+        value: 20
