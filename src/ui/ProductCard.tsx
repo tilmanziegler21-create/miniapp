@@ -67,9 +67,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     const isImageUrl = /\.(png|jpe?g|webp|gif|svg)$/.test(base);
     if (!isImageUrl) return '';
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-    if (raw.startsWith('/')) return assetUrl(raw);
-    if (raw.startsWith('images/')) return assetUrl(`/${raw}`);
-    return '';
+    return assetUrl(raw.startsWith('/') ? raw : `/${raw}`);
   };
 
   const brandKey = (s: string) => {
