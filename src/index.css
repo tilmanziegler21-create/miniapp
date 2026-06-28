@@ -13,24 +13,28 @@
 }
 
 .bg-app {
-  background:
-    radial-gradient(1200px circle at 50% 0%, rgba(96,165,250,0.12) 0%, rgba(96,165,250,0.03) 30%, transparent 64%),
-    radial-gradient(900px circle at 12% 12%, rgba(56,189,248,0.08) 0%, transparent 34%),
-    linear-gradient(180deg, #08070a 0%, #0f0d12 100%);
-  background-size: 140% 140%, 160% 160%, 100% 100%;
-  animation: bgShift 14s ease-in-out infinite;
+  background: linear-gradient(
+    -45deg,
+    #08070a,
+    #0f172a,
+    #081121,
+    #1e3a8a,
+    #0f172a
+  );
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
   color: #f4f1ea;
 }
 
-@keyframes bgShift {
+@keyframes gradientBG {
   0% {
-    background-position: 10% 10%, 90% 20%, 0% 0%;
+    background-position: 0% 50%;
   }
   50% {
-    background-position: 30% 25%, 70% 35%, 0% 0%;
+    background-position: 100% 50%;
   }
   100% {
-    background-position: 10% 10%, 90% 20%, 0% 0%;
+    background-position: 0% 50%;
   }
 }
 

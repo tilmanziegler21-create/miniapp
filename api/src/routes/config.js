@@ -50,10 +50,10 @@ router.get('/', (_req, res) => {
     },
     banners: [],
     categoryTiles: [
-      { slug: 'Жидкости', title: 'ЖИДКОСТИ', imageUrl: buildBrandAssetUrl('categories/category-liquids.jpg') },
-      { slug: 'Одноразки', title: 'ОДНОРАЗКИ', imageUrl: buildBrandAssetUrl('categories/category-disposables.jpg') },
-      { slug: 'Поды', title: 'ПОДЫ', imageUrl: buildBrandAssetUrl('categories/category-pods.jpg') },
-      { slug: 'Картриджи', title: 'КАРТРИДЖИ', imageUrl: buildBrandAssetUrl('categories/category-cartridges.jpg') },
+      { slug: 'liquids', title: 'ЖИДКОСТИ', imageUrl: buildBrandAssetUrl('categories/category-liquids.jpg') },
+      { slug: 'disposables', title: 'ОДНОРАЗКИ', imageUrl: buildBrandAssetUrl('categories/category-disposables.jpg') },
+      { slug: 'pods', title: 'ПОДЫ', imageUrl: buildBrandAssetUrl('categories/category-pods.jpg') },
+      { slug: 'cartridges', title: 'КАРТРИДЖИ', imageUrl: buildBrandAssetUrl('categories/category-cartridges.jpg') },
     ],
     pickupPoints: [
       { id: 'p1', title: 'ul. Krucza 03, Śródmieście', address: 'ul. Krucza 03, Śródmieście' },

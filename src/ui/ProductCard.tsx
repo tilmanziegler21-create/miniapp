@@ -87,7 +87,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     const normalized = normalizeProvidedImage(productImage);
     if (normalized) return normalized;
     
-    if (!brand) return '';
+    if (!brand) return 'https://via.placeholder.com/300x300/10203b/60a5fa?text=Vape';
 
     const k = brandKey(brand);
 
@@ -98,7 +98,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     if (k.compact.includes('geekvape') || k.cleaned.includes('geek vape')) return assetUrl('/images/brands/geekvape/geekvape_liquid.png');
     if (k.compact.includes('vaporesso')) return assetUrl('/images/brands/vaporesso/vaporesso_liquid.png');
 
-    return '';
+    return 'https://via.placeholder.com/300x300/10203b/60a5fa?text=' + encodeURIComponent(brand.slice(0, 8));
   };
 
   // Brand-based gradient backgrounds as fallback

@@ -321,10 +321,6 @@ const Catalog: React.FC = () => {
       <div style={styles.headerWrap}>
         <div style={styles.banner}>
           <div style={styles.bannerInner}>
-            <div style={styles.bannerTitle}>Каталог в новом blue/cyan дизайне</div>
-            <div style={styles.bannerText}>
-              Визуальная подача из архива совмещена с текущими фильтрами, API, избранным и one-tap добавлением в корзину.
-            </div>
           </div>
         </div>
       </div>
