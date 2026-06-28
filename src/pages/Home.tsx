@@ -5,8 +5,11 @@ import { Search } from 'lucide-react';
 import { formatCurrency } from '../lib/currency';
 import { useHomePage } from '../hooks/useHomePage';
 
+import { useConfigStore } from '../store/useConfigStore';
+
 const Home: React.FC = () => {
   const navigate = useNavigate();
+  const { config } = useConfigStore();
   const {
     products,
     loading,
@@ -17,7 +20,14 @@ const Home: React.FC = () => {
     toggleFavorite,
   } = useHomePage();
 
-  const bannerUrl = `${import.meta.env.BASE_URL || '/'}banner-open.png`.replace(/([^:]\/)\/+/g, '$1');
+  const liquidPrices = config?.liquidPrices || {
+    1: 18,
+    2: 32,
+    3: 45,
+    extra: 14
+  };
+
+  const bannerUrl = `${import.meta.env.BASE_URL || '/'}assets/brand/banners/banner-1.jpg`.replace(/([^:]\/)\/+/g, '$1');
 
   const styles = {
     container: {
@@ -151,7 +161,11 @@ const Home: React.FC = () => {
     <div style={styles.container} className="gold-glow">
       <div style={styles.hero}>
         <div style={styles.heroCard}>
-          <div style={styles.heroOverlay}></div>
+          <div style={styles.heroOverlay}>
+            <div style={styles.heroEyebrow}>Премиум качество</div>
+            <div style={styles.heroTitle}>Твой идеальный выбор</div>
+            <div style={styles.heroText}>Открой для себя лучшие вкусы и бренды</div>
+          </div>
         </div>
       </div>
 
@@ -243,10 +257,10 @@ const Home: React.FC = () => {
               textAlign: 'center',
               lineHeight: 1.4
             }}>
-              1 шт - {formatCurrency(18)}<br/>
-              2 шт - {formatCurrency(32)}<br/>
-              3 шт - {formatCurrency(45)}<br/>
-              Далее по {formatCurrency(14)}
+              1 шт - {formatCurrency(liquidPrices['1'] || 18)}<br/>
+              2 шт - {formatCurrency(liquidPrices['2'] || 32)}<br/>
+              3 шт - {formatCurrency(liquidPrices['3'] || 45)}<br/>
+              Далее по {formatCurrency(liquidPrices['extra'] || 14)}
             </div>
           </GlassCard>
         </div>

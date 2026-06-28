@@ -9,6 +9,7 @@ import { AddToCartModal, GlassCard, IconButton, ProductCard, SectionDivider, the
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
+import { useConfigStore } from '../store/useConfigStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 
 type ProductEntity = {
@@ -105,6 +106,8 @@ const Product: React.FC = () => {
   const [addOpen, setAddOpen] = React.useState(false);
   const favorites = useFavoritesStore();
 
+  const { config } = useConfigStore();
+
   const load = async () => {
     try {
       setLoading(true);
@@ -178,13 +181,15 @@ const Product: React.FC = () => {
         if (Math.random() > 0.5) {
           setTimeout(() => {
             try {
-              WebApp.showConfirm('Возьмите еще одну жидкость!\n1 шт - 18\n2 шт - 32\n3 шт - 45\nкаждая следующая по 14', (confirmed) => {
+              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
+              WebApp.showConfirm(`Возьмите еще одну жидкость!\n1 шт - ${lp['1'] || 18}\n2 шт - ${lp['2'] || 32}\n3 шт - ${lp['3'] || 45}\nкаждая следующая по ${lp['extra'] || 14}`, (confirmed) => {
                 if (confirmed) {
                   navigate('/catalog?category=liquids');
                 }
               });
             } catch {
-              toast.push('Скидки на жидкости: 1=18, 2=32, 3=45, далее по 14!', 'info');
+              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
+              toast.push(`Скидки на жидкости: 1=${lp['1']||18}, 2=${lp['2']||32}, 3=${lp['3']||45}, далее по ${lp['extra']||14}!`, 'info');
             }
           }, 1000);
         }

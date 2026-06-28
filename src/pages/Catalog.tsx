@@ -8,6 +8,7 @@ import { useAnalytics } from '../hooks/useAnalytics';
 import { ProductCard, GlassCard, SecondaryButton, theme } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { useCityStore } from '../store/useCityStore';
+import { useConfigStore } from '../store/useConfigStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 
 interface Product {
@@ -33,6 +34,7 @@ const Catalog: React.FC = () => {
   const { setCart } = useCartStore();
   const { trackAddToCart, trackFilterUse, trackCategoryView } = useAnalytics();
   const { city } = useCityStore();
+  const { config } = useConfigStore();
   const favorites = useFavoritesStore();
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
@@ -151,13 +153,15 @@ const Catalog: React.FC = () => {
         if (Math.random() > 0.5) {
           setTimeout(() => {
             try {
-              WebApp.showConfirm('Возьмите еще одну жидкость!\n1 шт - 18\n2 шт - 32\n3 шт - 45\nкаждая следующая по 14', (confirmed) => {
+              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
+              WebApp.showConfirm(`Возьмите еще одну жидкость!\n1 шт - ${lp['1'] || 18}\n2 шт - ${lp['2'] || 32}\n3 шт - ${lp['3'] || 45}\nкаждая следующая по ${lp['extra'] || 14}`, (confirmed) => {
                 if (confirmed) {
                   setFilters({ ...filters, category: product.category });
                 }
               });
             } catch {
-              toast.push('Скидки на жидкости: 1=18, 2=32, 3=45, далее по 14!', 'info');
+              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
+              toast.push(`Скидки на жидкости: 1=${lp['1']||18}, 2=${lp['2']||32}, 3=${lp['3']||45}, далее по ${lp['extra']||14}!`, 'info');
             }
           }, 1000);
         }

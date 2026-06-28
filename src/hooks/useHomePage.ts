@@ -89,13 +89,15 @@ export function useHomePage() {
         if (Math.random() > 0.5) {
           setTimeout(() => {
             try {
-              WebApp.showConfirm('Возьмите еще одну жидкость!\n1 шт - 18\n2 шт - 32\n3 шт - 45\nкаждая следующая по 14', (confirmed) => {
+              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
+              WebApp.showConfirm(`Возьмите еще одну жидкость!\n1 шт - ${lp['1'] || 18}\n2 шт - ${lp['2'] || 32}\n3 шт - ${lp['3'] || 45}\nкаждая следующая по ${lp['extra'] || 14}`, (confirmed) => {
                 if (confirmed) {
                   // navigate to liquids
                 }
               });
             } catch {
-              toast.push('Скидки на жидкости: 1=18, 2=32, 3=45, далее по 14!', 'info');
+              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
+              toast.push(`Скидки на жидкости: 1=${lp['1']||18}, 2=${lp['2']||32}, 3=${lp['3']||45}, далее по ${lp['extra']||14}!`, 'info');
             }
           }, 1000);
         }

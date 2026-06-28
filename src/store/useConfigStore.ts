@@ -11,6 +11,7 @@ export type AppConfig = {
     referralShareText: string;
     brandAvatarUrl?: string;
   };
+  liquidPrices?: Record<string, number>;
   cities: Array<{ code: string; title: string; currencySymbol?: string; managerChatUrl?: string }>;
   cityCodes?: string[];
   currency: string;

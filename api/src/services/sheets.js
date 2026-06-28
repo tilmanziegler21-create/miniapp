@@ -179,6 +179,35 @@ export async function readSheetTable(baseName, city) {
   throw lastErr || new Error(`Unable to read sheet ${baseName}`);
 }
 
+export async function getLiquidPrices(city) {
+  try {
+    const { headers, rows } = await readSheetTable('liquidprices', city);
+    const qtyIdx = headerIndexAny(headers, ['qty', 'quantity', 'количество', 'шт']);
+    const priceIdx = headerIndexAny(headers, ['price', 'цена']);
+    
+    if (qtyIdx < 0 || priceIdx < 0) return null;
+
+    const prices = {};
+    for (const r of rows) {
+      const qtyStr = String(r[qtyIdx] || '').trim().toLowerCase();
+      const price = toNumber(r[priceIdx]);
+      
+      if (qtyStr === 'extra' || qtyStr === 'далее' || qtyStr === '+1') {
+        prices['extra'] = price;
+      } else {
+        const qty = toNumber(r[qtyIdx]);
+        if (qty > 0 && price > 0) {
+          prices[qty] = price;
+        }
+      }
+    }
+    return Object.keys(prices).length > 0 ? prices : null;
+  } catch (e) {
+    console.warn(`Failed to read liquidprices for city ${city}:`, e.message);
+    return null; // Silent fail if table doesn't exist
+  }
+}
+
 export async function getProducts(city) {
   const { sheet, headers, rows } = await readSheetTable('products', city);
   const skuIdx = headerIndexAny(headers, ['sku', 'product_id', 'id']);

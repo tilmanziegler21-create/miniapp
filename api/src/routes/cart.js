@@ -1,7 +1,7 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import db from '../services/database.js';
-import { getProducts } from '../services/sheets.js';
+import { getProducts, getLiquidPrices } from '../services/sheets.js';
 
 const router = express.Router();
 
@@ -65,10 +65,28 @@ router.get('/', requireAuth, async (req, res) => {
     });
 
     let liquidsFinalPrice = 0;
-    if (totalLiquidsQty === 1) liquidsFinalPrice = 18;
-    else if (totalLiquidsQty === 2) liquidsFinalPrice = 32;
-    else if (totalLiquidsQty === 3) liquidsFinalPrice = 45;
-    else if (totalLiquidsQty > 3) liquidsFinalPrice = 45 + (totalLiquidsQty - 3) * 14;
+    const dynamicLiquidPrices = await getLiquidPrices(String(city));
+    
+    if (dynamicLiquidPrices && totalLiquidsQty > 0) {
+      if (dynamicLiquidPrices[totalLiquidsQty]) {
+        liquidsFinalPrice = dynamicLiquidPrices[totalLiquidsQty];
+      } else {
+        const maxQty = Math.max(...Object.keys(dynamicLiquidPrices).map(Number));
+        if (totalLiquidsQty > maxQty) {
+          const extraPrice = dynamicLiquidPrices['extra'] || 14; // fallback to 14
+          liquidsFinalPrice = dynamicLiquidPrices[maxQty] + (totalLiquidsQty - maxQty) * extraPrice;
+        } else {
+          // fallback to base price if no matching tier and not exceeding max
+          liquidsFinalPrice = totalLiquidsBasePrice;
+        }
+      }
+    } else {
+      // Fallback logic if liquidprices table is missing
+      if (totalLiquidsQty === 1) liquidsFinalPrice = 18;
+      else if (totalLiquidsQty === 2) liquidsFinalPrice = 32;
+      else if (totalLiquidsQty === 3) liquidsFinalPrice = 45;
+      else if (totalLiquidsQty > 3) liquidsFinalPrice = 45 + (totalLiquidsQty - 3) * 14;
+    }
 
     const totalLiquidsDiscount = totalLiquidsQty > 0 ? Math.max(0, totalLiquidsBasePrice - liquidsFinalPrice) : 0;
     let appliedLiquidsDiscount = 0;
