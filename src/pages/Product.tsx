@@ -78,20 +78,11 @@ const brandKey = (s: string) => {
 };
 
 const getBrandImage = (brand: string, productImage: string) => {
-  const normalized = normalizeProvidedImage(productImage);
-  if (normalized) return normalized;
-  
-  if (!brand) return '';
-
-  const k = brandKey(brand);
-  if (k.compact.includes('elfliq')) return assetUrl('/images/brands/elfliq/elfliq_liquid.png');
-  if (k.compact.includes('elfic')) return assetUrl('/images/brands/elfic_liquid.png');
-  if (k.compact.includes('elflic')) return assetUrl('/images/brands/elfic_liquid.png');
-  if (k.compact.includes('elfbar') || k.cleaned.includes('elf bar')) return assetUrl('/images/brands/elfbar/elfbar_liquid.png');
-  if (k.compact.includes('geekvape') || k.cleaned.includes('geek vape')) return assetUrl('/images/brands/geekvape/geekvape_liquid.png');
-  if (k.compact.includes('vaporesso')) return assetUrl('/images/brands/vaporesso/vaporesso_liquid.png');
-  return '';
-};
+    const normalized = normalizeProvidedImage(productImage);
+    if (normalized) return normalized;
+    
+    return 'https://via.placeholder.com/400x400/0f172a/60a5fa?text=Product';
+  };
 
 const getBrandGradient = (brand: string) => {
   void brand;

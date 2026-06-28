@@ -87,18 +87,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     const normalized = normalizeProvidedImage(productImage);
     if (normalized) return normalized;
     
-    if (!brand) return 'https://via.placeholder.com/300x300/10203b/60a5fa?text=Vape';
-
-    const k = brandKey(brand);
-
-    if (k.compact.includes('elfliq')) return assetUrl('/images/brands/elfliq/elfliq_liquid.png');
-    if (k.compact.includes('elfic')) return assetUrl('/images/brands/elfic_liquid.png');
-    if (k.compact.includes('elflic')) return assetUrl('/images/brands/elfic_liquid.png');
-    if (k.compact.includes('elfbar') || k.cleaned.includes('elf bar')) return assetUrl('/images/brands/elfbar/elfbar_liquid.png');
-    if (k.compact.includes('geekvape') || k.cleaned.includes('geek vape')) return assetUrl('/images/brands/geekvape/geekvape_liquid.png');
-    if (k.compact.includes('vaporesso')) return assetUrl('/images/brands/vaporesso/vaporesso_liquid.png');
-
-    return 'https://via.placeholder.com/300x300/10203b/60a5fa?text=' + encodeURIComponent(brand.slice(0, 8));
+    // Always return a clean, simple product placeholder instead of brand-specific hardcoded images
+    return 'https://via.placeholder.com/300x300/0f172a/60a5fa?text=Product';
   };
 
   // Brand-based gradient backgrounds as fallback
