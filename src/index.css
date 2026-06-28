@@ -19,34 +19,15 @@
     radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.1) 0%, transparent 60%),
     linear-gradient(-45deg, #08070a, #0f172a, #081121, #1e3a8a, #0f172a);
   background-size: 200% 200%, 200% 200%, 200% 200%, 400% 400%;
-  animation: 
-    gradientBG 15s ease infinite,
-    glareMove1 20s ease-in-out infinite alternate,
-    glareMove2 25s ease-in-out infinite alternate,
-    glareMove3 30s ease-in-out infinite alternate;
+  animation: bgAnimation 20s ease-in-out infinite alternate;
   color: #f4f1ea;
   position: relative;
 }
 
-@keyframes gradientBG {
-  0% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 50%; }
-  50% { background-position: 0% 0%, 0% 0%, 0% 0%, 100% 50%; }
-  100% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 50%; }
-}
-
-@keyframes glareMove1 {
-  0% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 50%; }
-  100% { background-position: 100% 100%, 0% 0%, 0% 0%, 0% 50%; }
-}
-
-@keyframes glareMove2 {
-  0% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 50%; }
-  100% { background-position: 0% 0%, -100% -100%, 0% 0%, 0% 50%; }
-}
-
-@keyframes glareMove3 {
-  0% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 50%; }
-  100% { background-position: 0% 0%, 0% 0%, 50% 100%, 0% 50%; }
+@keyframes bgAnimation {
+  0% { background-position: 0% 0%, 100% 100%, 50% 0%, 0% 50%; }
+  50% { background-position: 100% 100%, 0% 0%, 50% 100%, 100% 50%; }
+  100% { background-position: 0% 100%, 100% 0%, 0% 50%, 0% 50%; }
 }
 
 .glass {

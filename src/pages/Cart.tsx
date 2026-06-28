@@ -113,21 +113,7 @@ const Cart: React.FC = () => {
     }
     
     const subtotal = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    let total = subtotal;
-    let quantityDiscount = 0;
-    
-    // Apply quantity discount: 3+ items = 40€ per item
-    cart.items.forEach(item => {
-      if (item.quantity >= 3) {
-        const originalItemTotal = item.price * item.quantity;
-        const discountedItemTotal = 40 * item.quantity;
-        quantityDiscount += originalItemTotal - discountedItemTotal;
-      }
-    });
-    
-    total = subtotal - quantityDiscount;
-    
-    return { subtotal, discount: quantityDiscount, total, quantityDiscount };
+    return { subtotal, discount: 0, total: subtotal, quantityDiscount: 0 };
   };
 
   const pricing = calculatePricing();
@@ -467,7 +453,7 @@ const Cart: React.FC = () => {
           
           {pricing.quantityDiscount > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
-              <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.dark.primary }}>Скидка за 3+ шт:</span>
+              <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.dark.primary }}>Скидка:</span>
               <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.dark.primary }}>-{formatCurrency(pricing.quantityDiscount)}</span>
             </div>
           )}
@@ -486,7 +472,7 @@ const Cart: React.FC = () => {
             </span>
           </div>
           
-          {cart.items.some(item => item.quantity >= 3) && (
+          {pricing.quantityDiscount > 0 && (
             <div style={{ 
               marginTop: theme.spacing.sm,
               padding: theme.spacing.sm,
@@ -496,7 +482,7 @@ const Cart: React.FC = () => {
               color: theme.colors.dark.primary,
               textAlign: 'center' as const
             }}>
-              💰 При покупке 3+ штук цена 40€ за штуку!
+              💰 Применена скидка за объем!
             </div>
           )}
         </GlassCard>

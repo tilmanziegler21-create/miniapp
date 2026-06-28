@@ -46,7 +46,7 @@ export const FooterBar: React.FC = () => {
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
           gap: theme.spacing.xs,
-          alignItems: 'end',
+          alignItems: 'stretch',
         }}
       >
         {items.map((item) => {

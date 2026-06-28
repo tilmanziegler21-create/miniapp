@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import WebApp from '@twa-dev/sdk';
 import { catalogAPI, cartAPI } from '../services/api';
 import { useCityStore } from '../store/useCityStore';
 import { useCartStore } from '../store/useCartStore';
@@ -14,6 +15,7 @@ interface Product {
   price: number;
   image: string;
   isNew?: boolean;
+  qtyAvailable?: number;
 }
 
 export function useHomePage() {
@@ -55,6 +57,7 @@ export function useHomePage() {
         price: p.price,
         image: p.image || '',
         isNew: Boolean(p.isNew),
+        qtyAvailable: Number(p.qtyAvailable || 0),
       }));
       setProducts(featured);
     } catch (error) {
@@ -81,6 +84,34 @@ export function useHomePage() {
       const resp = await cartAPI.getCart(city);
       setCart(resp.data.cart);
       toast.push('Товар сразу добавлен в корзину', 'success');
+      
+      if (product.category === 'liquids' || product.category === 'Жидкости') {
+        if (Math.random() > 0.5) {
+          setTimeout(() => {
+            try {
+              WebApp.showConfirm('Возьмите еще одну жидкость!\n1 шт - 18\n2 шт - 32\n3 шт - 45\nкаждая следующая по 14', (confirmed) => {
+                if (confirmed) {
+                  // navigate to liquids
+                }
+              });
+            } catch {
+              toast.push('Скидки на жидкости: 1=18, 2=32, 3=45, далее по 14!', 'info');
+            }
+          }, 1000);
+        }
+      } else if (product.category === 'pods' || product.category === 'Поды') {
+        setTimeout(() => {
+          try {
+            WebApp.showConfirm('Собери набор!\nНабор это 1 под + 2 жидкости.\nДобавить жидкости?', (confirmed) => {
+              if (confirmed) {
+                // user can pick from catalog
+              }
+            });
+          } catch {
+            toast.push('Набор: 1 под + 2 жидкости. Загляни в каталог!', 'info');
+          }
+        }, 1000);
+      }
     } catch {
       toast.push('Ошибка добавления в корзину', 'error');
     }

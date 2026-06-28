@@ -173,6 +173,34 @@ const Product: React.FC = () => {
       setCart(cartResp.data.cart);
       trackAddToCart(product.id, product.name, product.price, quantity);
       toast.push('Товар добавлен в корзину', 'success');
+
+      if (product.category === 'liquids' || product.category === 'Жидкости') {
+        if (Math.random() > 0.5) {
+          setTimeout(() => {
+            try {
+              WebApp.showConfirm('Возьмите еще одну жидкость!\n1 шт - 18\n2 шт - 32\n3 шт - 45\nкаждая следующая по 14', (confirmed) => {
+                if (confirmed) {
+                  navigate('/catalog?category=liquids');
+                }
+              });
+            } catch {
+              toast.push('Скидки на жидкости: 1=18, 2=32, 3=45, далее по 14!', 'info');
+            }
+          }, 1000);
+        }
+      } else if (product.category === 'pods' || product.category === 'Поды') {
+        setTimeout(() => {
+          try {
+            WebApp.showConfirm('Собери набор!\nНабор это 1 под + 2 жидкости.\nДобавить жидкости?', (confirmed) => {
+              if (confirmed) {
+                navigate('/catalog?category=liquids');
+              }
+            });
+          } catch {
+            toast.push('Набор: 1 под + 2 жидкости. Загляни в каталог!', 'info');
+          }
+        }, 1000);
+      }
     } catch (e) {
       console.error('Add to cart failed:', e);
       toast.push('Ошибка добавления в корзину', 'error');

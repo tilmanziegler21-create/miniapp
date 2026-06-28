@@ -53,14 +53,51 @@ router.get('/', requireAuth, async (req, res) => {
     let subtotal = 0;
     let quantityDiscount = 0;
 
+    let totalLiquidsQty = 0;
+    let totalLiquidsBasePrice = 0;
+    
+    items.forEach(item => {
+      const isLiquid = item.category === 'liquids' || item.category === 'Жидкости';
+      if (isLiquid) {
+        totalLiquidsQty += Number(item.quantity || 0);
+        totalLiquidsBasePrice += Number(item.quantity || 0) * Number(item.product_price || item.price || 0);
+      }
+    });
+
+    let liquidsFinalPrice = 0;
+    if (totalLiquidsQty === 1) liquidsFinalPrice = 18;
+    else if (totalLiquidsQty === 2) liquidsFinalPrice = 32;
+    else if (totalLiquidsQty === 3) liquidsFinalPrice = 45;
+    else if (totalLiquidsQty > 3) liquidsFinalPrice = 45 + (totalLiquidsQty - 3) * 14;
+
+    const totalLiquidsDiscount = totalLiquidsQty > 0 ? Math.max(0, totalLiquidsBasePrice - liquidsFinalPrice) : 0;
+    let appliedLiquidsDiscount = 0;
+
     const mappedItems = items.map(item => {
       const qty = Number(item.quantity || 0);
       const price = Number(item.product_price || item.price || 0);
-      const effectivePrice = qty >= 3 && price > 40 ? 40 : price;
-      const lineSubtotal = price * qty;
-      const lineTotal = effectivePrice * qty;
+      const isLiquid = item.category === 'liquids' || item.category === 'Жидкости';
+      
+      let effectivePrice = price;
+      let lineSubtotal = price * qty;
+      let lineTotal = lineSubtotal;
+
+      // Distribute liquids discount proportionally
+      if (isLiquid && totalLiquidsBasePrice > 0) {
+        const itemShare = lineSubtotal / totalLiquidsBasePrice;
+        const itemDiscount = totalLiquidsDiscount * itemShare;
+        lineTotal = Math.max(0, lineSubtotal - itemDiscount);
+        effectivePrice = qty > 0 ? lineTotal / qty : 0;
+        appliedLiquidsDiscount += itemDiscount;
+      } else {
+        // Fallback to old logic for non-liquids
+        effectivePrice = qty >= 3 && price > 40 ? 40 : price;
+        lineTotal = effectivePrice * qty;
+        quantityDiscount += Math.max(0, lineSubtotal - lineTotal);
+      }
+
       subtotal += lineSubtotal;
-      quantityDiscount += Math.max(0, lineSubtotal - lineTotal);
+      
       return {
         id: item.id,
         productId: item.product_id,
@@ -75,6 +112,8 @@ router.get('/', requireAuth, async (req, res) => {
         total: lineTotal,
       };
     });
+
+    quantityDiscount += appliedLiquidsDiscount;
 
     const discount = Math.round(quantityDiscount * 100) / 100;
     const total = Math.max(0, Math.round((subtotal - discount) * 100) / 100);

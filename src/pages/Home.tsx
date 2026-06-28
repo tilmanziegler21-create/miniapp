@@ -208,10 +208,11 @@ const Home: React.FC = () => {
             <ProductCard
               key={product.id}
               {...product}
+              stock={product.qtyAvailable}
               onClick={(id) => navigate(`/product/${id}`)}
               onAddToCart={() => addToCart(product)}
-                isFavorite={favorites.isFavorite(product.id)}
-                onToggleFavorite={() => toggleFavorite(product)}
+              isFavorite={favorites.isFavorite(product.id)}
+              onToggleFavorite={() => toggleFavorite(product)}
             />
           ))}
           <GlassCard
@@ -230,17 +231,22 @@ const Home: React.FC = () => {
           >
             <div style={{ fontSize: 44, lineHeight: 1, marginBottom: theme.spacing.sm, opacity: 0.9 }}>i</div>
             <div style={{ textAlign: 'center', fontSize: theme.typography.fontSize.sm, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.9, marginBottom: theme.spacing.md }}>
-              При покупке 3 шт. цена за 1 шт. составит
+              Супер цена на жидкости:
             </div>
             <div style={{
               background: 'rgba(255,255,255,0.92)',
               color: '#000',
-              borderRadius: 999,
-              padding: '8px 14px',
+              borderRadius: theme.radius.md,
+              padding: '12px 16px',
               fontWeight: theme.typography.fontWeight.bold,
               boxShadow: '0 14px 30px rgba(0,0,0,0.35)',
+              textAlign: 'center',
+              lineHeight: 1.4
             }}>
-              {formatCurrency(50)}
+              1 шт - {formatCurrency(18)}<br/>
+              2 шт - {formatCurrency(32)}<br/>
+              3 шт - {formatCurrency(45)}<br/>
+              Далее по {formatCurrency(14)}
             </div>
           </GlassCard>
         </div>

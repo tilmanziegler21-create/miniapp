@@ -119,6 +119,17 @@ const Catalog: React.FC = () => {
     }
   };
 
+  const getCategoryName = (slug: string) => {
+    const map: Record<string, string> = {
+      liquids: 'Жидкости',
+      electronics: 'Электронки',
+      pods: 'Поды',
+      cartridges: 'Картриджи',
+      disposables: 'Одноразки'
+    };
+    return map[slug] || slug;
+  };
+
   const addToCart = async (product: Product) => {
     if (!city) {
       toast.push('Выберите город', 'error');
@@ -135,6 +146,34 @@ const Catalog: React.FC = () => {
       setCart(response.data.cart);
       trackAddToCart(product.id, product.name, product.price, 1);
       toast.push('Товар сразу добавлен в корзину', 'success');
+
+      if (product.category === 'liquids' || product.category === 'Жидкости') {
+        if (Math.random() > 0.5) {
+          setTimeout(() => {
+            try {
+              WebApp.showConfirm('Возьмите еще одну жидкость!\n1 шт - 18\n2 шт - 32\n3 шт - 45\nкаждая следующая по 14', (confirmed) => {
+                if (confirmed) {
+                  setFilters({ ...filters, category: product.category });
+                }
+              });
+            } catch {
+              toast.push('Скидки на жидкости: 1=18, 2=32, 3=45, далее по 14!', 'info');
+            }
+          }, 1000);
+        }
+      } else if (product.category === 'pods' || product.category === 'Поды') {
+        setTimeout(() => {
+          try {
+            WebApp.showConfirm('Собери набор!\nНабор это 1 под + 2 жидкости.\nДобавить жидкости?', (confirmed) => {
+              if (confirmed) {
+                setFilters({ ...filters, category: 'liquids' });
+              }
+            });
+          } catch {
+            toast.push('Набор: 1 под + 2 жидкости. Загляни в каталог!', 'info');
+          }
+        }, 1000);
+      }
     } catch (error) {
       console.error('Add to cart failed:', error);
       toast.push('Ошибка добавления в корзину', 'error');
@@ -367,7 +406,7 @@ const Catalog: React.FC = () => {
               onClick={() => setFilters({ ...filters, category: c })}
               style={styles.categoryPill(filters.category === c)}
             >
-              {c}
+              {getCategoryName(c)}
             </button>
           ))}
         </div>
@@ -459,7 +498,7 @@ const Catalog: React.FC = () => {
                 <select value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })} style={styles.select}>
                   <option value="">Все</option>
                   {categories.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>{getCategoryName(c)}</option>
                   ))}
                 </select>
               </div>
