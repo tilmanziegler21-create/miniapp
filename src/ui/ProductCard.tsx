@@ -1,11 +1,8 @@
 import React from 'react';
 import { theme } from './theme';
 import { IconButton } from './IconButton';
-import { ChipBadge } from './ChipBadge';
-import { ShoppingCart, Heart } from 'lucide-react';
+import { Heart, Plus, ShoppingCart, Star } from 'lucide-react';
 import { formatCurrency } from '../lib/currency';
-import { TasteProfile } from './TasteProfile';
-import { TrustIndicators } from './TrustIndicators';
 
 interface ProductCardProps {
   id: string;
@@ -112,16 +109,36 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const token = brand || name;
   const resolvedImage = getBrandImage(token, image);
   const resolvedGradient = getBrandGradient(token);
+  const rating = trustData?.rating ? Math.min(5, Math.max(4, trustData.rating)) : 5;
+  const reviewCount = trustData?.reviewCount || 0;
+  const tasteBits = tasteProfile
+    ? [
+        tasteProfile.sweetness ? `сладость ${tasteProfile.sweetness}/5` : '',
+        tasteProfile.coolness ? `холод ${tasteProfile.coolness}/5` : '',
+      ].filter(Boolean)
+    : [];
+  const metaText = (
+    showTasteProfile && tasteBits.length
+      ? tasteBits
+      : [brand, stock > 0 ? `${stock} в наличии` : 'Нет в наличии'].filter(Boolean)
+  ).join(' · ');
+  const fallbackText = showTrustIndicators && reviewCount ? `${reviewCount} оценок` : isNew ? 'Новинка' : 'Быстрое добавление в корзину';
 
   const styles = {
-    card: {
+    root: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      minHeight: 0,
+    },
+    imageButton: {
       position: 'relative' as const,
-      height: showTasteProfile || showTrustIndicators ? '320px' : '280px',
-      borderRadius: theme.radius.lg,
+      aspectRatio: '1 / 1',
       overflow: 'hidden',
+      borderRadius: theme.radius.lg,
+      border: '1px solid rgba(96,165,250,0.14)',
       background: resolvedGradient,
       boxShadow: theme.shadow.card,
-      border: '1px solid rgba(96,165,250,0.16)',
+      cursor: onClick ? 'pointer' : 'default',
     },
     bgImage: {
       position: 'absolute' as const,
@@ -129,150 +146,103 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       width: '100%',
       height: '100%',
       objectFit: 'cover' as const,
-      zIndex: 0,
       pointerEvents: 'none' as const,
     },
     scrim: {
       position: 'absolute' as const,
       inset: 0,
-      background: 'linear-gradient(135deg, rgba(8,17,31,0.32) 0%, rgba(8,17,31,0.72) 100%)',
-      zIndex: 1,
-      pointerEvents: 'none' as const,
+      background: 'linear-gradient(180deg, rgba(4,11,26,0.08) 0%, rgba(4,11,26,0.42) 100%)',
     },
-    content: {
-      position: 'absolute' as const,
-      inset: 0,
-      zIndex: 2,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      justifyContent: 'space-between',
-      padding: theme.spacing.lg,
-    },
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: theme.spacing.sm,
-    },
-    title: {
-      color: theme.colors.dark.text,
-      fontSize: theme.typography.fontSize.base,
-      fontWeight: theme.typography.fontWeight.bold,
-      textTransform: 'uppercase' as const,
-      lineHeight: '1.2',
-      maxWidth: '70%',
-    },
-    pricePill: {
-      background: 'rgba(191,219,254,0.18)',
-      color: '#eff6ff',
-      padding: '6px 12px',
-      borderRadius: theme.radius.md,
-      fontSize: theme.typography.fontSize.sm,
-      fontWeight: theme.typography.fontWeight.semibold,
-      display: 'flex',
-      alignItems: 'center',
-      gap: '4px',
-      border: '1px solid rgba(147,197,253,0.22)',
-    },
-    actions: {
-      display: 'flex',
-      justifyContent: 'flex-end',
-      gap: theme.spacing.sm,
-      marginTop: 'auto',
-    },
-    newBadge: {
+    favoriteButton: {
       position: 'absolute' as const,
       top: theme.spacing.md,
       right: theme.spacing.md,
+      zIndex: 2,
     },
-    stockBadge: {
-      position: 'absolute' as const,
-      top: theme.spacing.md,
-      left: theme.spacing.md,
-      padding: '4px 8px',
-      borderRadius: theme.radius.sm,
-      fontSize: theme.typography.fontSize.xs,
+    titleButton: {
+      marginTop: theme.spacing.md,
+      textAlign: 'left' as const,
+      background: 'transparent',
+      border: 'none',
+      padding: 0,
+      color: theme.colors.dark.text,
+      cursor: onClick ? 'pointer' : 'default',
+      minHeight: 'unset',
+      minWidth: 'unset',
+    },
+    title: {
+      fontSize: '17px',
       fontWeight: theme.typography.fontWeight.bold,
-      textTransform: 'uppercase' as const,
-      letterSpacing: '0.08em',
+      lineHeight: 1.2,
+      color: theme.colors.dark.text,
     },
-    inStock: {
-      background: 'rgba(56,189,248,0.88)',
-      color: '#ffffff',
-    },
-    outOfStock: {
-      background: 'rgba(71,85,105,0.88)',
-      color: '#ffffff',
-    },
-    lowStock: {
-      background: 'rgba(96,165,250,0.88)',
-      color: '#ffffff',
-    },
-    tasteProfile: {
+    metaRow: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
       marginTop: theme.spacing.sm,
-      marginBottom: theme.spacing.sm,
+      color: theme.colors.dark.textSecondary,
+      fontSize: theme.typography.fontSize.xs,
     },
-    trustIndicators: {
-      marginTop: 'auto',
-      marginBottom: theme.spacing.sm,
+    subtext: {
+      marginTop: 6,
+      color: theme.colors.dark.textSecondary,
+      fontSize: '13px',
+      lineHeight: 1.4,
+      minHeight: 18,
+    },
+    footer: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+      marginTop: theme.spacing.md,
+    },
+    priceButton: {
+      flex: 1,
+      height: 48,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: theme.radius.md,
+      border: '1px solid rgba(96,165,250,0.32)',
+      background: 'rgba(96,165,250,0.08)',
+      color: theme.colors.dark.primary,
+      fontSize: theme.typography.fontSize.lg,
+      fontWeight: theme.typography.fontWeight.bold,
+      cursor: onClick ? 'pointer' : 'default',
+      minHeight: 'unset',
+      minWidth: 'unset',
+    },
+    addButton: {
+      width: 48,
+      height: 48,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: theme.radius.md,
+      border: 'none',
+      background: theme.gradients.primary,
+      color: '#08111f',
+      boxShadow: '0 0 22px rgba(96,165,250,0.28)',
+      cursor: 'pointer',
+      minHeight: 'unset',
+      minWidth: 'unset',
     },
   };
 
   return (
-    <div
-      style={{ ...styles.card, cursor: onClick ? 'pointer' : 'default' }}
-      onClick={() => onClick?.(id)}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-    >
-      {resolvedImage ? <img src={resolvedImage} alt="" style={styles.bgImage} /> : null}
-      <div style={styles.scrim} />
-      <div style={styles.content}>
-        {/* Stock Status Badge */}
-        {stock !== undefined && (
-          <div 
-            style={{
-              ...styles.stockBadge,
-              ...(stock === 0 ? styles.outOfStock : 
-                  stock <= 5 ? styles.lowStock : styles.inStock)
-            }}
-          >
-            {stock === 0 ? 'Нет в наличии' : 
-             stock <= 5 ? `Осталось ${stock}` : 'В наличии'}
-          </div>
-        )}
-
-        {/* New Badge */}
-        {isNew && (
-          <div style={styles.newBadge}>
-            <ChipBadge variant="new" size="sm">NEW</ChipBadge>
-          </div>
-        )}
-        
-        <div style={styles.header}>
-          <h3 style={styles.title}>{name}</h3>
-          <div style={styles.pricePill}>
-            <span>{formatCurrency(price)}</span>
-          </div>
-        </div>
-
-        {/* Taste Profile */}
-        {showTasteProfile && tasteProfile && (
-          <div style={styles.tasteProfile}>
-            <TasteProfile {...tasteProfile} size="sm" />
-          </div>
-        )}
-
-        {/* Trust Indicators */}
-        {showTrustIndicators && trustData && (
-          <div style={styles.trustIndicators}>
-            <TrustIndicators {...trustData} size="sm" />
-          </div>
-        )}
-
-        <div style={styles.actions}>
+    <div style={styles.root}>
+      <div
+        style={styles.imageButton}
+        onClick={() => onClick?.(id)}
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+      >
+        {resolvedImage ? <img src={resolvedImage} alt="" style={styles.bgImage} /> : null}
+        <div style={styles.scrim} />
+        <div style={styles.favoriteButton}>
           <IconButton
-            icon={<Heart size={18} fill={isFavorite ? 'white' : 'none'} />}
+            icon={<Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />}
             onClick={(e) => {
               e.stopPropagation();
               onToggleFavorite?.(id);
@@ -280,16 +250,42 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             variant="glass"
             size="sm"
           />
-          <IconButton
-            icon={<ShoppingCart size={18} />}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToCart?.(id);
-            }}
-            variant="glass"
-            size="sm"
-          />
         </div>
+      </div>
+
+      <button type="button" onClick={() => onClick?.(id)} style={styles.titleButton}>
+        <div style={styles.title}>{name}</div>
+      </button>
+
+      <div style={styles.metaRow}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star
+            key={i}
+            size={13}
+            strokeWidth={1.6}
+            color={theme.colors.dark.primary}
+            fill={i < Math.round(rating) ? theme.colors.dark.primary : 'transparent'}
+          />
+        ))}
+        <span>{reviewCount ? `${rating.toFixed(1)} (${reviewCount})` : 'Топ выбор'}</span>
+      </div>
+
+      <div style={styles.subtext}>
+        {metaText || fallbackText}
+      </div>
+
+      <div style={styles.footer}>
+        <button type="button" onClick={() => onClick?.(id)} style={styles.priceButton}>
+          {formatCurrency(price)}
+        </button>
+        <button
+          type="button"
+          onClick={() => onAddToCart?.(id)}
+          style={styles.addButton}
+          aria-label={`Добавить ${name} в корзину`}
+        >
+          {stock === 0 ? <ShoppingCart size={20} /> : <Plus size={22} strokeWidth={2.4} />}
+        </button>
       </div>
     </div>
   );

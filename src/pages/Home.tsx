@@ -1,95 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme, GlassCard, PrimaryButton, ProductCard, SectionDivider } from '../ui';
-import { useCartStore } from '../store/useCartStore';
-import { cartAPI, catalogAPI } from '../services/api';
 import { Search } from 'lucide-react';
-import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
-import { useCityStore } from '../store/useCityStore';
-import { useFavoritesStore } from '../store/useFavoritesStore';
-import { useConfigStore } from '../store/useConfigStore';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  brand: string;
-  price: number;
-  image: string;
-  isNew?: boolean;
-}
+import { useHomePage } from '../hooks/useHomePage';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const toast = useToastStore();
-  const { setCart } = useCartStore();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const { city } = useCityStore();
-  const favorites = useFavoritesStore();
-  const { config } = useConfigStore();
+  const {
+    products,
+    loading,
+    loadError,
+    categories,
+    favorites,
+    addToCart,
+    toggleFavorite,
+  } = useHomePage();
 
-  const categories = (config?.categoryTiles || []).map((t) => ({
-    slug: t.slug,
-    name: t.title,
-    image: t.imageUrl,
-    badgeText: t.badgeText || '',
-  }));
-
-  useEffect(() => {
-    loadProducts();
-    if (city) favorites.load(city);
-  }, [city]);
-
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      setLoadError(null);
-      if (!city) {
-        setLoadError('Выберите город');
-        return;
-      }
-      const response = await catalogAPI.getProducts({ city });
-      const featured: Product[] = response.data.products.slice(0, 4).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        brand: p.brand,
-        price: p.price,
-        image: p.image || '',
-        isNew: Boolean(p.isNew),
-      }));
-      setProducts(featured);
-    } catch (error) {
-      console.error('Failed to load products:', error);
-      const status = (error as any)?.response?.status;
-      if (status === 503) {
-        const missing = (error as any)?.response?.data?.missing || [];
-        setLoadError(`Sheets не настроен. Добавь env: ${missing.join(', ')}`);
-      } else {
-        setLoadError('Не удалось загрузить каталог');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addToCart = async (product: Product) => {
-    if (!city) {
-      toast.push('Выберите город', 'error');
-      return;
-    }
-    try {
-      await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price });
-      const resp = await cartAPI.getCart(city);
-      setCart(resp.data.cart);
-      toast.push('Товар сразу добавлен в корзину', 'success');
-    } catch {
-      toast.push('Ошибка добавления в корзину', 'error');
-    }
-  };
+  const bannerUrl = `${import.meta.env.BASE_URL || '/'}banner-open.png`.replace(/([^:]\/)\/+/g, '$1');
 
   const styles = {
     container: {
@@ -97,21 +25,64 @@ const Home: React.FC = () => {
       color: theme.colors.dark.text,
       fontFamily: theme.typography.fontFamily,
     },
+    hero: {
+      padding: `0 ${theme.padding.screen}`,
+      marginBottom: theme.spacing.xl,
+    },
+    heroCard: {
+      position: 'relative' as const,
+      overflow: 'hidden',
+      borderRadius: '28px',
+      border: '1px solid rgba(96,165,250,0.14)',
+      minHeight: 190,
+      background: `linear-gradient(180deg, rgba(6,11,22,0.16) 0%, rgba(6,11,22,0.74) 100%), url(${bannerUrl}) center/cover`,
+      boxShadow: theme.shadow.card,
+    },
+    heroOverlay: {
+      padding: theme.spacing.lg,
+      minHeight: 190,
+      display: 'flex',
+      flexDirection: 'column' as const,
+      justifyContent: 'flex-end',
+      background: 'linear-gradient(180deg, rgba(4,9,20,0.12) 0%, rgba(4,9,20,0.74) 100%)',
+    },
+    heroEyebrow: {
+      fontSize: theme.typography.fontSize.xs,
+      letterSpacing: '0.18em',
+      textTransform: 'uppercase' as const,
+      color: theme.colors.dark.primary,
+      marginBottom: theme.spacing.xs,
+      fontWeight: theme.typography.fontWeight.bold,
+    },
+    heroTitle: {
+      fontSize: theme.typography.fontSize['2xl'],
+      fontWeight: theme.typography.fontWeight.bold,
+      lineHeight: 1.05,
+      maxWidth: 280,
+    },
+    heroText: {
+      marginTop: theme.spacing.sm,
+      color: theme.colors.dark.textSecondary,
+      fontSize: theme.typography.fontSize.sm,
+      maxWidth: 280,
+      lineHeight: 1.45,
+    },
     searchSection: {
       padding: `0 ${theme.padding.screen}`,
       marginBottom: theme.spacing.lg,
     },
     searchButton: {
-      background: 'rgba(96,165,250,0.08)',
-      border: '1px solid rgba(96,165,250,0.18)',
-      borderRadius: theme.radius.lg,
-      padding: theme.spacing.md,
+      background: 'rgba(16,15,18,0.82)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      borderRadius: '18px',
+      padding: '14px 16px',
       display: 'flex',
       alignItems: 'center',
       gap: theme.spacing.sm,
       color: theme.colors.dark.textSecondary,
       cursor: 'pointer',
       transition: 'all 0.2s ease',
+      boxShadow: theme.shadow.card,
     },
     categoryScrollerWrap: {
       padding: `0 ${theme.padding.screen}`,
@@ -126,18 +97,19 @@ const Home: React.FC = () => {
       msOverflowStyle: 'none' as const,
     },
     categoryCard: {
-      minWidth: 132,
-      width: 132,
-      minHeight: 44,
+      minWidth: 136,
+      width: 136,
+      minHeight: 46,
       flex: '0 0 auto' as const,
-      borderRadius: theme.radius.md,
+      borderRadius: 999,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '0 14px',
-      background: 'linear-gradient(135deg, rgba(96,165,250,0.14) 0%, rgba(30,64,175,0.12) 100%)',
-      border: '1px solid rgba(96,165,250,0.22)',
+      padding: '0 16px',
+      background: 'rgba(16,15,18,0.82)',
+      border: '1px solid rgba(96,165,250,0.16)',
       cursor: 'pointer',
+      boxShadow: theme.shadow.card,
     },
     categoryTitle: {
       display: 'flex',
@@ -152,7 +124,7 @@ const Home: React.FC = () => {
     },
     categoryHint: {
       padding: `0 ${theme.padding.screen}`,
-      marginTop: -theme.spacing.md,
+      marginTop: -12,
       marginBottom: theme.spacing.lg,
       fontSize: theme.typography.fontSize.xs,
       color: theme.colors.dark.textSecondary,
@@ -169,14 +141,20 @@ const Home: React.FC = () => {
     skeleton: {
       background: 'rgba(96,165,250,0.08)',
       borderRadius: theme.radius.lg,
-      height: 280,
+      height: 320,
       animation: 'pulse 1.5s ease-in-out infinite',
-      border: '1px solid rgba(255,255,255,0.10)',
+      border: '1px solid rgba(96,165,250,0.10)',
     },
   };
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="gold-glow">
+      <div style={styles.hero}>
+        <div style={styles.heroCard}>
+          <div style={styles.heroOverlay}></div>
+        </div>
+      </div>
+
       {/* Search Section */}
       <div style={styles.searchSection}>
         <div
@@ -233,43 +211,20 @@ const Home: React.FC = () => {
               onClick={(id) => navigate(`/product/${id}`)}
               onAddToCart={() => addToCart(product)}
                 isFavorite={favorites.isFavorite(product.id)}
-                onToggleFavorite={async () => {
-                  if (!city) {
-                    toast.push('Выберите город', 'error');
-                    return;
-                  }
-                  const enabled = !favorites.isFavorite(product.id);
-                  try {
-                    await favorites.toggle({
-                      city,
-                      product: {
-                        id: product.id,
-                        name: product.name,
-                        category: product.category,
-                        brand: product.brand,
-                        price: product.price,
-                        image: product.image,
-                      },
-                      enabled,
-                    });
-                    toast.push(enabled ? 'Добавлено в избранное' : 'Удалено из избранного', 'success');
-                  } catch {
-                    toast.push('Ошибка избранного', 'error');
-                  }
-                }}
+                onToggleFavorite={() => toggleFavorite(product)}
             />
           ))}
           <GlassCard
             padding="lg"
             variant="elevated"
             style={{
-              height: 280,
+              height: 320,
               borderRadius: theme.radius.lg,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
-              background: 'linear-gradient(135deg, rgba(96,165,250,0.18) 0%, rgba(30,64,175,0.16) 100%)',
+              background: 'linear-gradient(135deg, rgba(96,165,250,0.18) 0%, rgba(56,189,248,0.10) 100%)',
               border: '1px solid rgba(96,165,250,0.18)',
             }}
           >

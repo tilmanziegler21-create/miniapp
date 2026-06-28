@@ -107,7 +107,7 @@ const Promotions: React.FC = () => {
       top: theme.spacing.md,
       right: theme.spacing.md,
       background: theme.gradients.primary,
-      color: '#ffffff',
+      color: '#eff6ff',
       padding: '4px 8px',
       borderRadius: theme.radius.sm,
       fontSize: theme.typography.fontSize.xs,
@@ -119,7 +119,7 @@ const Promotions: React.FC = () => {
       width: 48,
       height: 48,
       borderRadius: '50%',
-      background: 'rgba(255,255,255,0.1)',
+      background: 'rgba(16,15,18,0.72)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -144,7 +144,7 @@ const Promotions: React.FC = () => {
       opacity: 0.8,
       marginTop: theme.spacing.md,
       paddingTop: theme.spacing.md,
-      borderTop: '1px solid rgba(255,255,255,0.1)',
+      borderTop: '1px solid rgba(96,165,250,0.12)',
     },
     participants: {
       display: 'flex',
@@ -152,7 +152,7 @@ const Promotions: React.FC = () => {
       gap: theme.spacing.sm,
       marginTop: theme.spacing.md,
       padding: theme.spacing.sm,
-      background: 'rgba(255,255,255,0.05)',
+      background: 'rgba(16,15,18,0.72)',
       borderRadius: theme.radius.md,
     },
     wheelButton: {
@@ -177,7 +177,7 @@ const Promotions: React.FC = () => {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="gold-glow">
       <SectionDivider title="Акции и конкурсы" />
 
       {/* Fortune Wheel Button */}

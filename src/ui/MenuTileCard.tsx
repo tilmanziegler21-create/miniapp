@@ -21,7 +21,7 @@ export const MenuTileCard: React.FC<MenuTileCardProps> = ({
       borderRadius: '20px', // 18-22px as specified
       overflow: 'hidden',
       boxShadow: theme.shadow.card,
-      border: '1px solid rgba(255,255,255,0.08)', // glass border
+      border: '1px solid rgba(96,165,250,0.12)', // glass border
       cursor: 'pointer',
       transition: 'all 0.2s ease',
       background: 'transparent',
@@ -81,25 +81,25 @@ export const MenuTileCard: React.FC<MenuTileCardProps> = ({
       alignItems: 'flex-end',
     },
     ctaButton: {
-      background: 'linear-gradient(135deg, rgba(255,45,85,0.9) 0%, rgba(176,0,58,0.9) 100%)',
-      border: '1px solid rgba(255,255,255,0.2)',
+      background: theme.gradients.primary,
+      border: '1px solid rgba(96,165,250,0.22)',
       borderRadius: '9999px',
       padding: '6px 12px',
       fontSize: theme.typography.fontSize.xs,
       fontWeight: theme.typography.fontWeight.semibold,
       letterSpacing: '0.08em',
       textTransform: 'uppercase' as const,
-      color: '#ffffff',
+      color: '#eff6ff',
       cursor: 'pointer',
       transition: 'all 0.2s ease',
-      boxShadow: '0 4px 12px rgba(255,45,85,0.3)',
+      boxShadow: '0 4px 12px rgba(37,99,235,0.28)',
     },
     badge: {
       position: 'absolute' as const,
       top: theme.spacing.sm,
       right: theme.spacing.sm,
-      background: 'linear-gradient(135deg, #ff2d55 0%, #b0003a 100%)',
-      color: '#ffffff',
+      background: theme.gradients.primary,
+      color: '#eff6ff',
       padding: '4px 8px',
       borderRadius: '9999px',
       fontSize: theme.typography.fontSize.xs,
@@ -107,7 +107,7 @@ export const MenuTileCard: React.FC<MenuTileCardProps> = ({
       textTransform: 'uppercase' as const,
       letterSpacing: '0.08em',
       zIndex: 4,
-      boxShadow: '0 2px 8px rgba(255,45,85,0.4)',
+      boxShadow: '0 2px 8px rgba(37,99,235,0.34)',
     },
   };
 

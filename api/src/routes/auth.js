@@ -50,9 +50,14 @@ router.post('/verify', verifyTelegramAuth, async (req, res) => {
     
     stmt.run(tgId, username, firstName, lastName, ageVerified, status);
     
+    if (!process.env.JWT_SECRET) {
+      console.error('CRITICAL: JWT_SECRET is not set in environment variables');
+      if (process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET is required');
+    }
+
     const token = jwt.sign(
       { tgId, username },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET || 'fallback-secret-for-dev-only',
       { expiresIn: '7d' }
     );
     
@@ -78,10 +83,10 @@ router.post('/verify', verifyTelegramAuth, async (req, res) => {
 router.post('/dev', async (_req, res) => {
   try {
     if (String(process.env.DEV_AUTH || '') !== '1') {
-      return res.status(404).json({ error: 'Not found' });
+      return res.status(403).json({ error: 'Dev auth is disabled' });
     }
     if (String(process.env.NODE_ENV || '') === 'production') {
-      return res.status(404).json({ error: 'Not found' });
+      return res.status(403).json({ error: 'Dev auth not allowed in production' });
     }
 
     const tgId = String(_req.query?.tgId || 'dev_user_123');
@@ -97,9 +102,13 @@ router.post('/dev', async (_req, res) => {
 
     stmt.run(tgId, username, firstName, lastName, true, status);
 
+    if (!process.env.JWT_SECRET) {
+      console.error('CRITICAL: JWT_SECRET is not set in environment variables');
+    }
+
     const token = jwt.sign(
       { tgId, username },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET || 'fallback-secret-for-dev-only',
       { expiresIn: '7d' }
     );
 

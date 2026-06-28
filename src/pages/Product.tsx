@@ -289,8 +289,8 @@ const Product: React.FC = () => {
       justifyContent: 'space-between',
       gap: theme.spacing.sm,
       borderRadius: 999,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: 'rgba(255,255,255,0.06)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: 'rgba(16,15,18,0.84)',
       padding: '8px 12px',
       marginBottom: theme.spacing.md,
     },
@@ -312,11 +312,11 @@ const Product: React.FC = () => {
       fontSize: theme.typography.fontSize.sm,
       fontWeight: theme.typography.fontWeight.semibold,
     },
-    goldButton: {
+    primaryButton: {
       width: '100%',
       borderRadius: theme.radius.md,
       border: 'none',
-      background: 'linear-gradient(180deg, rgba(96,165,250,0.92) 0%, rgba(37,99,235,0.94) 100%)',
+      background: theme.gradients.primary,
       color: '#eff6ff',
       fontWeight: theme.typography.fontWeight.bold,
       letterSpacing: '0.10em',
@@ -329,9 +329,9 @@ const Product: React.FC = () => {
     disabledCta: {
       width: '100%',
       borderRadius: theme.radius.md,
-      border: '1px solid rgba(255,255,255,0.12)',
-      background: 'rgba(255,255,255,0.10)',
-      color: 'rgba(255,255,255,0.55)',
+      border: '1px solid rgba(96,165,250,0.12)',
+      background: 'rgba(16,15,18,0.84)',
+      color: theme.colors.dark.textSecondary,
       fontWeight: theme.typography.fontWeight.semibold,
       padding: '14px 16px',
       cursor: 'not-allowed',
@@ -345,8 +345,8 @@ const Product: React.FC = () => {
     },
     chip: (active: boolean) => ({
       borderRadius: 999,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: active ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.06)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: active ? 'rgba(96,165,250,0.18)' : 'rgba(16,15,18,0.84)',
       color: theme.colors.dark.text,
       padding: '8px 12px',
       cursor: 'pointer',
@@ -359,12 +359,12 @@ const Product: React.FC = () => {
     reviewsSection: {
       marginTop: theme.spacing.md,
       paddingTop: theme.spacing.md,
-      borderTop: '1px solid rgba(255,255,255,0.1)',
+      borderTop: '1px solid rgba(96,165,250,0.12)',
     },
     reviewItem: {
       marginBottom: theme.spacing.sm,
       padding: theme.spacing.sm,
-      background: 'rgba(255,255,255,0.03)',
+      background: 'rgba(16,15,18,0.72)',
       borderRadius: theme.radius.sm,
       fontSize: theme.typography.fontSize.sm,
       color: theme.colors.dark.textSecondary,
@@ -383,7 +383,7 @@ const Product: React.FC = () => {
   };
 
   return (
-    <div style={{ paddingBottom: theme.spacing.xl }}>
+    <div style={{ paddingBottom: theme.spacing.xl }} className="gold-glow">
       <div style={styles.pageTitle}>
         <IconButton icon={<ArrowLeft size={20} />} onClick={() => navigate(-1)} variant="glass" size="md" />
         <div style={{ opacity: 0.7, fontSize: theme.typography.fontSize.sm, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Товар</div>
@@ -450,7 +450,7 @@ const Product: React.FC = () => {
           ))}
         </div>
 
-        <button style={styles.goldButton} onClick={() => setAddOpen(true)}>
+        <button style={styles.primaryButton} onClick={() => setAddOpen(true)}>
           Добавить заказ в корзину
         </button>
 

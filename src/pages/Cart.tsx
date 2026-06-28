@@ -152,8 +152,8 @@ const Cart: React.FC = () => {
     itemCard: {
       borderRadius: theme.radius.lg,
       overflow: 'hidden',
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: 'rgba(17, 26, 41, 0.72)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: 'rgba(16,15,18,0.84)',
       backdropFilter: `blur(${theme.blur.glass})`,
       boxShadow: theme.shadow.card,
       padding: theme.spacing.md,
@@ -164,7 +164,7 @@ const Cart: React.FC = () => {
       top: theme.spacing.md,
       left: theme.spacing.md,
       background: theme.colors.dark.accentRed,
-      color: '#fff',
+      color: '#eff6ff',
       borderRadius: 999,
       padding: '4px 10px',
       fontSize: theme.typography.fontSize.xs,
@@ -187,7 +187,7 @@ const Cart: React.FC = () => {
       width: 64,
       height: 64,
       borderRadius: 999,
-      border: '1px solid rgba(255,255,255,0.14)',
+      border: '1px solid rgba(96,165,250,0.14)',
       background: `linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.65) 100%), url(${img}) center/cover`,
       flex: '0 0 auto',
       boxShadow: '0 14px 30px rgba(0,0,0,0.35)',
@@ -219,7 +219,7 @@ const Cart: React.FC = () => {
       width: 34,
       height: 34,
       borderRadius: 999,
-      background: '#2563eb',
+      background: 'linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)',
       border: 'none',
       color: '#eff6ff',
       display: 'flex',
@@ -231,10 +231,10 @@ const Cart: React.FC = () => {
     flavor: {
       marginTop: theme.spacing.sm,
       borderRadius: 999,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: 'rgba(255,255,255,0.06)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: 'rgba(16,15,18,0.8)',
       padding: '8px 12px',
-      color: 'rgba(255,255,255,0.80)',
+      color: theme.colors.dark.textSecondary,
       fontSize: theme.typography.fontSize.sm,
       overflow: 'hidden',
       textOverflow: 'ellipsis' as const,
@@ -257,8 +257,8 @@ const Cart: React.FC = () => {
     },
     promoBox: {
       borderRadius: theme.radius.lg,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: 'rgba(255,255,255,0.06)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: 'rgba(16,15,18,0.84)',
       backdropFilter: `blur(${theme.blur.glass})`,
       boxShadow: theme.shadow.card,
       padding: theme.spacing.md,
@@ -269,12 +269,12 @@ const Cart: React.FC = () => {
       fontSize: theme.typography.fontSize.xs,
       letterSpacing: '0.14em',
       textTransform: 'uppercase' as const,
-      color: 'rgba(255,255,255,0.55)',
+      color: theme.colors.dark.textSecondary,
     },
     promoInput: {
       width: '100%',
       borderRadius: 999,
-      border: '1px solid rgba(255,255,255,0.14)',
+      border: '1px solid rgba(96,165,250,0.14)',
       background: 'rgba(0,0,0,0.25)',
       color: theme.colors.dark.text,
       padding: '10px 14px',
@@ -303,8 +303,8 @@ const Cart: React.FC = () => {
     pickupSelect: {
       width: '100%',
       borderRadius: theme.radius.md,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: 'rgba(255,255,255,0.10)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: 'rgba(16,15,18,0.84)',
       color: theme.colors.dark.text,
       padding: '10px 12px',
       outline: 'none',
@@ -340,7 +340,7 @@ const Cart: React.FC = () => {
   }
 
   return (
-    <div>
+    <div className="gold-glow">
       <div style={styles.title}>Корзина</div>
 
       <div style={styles.list}>
@@ -478,7 +478,7 @@ const Cart: React.FC = () => {
             alignItems: 'center', 
             marginTop: theme.spacing.sm,
             paddingTop: theme.spacing.sm,
-            borderTop: '1px solid rgba(255,255,255,0.1)'
+            borderTop: '1px solid rgba(96,165,250,0.12)'
           }}>
             <span style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold }}>Итого:</span>
             <span style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, color: theme.colors.dark.primary }}>
@@ -490,7 +490,7 @@ const Cart: React.FC = () => {
             <div style={{ 
               marginTop: theme.spacing.sm,
               padding: theme.spacing.sm,
-              background: 'rgba(96,165,250,0.12)',
+              background: 'rgba(96,165,250,0.10)',
               borderRadius: theme.radius.md,
               fontSize: theme.typography.fontSize.xs,
               color: theme.colors.dark.primary,

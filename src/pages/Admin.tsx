@@ -5,7 +5,7 @@ import { GlassCard, SectionDivider, PrimaryButton, SecondaryButton, theme } from
 import { useCityStore } from '../store/useCityStore';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
-import { Plus, Edit, Trash2, Users, Package, TrendingUp, Gift, Calendar, Clock, MapPin, Phone, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Package, TrendingUp, Gift, Calendar, Clock, MapPin, Phone } from 'lucide-react';
 
 type AdminOrder = {
   id: string;
@@ -140,12 +140,12 @@ const Admin: React.FC = () => {
 
   const getStatusColor = (status: AdminOrder['status']) => {
     switch (status) {
-      case 'pending': return '#ffc107';
-      case 'assigned': return '#2196f3';
-      case 'picked_up': return '#ff9800';
-      case 'delivered': return '#4caf50';
-      case 'cancelled': return '#f44336';
-      default: return '#9e9e9e';
+      case 'pending': return '#38bdf8';
+      case 'assigned': return '#60a5fa';
+      case 'picked_up': return '#2563eb';
+      case 'delivered': return '#22c55e';
+      case 'cancelled': return '#ef4444';
+      default: return '#94a3b8';
     }
   };
 
@@ -190,9 +190,9 @@ const Admin: React.FC = () => {
     tabButton: (active: boolean) => ({
       padding: '8px 16px',
       borderRadius: theme.radius.md,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: active ? 'rgba(255,45,85,0.2)' : 'rgba(255,255,255,0.06)',
-      color: active ? '#ff2d55' : theme.colors.dark.text,
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: active ? 'rgba(96,165,250,0.18)' : 'rgba(16,15,18,0.82)',
+      color: active ? theme.colors.dark.primary : theme.colors.dark.text,
       fontSize: theme.typography.fontSize.sm,
       fontWeight: active ? theme.typography.fontWeight.bold : theme.typography.fontWeight.medium,
       cursor: 'pointer',
@@ -208,9 +208,9 @@ const Admin: React.FC = () => {
     dateButton: (active: boolean) => ({
       padding: '6px 12px',
       borderRadius: theme.radius.sm,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: active ? 'rgba(255,45,85,0.2)' : 'rgba(255,255,255,0.06)',
-      color: active ? '#ff2d55' : theme.colors.dark.text,
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: active ? 'rgba(96,165,250,0.18)' : 'rgba(16,15,18,0.82)',
+      color: active ? theme.colors.dark.primary : theme.colors.dark.text,
       fontSize: theme.typography.fontSize.xs,
       fontWeight: active ? theme.typography.fontWeight.bold : theme.typography.fontWeight.medium,
       cursor: 'pointer',
@@ -224,15 +224,15 @@ const Admin: React.FC = () => {
       marginBottom: theme.spacing.lg,
     },
     statCard: {
-      background: 'rgba(255,255,255,0.05)',
+      background: 'rgba(16,15,18,0.82)',
       borderRadius: theme.radius.lg,
       padding: theme.spacing.lg,
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: '1px solid rgba(96,165,250,0.12)',
     },
     statValue: {
       fontSize: theme.typography.fontSize['2xl'],
       fontWeight: theme.typography.fontWeight.bold,
-      color: '#ff2d55',
+      color: theme.colors.dark.primary,
       marginBottom: theme.spacing.xs,
     },
     statLabel: {
@@ -259,7 +259,7 @@ const Admin: React.FC = () => {
     },
     statusBadge: (status: AdminOrder['status']) => ({
       background: getStatusColor(status),
-      color: '#ffffff',
+      color: '#eff6ff',
       padding: '4px 8px',
       borderRadius: theme.radius.sm,
       fontSize: theme.typography.fontSize.xs,
@@ -290,7 +290,7 @@ const Admin: React.FC = () => {
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: '8px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.1)',
+      borderBottom: '1px solid rgba(96,165,250,0.12)',
     },
     itemName: {
       fontSize: theme.typography.fontSize.sm,
@@ -306,7 +306,7 @@ const Admin: React.FC = () => {
       alignItems: 'center',
       marginBottom: theme.spacing.md,
       paddingTop: theme.spacing.md,
-      borderTop: '1px solid rgba(255,255,255,0.2)',
+      borderTop: '1px solid rgba(96,165,250,0.12)',
     },
     totalLabel: {
       fontSize: theme.typography.fontSize.sm,
@@ -315,7 +315,7 @@ const Admin: React.FC = () => {
     totalValue: {
       fontSize: theme.typography.fontSize.lg,
       fontWeight: theme.typography.fontWeight.bold,
-      color: '#ff2d55',
+      color: theme.colors.dark.primary,
     },
     actionButtons: {
       display: 'flex',
@@ -345,9 +345,9 @@ const Admin: React.FC = () => {
       fontWeight: theme.typography.fontWeight.bold,
       textTransform: 'uppercase' as const,
       letterSpacing: '0.08em',
-      background: active ? 'rgba(76,175,80,0.2)' : 'rgba(244,67,54,0.2)',
-      color: active ? '#4caf50' : '#f44336',
-      border: `1px solid ${active ? 'rgba(76,175,80,0.3)' : 'rgba(244,67,54,0.3)'}`,
+      background: active ? 'rgba(56,189,248,0.18)' : 'rgba(239,68,68,0.16)',
+      color: active ? '#7dd3fc' : '#fca5a5',
+      border: `1px solid ${active ? 'rgba(56,189,248,0.24)' : 'rgba(239,68,68,0.24)'}`,
     }),
     promoCard: {
       marginBottom: theme.spacing.md,
@@ -368,7 +368,7 @@ const Admin: React.FC = () => {
     promoDiscount: {
       fontSize: theme.typography.fontSize['2xl'],
       fontWeight: theme.typography.fontWeight.bold,
-      color: '#ff2d55',
+      color: theme.colors.dark.primary,
       marginBottom: theme.spacing.xs,
     },
     promoDescription: {
@@ -405,7 +405,7 @@ const Admin: React.FC = () => {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="gold-glow">
       <div style={styles.header}>
         <div style={styles.title}>Админ-панель</div>
         <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm }}>
@@ -766,7 +766,7 @@ const Admin: React.FC = () => {
                     <SecondaryButton
                       size="sm"
                       onClick={() => {/* TODO: Delete promo */}}
-                      style={{ background: 'rgba(244,67,54,0.1)', color: '#f44336', borderColor: 'rgba(244,67,54,0.3)' }}
+                      style={{ background: 'rgba(15,23,42,0.82)', color: theme.colors.dark.textSecondary, borderColor: 'rgba(96,165,250,0.14)' }}
                     >
                       <Trash2 size={16} style={{ marginRight: '4px' }} />
                       Удалить

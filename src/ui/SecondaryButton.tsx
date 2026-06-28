@@ -27,7 +27,7 @@ export const SecondaryButton: React.FC<SecondaryButtonProps> = ({
   };
 
   const styles = {
-    background: theme.gradients.secondary,
+    background: 'rgba(16,15,18,0.84)',
     color: theme.colors.dark.text,
     border: theme.border.glass,
     borderRadius: theme.radius.md,
@@ -35,7 +35,7 @@ export const SecondaryButton: React.FC<SecondaryButtonProps> = ({
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.6 : 1,
     width: fullWidth ? '100%' : 'auto',
-    boxShadow: theme.shadow.card,
+    boxShadow: '0 14px 30px rgba(0,0,0,0.28)',
     transition: 'all 0.2s ease',
     touchAction: 'manipulation',
     WebkitTapHighlightColor: 'transparent',

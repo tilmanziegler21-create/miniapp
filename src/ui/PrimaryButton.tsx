@@ -25,15 +25,15 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
   };
 
   const styles = {
-    background: theme.gradients.accent,
-    color: theme.colors.dark.text,
+    background: theme.gradients.primary,
+    color: '#eff6ff',
     border: 'none',
     borderRadius: theme.radius.md,
     fontWeight: theme.typography.fontWeight.semibold,
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.6 : 1,
     width: fullWidth ? '100%' : 'auto',
-    boxShadow: theme.shadow.card,
+    boxShadow: '0 18px 34px rgba(37,99,235,0.24)',
     transition: 'all 0.2s ease',
     touchAction: 'manipulation',
     WebkitTapHighlightColor: 'transparent',

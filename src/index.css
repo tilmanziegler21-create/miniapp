@@ -4,21 +4,22 @@
 
 :root {
   --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --blur-glass: 18px;
-  --border-glass: rgba(255,255,255,0.08);
-  --shadow-card: 0 12px 32px rgba(0,0,0,0.45);
-  --shadow-glow: 0 0 24px rgba(96,165,250,0.18);
+  --radius-md: 18px;
+  --radius-lg: 26px;
+  --blur-glass: 20px;
+  --border-glass: rgba(96,165,250,0.16);
+  --shadow-card: 0 18px 44px rgba(0,0,0,0.48);
+  --shadow-glow: 0 0 24px rgba(96,165,250,0.14);
 }
 
 .bg-app {
-  background: radial-gradient(1200px circle at 12% 12%, rgba(96,165,250,0.14) 0%, transparent 36%),
-    radial-gradient(1200px circle at 88% 22%, rgba(30,64,175,0.16) 0%, transparent 42%),
-    linear-gradient(180deg, #08111f 0%, #0e1a30 100%);
+  background:
+    radial-gradient(1200px circle at 50% 0%, rgba(96,165,250,0.12) 0%, rgba(96,165,250,0.03) 30%, transparent 64%),
+    radial-gradient(900px circle at 12% 12%, rgba(56,189,248,0.08) 0%, transparent 34%),
+    linear-gradient(180deg, #08070a 0%, #0f0d12 100%);
   background-size: 140% 140%, 160% 160%, 100% 100%;
   animation: bgShift 14s ease-in-out infinite;
-  color: #fff;
+  color: #f4f1ea;
 }
 
 @keyframes bgShift {
@@ -34,7 +35,7 @@
 }
 
 .glass {
-  background: rgba(255,255,255,0.06);
+  background: rgba(16,15,18,0.82);
   border: 1px solid var(--border-glass);
   backdrop-filter: blur(var(--blur-glass));
   border-radius: var(--radius-md);
@@ -42,22 +43,47 @@
 }
 
 .pill {
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(96,165,250,0.08);
+  border: 1px solid rgba(96,165,250,0.18);
   border-radius: 9999px;
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
-  color: #fff;
+  background: linear-gradient(180deg, #93c5fd 0%, #60a5fa 55%, #2563eb 100%);
+  color: #f4f1ea;
   border-radius: var(--radius-md);
 }
 
 .btn-secondary {
-  background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.08) 100%);
-  color: #fff;
+  background: linear-gradient(180deg, rgba(96,165,250,0.10) 0%, rgba(125,211,252,0.04) 100%);
+  color: #f4f1ea;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-md);
+}
+
+.gold-glow {
+  background-image: radial-gradient(
+    120% 80% at 50% 0%,
+    rgba(96,165,250,0.1) 0%,
+    rgba(96,165,250,0.03) 30%,
+    transparent 65%
+  );
+}
+
+.gold-text-gradient {
+  background: linear-gradient(180deg, #bfdbfe 0%, #7dd3fc 45%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Safe area support for iPhone */

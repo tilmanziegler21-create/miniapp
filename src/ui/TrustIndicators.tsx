@@ -27,9 +27,9 @@ export const TrustIndicators: React.FC<TrustIndicatorsProps> = ({
       flexDirection: 'column' as const,
       gap: isSmall ? 4 : 8,
       padding: isSmall ? '8px' : '12px',
-      background: 'rgba(255,255,255,0.03)',
+      background: 'rgba(16,15,18,0.72)',
       borderRadius: theme.radius.md,
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: '1px solid rgba(96,165,250,0.12)',
     },
     row: {
       display: 'flex',
@@ -76,7 +76,7 @@ export const TrustIndicators: React.FC<TrustIndicatorsProps> = ({
       color: theme.colors.dark.primary,
     },
     starEmpty: {
-      color: 'rgba(255,255,255,0.2)',
+      color: 'rgba(96,165,250,0.18)',
     },
   };
 

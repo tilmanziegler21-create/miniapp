@@ -19,7 +19,7 @@ export const CityPickerModal: React.FC<Props> = ({ open, cities, selectedCity, o
         position: 'fixed',
         inset: 0,
         zIndex: 1500,
-        background: 'rgba(0,0,0,0.62)',
+        background: 'rgba(0,0,0,0.72)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -42,9 +42,9 @@ export const CityPickerModal: React.FC<Props> = ({ open, cities, selectedCity, o
                   onClick={() => onSelect(c.code)}
                   style={{
                     borderRadius: 999,
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    background: active ? theme.gradients.primary : 'rgba(255,255,255,0.06)',
-                    color: theme.colors.dark.text,
+                    border: '1px solid rgba(96,165,250,0.14)',
+                    background: active ? theme.gradients.primary : 'rgba(16,15,18,0.82)',
+                    color: active ? '#eff6ff' : theme.colors.dark.text,
                     padding: '12px 14px',
                     cursor: 'pointer',
                     fontSize: theme.typography.fontSize.base,

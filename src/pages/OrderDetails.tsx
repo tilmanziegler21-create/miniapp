@@ -100,7 +100,7 @@ const OrderDetails: React.FC = () => {
   const finalAmount = Number(order.finalAmount || 0) || Math.max(0, Number(order.totalAmount || 0) - bonusApplied);
 
   return (
-    <div>
+    <div className="gold-glow">
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -158,7 +158,7 @@ const OrderDetails: React.FC = () => {
                   width: 56,
                   height: 56,
                   borderRadius: 14,
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(96,165,250,0.12)',
                   background: `linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.65) 100%), url(${it.image || ''}) center/cover`,
                   flexShrink: 0,
                 }}

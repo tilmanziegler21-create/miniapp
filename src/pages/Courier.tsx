@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { courierAPI } from '../services/api';
 import { GlassCard, SectionDivider, PrimaryButton, SecondaryButton, theme } from '../ui';
 import { useCityStore } from '../store/useCityStore';
@@ -30,13 +29,11 @@ type CourierOrder = {
 };
 
 const Courier: React.FC = () => {
-  const navigate = useNavigate();
   const toast = useToastStore();
   const { city } = useCityStore();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<CourierOrder[]>([]);
   const [selectedDate, setSelectedDate] = useState<'today' | 'tomorrow' | 'day_after'>('today');
-  const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
 
   const loadOrders = async () => {
     try {
@@ -73,12 +70,12 @@ const Courier: React.FC = () => {
 
   const getStatusColor = (status: CourierOrder['status']) => {
     switch (status) {
-      case 'pending': return '#ffc107';
-      case 'assigned': return '#2196f3';
-      case 'picked_up': return '#ff9800';
-      case 'delivered': return '#4caf50';
-      case 'cancelled': return '#f44336';
-      default: return '#9e9e9e';
+      case 'pending': return '#38bdf8';
+      case 'assigned': return '#60a5fa';
+      case 'picked_up': return '#2563eb';
+      case 'delivered': return '#22c55e';
+      case 'cancelled': return '#ef4444';
+      default: return '#94a3b8';
     }
   };
 
@@ -148,9 +145,9 @@ const Courier: React.FC = () => {
     dateButton: (active: boolean) => ({
       padding: '8px 16px',
       borderRadius: theme.radius.md,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: active ? 'rgba(255,45,85,0.2)' : 'rgba(255,255,255,0.06)',
-      color: active ? '#ff2d55' : theme.colors.dark.text,
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: active ? 'rgba(96,165,250,0.18)' : 'rgba(16,15,18,0.82)',
+      color: active ? theme.colors.dark.primary : theme.colors.dark.text,
       fontSize: theme.typography.fontSize.sm,
       fontWeight: active ? theme.typography.fontWeight.bold : theme.typography.fontWeight.medium,
       cursor: 'pointer',
@@ -174,7 +171,7 @@ const Courier: React.FC = () => {
     },
     statusBadge: (status: CourierOrder['status']) => ({
       background: getStatusColor(status),
-      color: '#ffffff',
+      color: '#eff6ff',
       padding: '4px 8px',
       borderRadius: theme.radius.sm,
       fontSize: theme.typography.fontSize.xs,
@@ -205,7 +202,7 @@ const Courier: React.FC = () => {
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: '8px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.1)',
+      borderBottom: '1px solid rgba(96,165,250,0.12)',
     },
     itemName: {
       fontSize: theme.typography.fontSize.sm,
@@ -221,7 +218,7 @@ const Courier: React.FC = () => {
       alignItems: 'center',
       marginBottom: theme.spacing.md,
       paddingTop: theme.spacing.md,
-      borderTop: '1px solid rgba(255,255,255,0.2)',
+      borderTop: '1px solid rgba(96,165,250,0.12)',
     },
     totalLabel: {
       fontSize: theme.typography.fontSize.sm,
@@ -230,7 +227,7 @@ const Courier: React.FC = () => {
     totalValue: {
       fontSize: theme.typography.fontSize.lg,
       fontWeight: theme.typography.fontWeight.bold,
-      color: '#ff2d55',
+      color: theme.colors.dark.primary,
     },
     actionButtons: {
       display: 'flex',
@@ -258,7 +255,7 @@ const Courier: React.FC = () => {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="gold-glow">
       <div style={styles.header}>
         <div style={styles.title}>Курьер</div>
       </div>

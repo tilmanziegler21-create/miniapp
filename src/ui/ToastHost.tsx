@@ -35,8 +35,8 @@ export const ToastHost: React.FC = () => {
             pointerEvents: 'auto',
             width: '100%',
             borderRadius: theme.radius.lg,
-            border: '1px solid rgba(255,255,255,0.12)',
-            background: 'rgba(12, 10, 26, 0.72)',
+            border: '1px solid rgba(96,165,250,0.12)',
+            background: 'rgba(16,15,18,0.88)',
             backdropFilter: `blur(${theme.blur.glass})`,
             boxShadow: theme.shadow.card,
             padding: `${theme.spacing.md} ${theme.spacing.lg}`,
@@ -63,4 +63,3 @@ export const ToastHost: React.FC = () => {
     </div>
   );
 };
-

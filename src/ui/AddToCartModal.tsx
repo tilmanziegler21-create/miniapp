@@ -53,7 +53,7 @@ export const AddToCartModal: React.FC<Props> = ({ open, product, onClose, onConf
         position: 'fixed',
         inset: 0,
         zIndex: 1400,
-        background: 'rgba(0,0,0,0.65)',
+        background: 'rgba(0,0,0,0.72)',
         display: 'flex',
         alignItems: 'flex-end',
         padding: theme.padding.screen,
@@ -65,8 +65,8 @@ export const AddToCartModal: React.FC<Props> = ({ open, product, onClose, onConf
         style={{
           width: '100%',
           borderRadius: theme.radius.lg,
-          border: '1px solid rgba(255,255,255,0.14)',
-          background: 'rgba(12, 10, 26, 0.82)',
+          border: '1px solid rgba(96,165,250,0.14)',
+          background: 'rgba(16,15,18,0.92)',
           backdropFilter: `blur(${theme.blur.glass})`,
           boxShadow: theme.shadow.card,
           overflow: 'hidden',
@@ -87,7 +87,7 @@ export const AddToCartModal: React.FC<Props> = ({ open, product, onClose, onConf
             style={{
               height: 140,
               borderRadius: theme.radius.lg,
-              border: '1px solid rgba(255,255,255,0.12)',
+              border: '1px solid rgba(96,165,250,0.12)',
               background: `linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.65) 100%), url(${product.image || ''}) center/cover`,
               marginBottom: theme.spacing.md,
             }}
@@ -97,8 +97,8 @@ export const AddToCartModal: React.FC<Props> = ({ open, product, onClose, onConf
             <div style={{ flex: 1, fontWeight: theme.typography.fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{product.name}</div>
             <div
               style={{
-                background: 'rgba(255,255,255,0.92)',
-                color: '#000',
+                background: 'rgba(96,165,250,0.12)',
+                color: theme.colors.dark.text,
                 borderRadius: 999,
                 padding: '6px 12px',
                 fontWeight: theme.typography.fontWeight.bold,
@@ -124,8 +124,8 @@ export const AddToCartModal: React.FC<Props> = ({ open, product, onClose, onConf
                       onClick={() => setVariant(v)}
                       style={{
                         borderRadius: 999,
-                        border: '1px solid rgba(255,255,255,0.14)',
-                        background: active ? 'rgba(96,165,250,0.22)' : 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(96,165,250,0.14)',
+                        background: active ? 'rgba(96,165,250,0.22)' : 'rgba(16,15,18,0.82)',
                         color: theme.colors.dark.text,
                         padding: '8px 12px',
                         cursor: 'pointer',
@@ -149,7 +149,7 @@ export const AddToCartModal: React.FC<Props> = ({ open, product, onClose, onConf
                   width: 36,
                   height: 36,
                   borderRadius: 999,
-                  background: '#2563eb',
+                  background: theme.gradients.primary,
                   color: '#eff6ff',
                   border: 'none',
                   cursor: 'pointer',
@@ -165,7 +165,7 @@ export const AddToCartModal: React.FC<Props> = ({ open, product, onClose, onConf
                   width: 36,
                   height: 36,
                   borderRadius: 999,
-                  background: '#2563eb',
+                  background: theme.gradients.primary,
                   color: '#eff6ff',
                   border: 'none',
                   cursor: 'pointer',

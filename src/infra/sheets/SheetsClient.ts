@@ -199,8 +199,11 @@ export async function getProducts(): Promise<Product[]> {
   };
   const parseId = (v: any, i: number) => {
     const s = String(v ?? "").trim();
+    // Use djb2 as fallback, but ideally use string IDs directly if possible
+    // For now, to keep compatibility with SQLite integer IDs, we hash strings.
     const n = Number(s);
-    if (Number.isFinite(n)) return n;
+    if (Number.isFinite(n) && n > 0) return n;
+    
     // stable hash for string IDs like EL-001, LIQ-001
     let h = 5381;
     for (let k = 0; k < s.length; k++) h = ((h << 5) + h) + s.charCodeAt(k);
@@ -214,17 +217,22 @@ export async function getProducts(): Promise<Product[]> {
   };
   return rows
     .filter((r) => r.length > 0)
-    .map((r, i) => ({
-      product_id: idIdx >= 0 ? parseId(r[idIdx], i) : i + 1,
-      title: r[titleIdx],
-      price: parseNum(r[priceIdx]),
-      category: categoryIdx >= 0 ? normCat(r[categoryIdx]) : "liquids",
-      brand: brandIdx >= 0 ? (r[brandIdx] || null) : null,
-      qty_available: qtyIdx >= 0 ? parseNum(r[qtyIdx] || 0) : 0,
-      upsell_group_id: r[upsellIdx] ? Number(r[upsellIdx]) : null,
-      reminder_offset_days: Number(r[remIdx] || 0),
-      active: activeIdx >= 0 ? ["true", "1", "да", "yes"].includes(String(r[activeIdx]).trim().toLowerCase()) : true
-    }));
+    .map((r, i) => {
+      const qty = qtyIdx >= 0 ? parseNum(r[qtyIdx] || 0) : 0;
+      return {
+        product_id: idIdx >= 0 ? parseId(r[idIdx], i) : i + 1,
+        title: r[titleIdx],
+        price: parseNum(r[priceIdx]),
+        category: categoryIdx >= 0 ? normCat(r[categoryIdx]) : "liquids",
+        brand: brandIdx >= 0 ? (r[brandIdx] || null) : null,
+        qty_available: qty,
+        upsell_group_id: r[upsellIdx] ? Number(r[upsellIdx]) : null,
+        reminder_offset_days: Number(r[remIdx] || 0),
+        active: activeIdx >= 0 
+          ? ["true", "1", "да", "yes"].includes(String(r[activeIdx]).trim().toLowerCase()) 
+          : qty > 0 // Change: default active based on stock, not unconditionally true
+      };
+    });
 }
 
 export async function updateProductQty(product_id: number, new_qty: number): Promise<void> {

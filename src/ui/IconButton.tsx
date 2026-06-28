@@ -31,11 +31,11 @@ export const IconButton: React.FC<IconButtonProps> = ({
 
   const variantStyles = {
     default: {
-      background: 'rgba(255,255,255,0.1)',
+      background: 'rgba(96,165,250,0.10)',
       border: theme.border.glass,
     },
     glass: {
-      background: 'rgba(255,255,255,0.05)',
+      background: 'rgba(16,15,18,0.82)',
       border: theme.border.glass,
       backdropFilter: `blur(${theme.blur.glass})`,
     },

@@ -1,5 +1,8 @@
 import { google } from 'googleapis';
 
+import fs from 'fs';
+import path from 'path';
+
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
 function getEnv(name, fallback = '') {
@@ -10,13 +13,12 @@ function normalizePrivateKey(raw) {
   let cleaned = String(raw || '').trim();
   if (!cleaned) return '';
 
-  // Allow pasting full JSON, quoted strings, or escaped PEM blocks into Render variables.
   if (cleaned.startsWith('{') && cleaned.includes('"private_key"')) {
     try {
       const parsed = JSON.parse(cleaned);
       cleaned = String(parsed.private_key || '').trim();
     } catch {
-      // ignore and continue with raw value
+      // ignore
     }
   }
 
@@ -33,9 +35,38 @@ function normalizePrivateKey(raw) {
 }
 
 function getServiceAccount() {
+  // 1. Check for Base64 encoded JSON (Render approach)
+  const b64 = getEnv('GOOGLE_CREDENTIALS_BASE64');
+  if (b64) {
+    try {
+      const parsed = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
+      if (parsed.client_email && parsed.private_key) {
+        return { email: parsed.client_email, key: normalizePrivateKey(parsed.private_key) };
+      }
+    } catch (e) {
+      console.warn('Failed to parse GOOGLE_CREDENTIALS_BASE64', e);
+    }
+  }
+
+  // 2. Check for service-account.json file
+  const jsonPath = getEnv('GOOGLE_SERVICE_ACCOUNT_JSON_PATH', 'service-account.json');
+  try {
+    const fullPath = path.resolve(process.cwd(), jsonPath);
+    if (fs.existsSync(fullPath)) {
+      const parsed = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+      if (parsed.client_email && parsed.private_key) {
+        return { email: parsed.client_email, key: normalizePrivateKey(parsed.private_key) };
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // 3. Fallback to individual env vars (deprecated but supported for backwards compatibility)
   const email = getEnv('GOOGLE_SHEETS_CLIENT_EMAIL', getEnv('GOOGLE_SERVICE_ACCOUNT_EMAIL'));
   const rawKey = getEnv('GOOGLE_SHEETS_PRIVATE_KEY', getEnv('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY'));
   const key = normalizePrivateKey(rawKey);
+
   if (!email || !key) {
     const err = new Error('Sheets not configured');
     err.status = 503;
@@ -51,7 +82,7 @@ function getServiceAccount() {
     const err = new Error('Invalid Google private key format');
     err.status = 503;
     err.code = 'SHEETS_NOT_CONFIGURED';
-    err.missing = ['GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY'];
+    err.missing = ['GOOGLE_SHEETS_PRIVATE_KEY'];
     throw err;
   }
 
@@ -206,31 +237,41 @@ export async function getProducts(city) {
   return products;
 }
 
-export async function updateProductStock(product, newStock, newActive) {
+export async function updateProductStockBatch(updates) {
   const spreadsheetId = getEnv('GOOGLE_SHEETS_SPREADSHEET_ID');
   const api = sheetsApi();
-  const headers = product._headers;
-  const stockIdx = headerIndexAny(headers, ['stock', 'qty', 'qty_available']);
-  const activeIdx = headerIndexAny(headers, ['active', 'is_active']);
-  if (stockIdx < 0) throw new Error('Stock column not found in products sheet');
-  if (activeIdx < 0) throw new Error('Active column not found in products sheet');
+  const data = [];
 
-  const row = product._rowIndex;
-  const stockCol = String.fromCharCode('A'.charCodeAt(0) + stockIdx);
-  const activeCol = String.fromCharCode('A'.charCodeAt(0) + activeIdx);
+  for (const update of updates) {
+    const { product, newStock, newActive } = update;
+    const headers = product._headers;
+    const stockIdx = headerIndexAny(headers, ['stock', 'qty', 'qty_available']);
+    const activeIdx = headerIndexAny(headers, ['active', 'is_active']);
+    if (stockIdx < 0 || activeIdx < 0) continue;
 
-  await api.spreadsheets.values.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      valueInputOption: 'RAW',
-      data: [
-        { range: `${product._sheet}!${stockCol}${row}`, values: [[String(newStock)]] },
-        { range: `${product._sheet}!${activeCol}${row}`, values: [[newActive ? 'TRUE' : 'FALSE']] },
-      ],
-    },
-  });
+    const row = product._rowIndex;
+    const stockCol = String.fromCharCode('A'.charCodeAt(0) + stockIdx);
+    const activeCol = String.fromCharCode('A'.charCodeAt(0) + activeIdx);
+
+    data.push({ range: `${product._sheet}!${stockCol}${row}`, values: [[String(newStock)]] });
+    data.push({ range: `${product._sheet}!${activeCol}${row}`, values: [[newActive ? 'TRUE' : 'FALSE']] });
+  }
+
+  if (data.length > 0) {
+    await api.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        valueInputOption: 'RAW',
+        data,
+      },
+    });
+  }
 
   cache.clear();
+}
+
+export async function updateProductStock(product, newStock, newActive) {
+  await updateProductStockBatch([{ product, newStock, newActive }]);
 }
 
 export async function appendOrderRow(city, orderRow) {

@@ -1,18 +1,18 @@
 export const theme = {
   radius: {
     sm: '12px',
-    md: '16px',
-    lg: '22px',
+    md: '18px',
+    lg: '26px',
   },
   blur: {
-    glass: '18px',
+    glass: '20px',
   },
   border: {
-    glass: '1px solid rgba(255,255,255,0.08)',
+    glass: '1px solid rgba(96,165,250,0.16)',
   },
   shadow: {
-    card: '0 12px 32px rgba(0,0,0,0.45)',
-    glow: '0 0 24px rgba(96,165,250,0.18)',
+    card: '0 18px 44px rgba(0,0,0,0.48)',
+    glow: '0 0 24px rgba(96,165,250,0.14)',
   },
   gap: '12px',
   padding: {
@@ -20,14 +20,14 @@ export const theme = {
   },
   colors: {
     dark: {
-      bg: 'linear-gradient(135deg, #09111e 0%, #0f1a2d 100%)',
-      card: 'rgba(17, 26, 41, 0.78)',
-      border: 'rgba(255,255,255,0.10)',
-      text: '#ffffff',
-      textSecondary: 'rgba(255,255,255,0.68)',
+      bg: 'linear-gradient(180deg, #08070a 0%, #0f0d12 100%)',
+      card: 'rgba(16, 15, 18, 0.88)',
+      border: 'rgba(96,165,250,0.16)',
+      text: '#f4f1ea',
+      textSecondary: 'rgba(244,241,234,0.62)',
       primary: '#60a5fa',
-      secondary: '#3b82f6',
-      accent: '#93c5fd',
+      secondary: '#38bdf8',
+      accent: '#bfdbfe',
       accentGreen: '#38bdf8',
       accentPurple: '#7dd3fc',
       accentRed: '#60a5fa',
@@ -35,10 +35,10 @@ export const theme = {
     },
   },
   gradients: {
-    primary: 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)',
-    secondary: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
-    accent: 'linear-gradient(135deg, #7dd3fc 0%, #3b82f6 100%)',
-    glass: 'linear-gradient(135deg, rgba(96,165,250,0.16) 0%, rgba(30,64,175,0.12) 100%)',
+    primary: 'linear-gradient(180deg, #93c5fd 0%, #60a5fa 55%, #2563eb 100%)',
+    secondary: 'linear-gradient(135deg, rgba(96,165,250,0.18) 0%, rgba(125,211,252,0.06) 100%)',
+    accent: 'linear-gradient(135deg, #7dd3fc 0%, #60a5fa 100%)',
+    glass: 'linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(125,211,252,0.03) 100%)',
   },
   typography: {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',

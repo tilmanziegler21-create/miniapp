@@ -1,12 +1,11 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import db from '../services/database.js';
-import { getProducts, updateProductStock, appendOrderRow, updateOrderRowByOrderId, getOrders } from '../services/sheets.js';
+import { getProducts, updateProductStockBatch, appendOrderRow, updateOrderRowByOrderId, getOrders } from '../services/sheets.js';
 import { normalizeOrderStatus } from '../domain/orderStatus.js';
 
 const router = express.Router();
-
-const idempotency = new Map();
+const stockCommitting = new Set();
 
 function generateOrderId() {
   return 'ORD-' + Date.now().toString(36).toUpperCase();
@@ -14,6 +13,11 @@ function generateOrderId() {
 
 function countPositions(items) {
   return Array.isArray(items) ? items.length : 0;
+}
+
+function allowedCitiesSet() {
+  const raw = String(process.env.CITY_CODES || '').trim();
+  return new Set(raw.split(',').map((x) => x.trim()).filter(Boolean));
 }
 
 function getDbOrderItemCount(orderId) {
@@ -40,6 +44,48 @@ function safeJson(raw, fallback) {
     return JSON.parse(String(raw || ''));
   } catch {
     return fallback;
+  }
+}
+
+async function commitOrderStock(cityStr, orderId, order) {
+  if (order.stock_committed) return { ok: true };
+  const lockKey = String(orderId || '');
+  if (!lockKey) return { ok: false, reason: 'NO_ORDER_ID' };
+  if (stockCommitting.has(lockKey)) return { ok: false, reason: 'IN_PROGRESS' };
+  stockCommitting.add(lockKey);
+  try {
+    const sheetProducts = cityStr ? await getProducts(cityStr) : [];
+    const bySku = new Map(sheetProducts.map((p) => [String(p.sku), p]));
+    const batchUpdates = [];
+    for (const oi of db.orderItems.values()) {
+      if (oi.order_id !== orderId) continue;
+      const sku = String(oi.product_id);
+      const p = bySku.get(sku);
+      if (!p) continue;
+      const newStock = Math.max(0, Number(p.stock) - Number(oi.quantity));
+      const newActive = newStock > 0;
+      batchUpdates.push({ product: p, newStock, newActive });
+    }
+    if (batchUpdates.length > 0) {
+      try {
+        await updateProductStockBatch(batchUpdates);
+      } catch (e) {
+        console.error('Failed to commit stock to sheets:', e);
+      }
+    }
+    order.stock_committed = true;
+    db.releaseReservationsByOrder(orderId);
+    db.persistState();
+    try {
+      await updateOrderRowByOrderId(cityStr, orderId, { stock_committed: 'TRUE' });
+    } catch {
+    }
+    return { ok: true };
+  } catch (e) {
+    console.error('Commit stock failed:', e);
+    return { ok: false, reason: 'COMMIT_FAILED' };
+  } finally {
+    stockCommitting.delete(lockKey);
   }
 }
 
@@ -109,8 +155,9 @@ router.post('/create', requireAuth, async (req, res) => {
     const idempotencyKey = String(req.headers['idempotency-key'] || '').trim();
     if (idempotencyKey) {
       const key = `${tgId}:${idempotencyKey}`;
-      const existing = idempotency.get(key);
-      if (existing && existing.expiresAt > Date.now()) {
+      db.cleanupIdempotency();
+      const existing = db.getOrderIdempotency(key);
+      if (existing && Number(existing.expiresAt || 0) > Date.now()) {
         return res.json(existing.payload);
       }
     }
@@ -119,7 +166,11 @@ router.post('/create', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid order data' });
     }
 
-    const cityStr = String(city);
+    const cityStr = String(city).trim();
+    const allowedCities = allowedCitiesSet();
+    if (allowedCities.size > 0 && !allowedCities.has(cityStr)) {
+      return res.status(400).json({ error: 'INVALID_CITY' });
+    }
     const sheetProducts = await getProducts(cityStr);
     const bySku = new Map(sheetProducts.map((p) => [String(p.sku), p]));
 
@@ -187,6 +238,7 @@ router.post('/create', requireAuth, async (req, res) => {
       promo_code: promoObj && promoObj.active ? promo : '',
       delivery_method: null,
       courier_data: null,
+      stock_committed: false,
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + reservationTtlMs).toISOString(),
     };
@@ -246,7 +298,7 @@ router.post('/create', requireAuth, async (req, res) => {
 
     if (idempotencyKey) {
       const key = `${tgId}:${idempotencyKey}`;
-      idempotency.set(key, { expiresAt: Date.now() + 10 * 60 * 1000, payload });
+      db.setOrderIdempotency(key, payload, 10 * 60 * 1000);
     }
 
     res.json(payload);
@@ -272,6 +324,9 @@ router.post('/confirm', requireAuth, async (req, res) => {
     order.status = 'pending';
     order.delivery_method = deliveryMethod;
     order.courier_data = JSON.stringify(courierData || {});
+    order.courier_id = String(courier_id || '');
+    order.delivery_date = String(delivery_date || '');
+    order.delivery_time = String(delivery_time || '');
     db.persistState();
 
     try {
@@ -337,6 +392,13 @@ router.post('/confirm', requireAuth, async (req, res) => {
       console.error('Sheets upsert order failed:', e);
     }
 
+    if (!order.stock_committed) {
+      const committed = await commitOrderStock(cityStr, orderId, order);
+      if (!committed.ok && committed.reason === 'IN_PROGRESS') {
+        return res.status(409).json({ error: 'STOCK_COMMIT_IN_PROGRESS' });
+      }
+    }
+
     res.json({ success: true, status: 'pending' });
   } catch (error) {
     console.error('Confirm order error:', error);
@@ -352,11 +414,21 @@ router.post('/payment', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Order ID is required' });
     }
 
+    const paymentKey = `${String(req.user.tgId)}:${String(orderId)}`;
+    db.cleanupIdempotency();
+    const existingPayment = db.getPaymentIdempotency(paymentKey);
+    if (existingPayment && Number(existingPayment.expiresAt || 0) > Date.now()) {
+      return res.json(existingPayment.payload);
+    }
+
     let order = db.orders.get(orderId);
     const cityStr = String(city || order?.city || '');
     if (!order) order = await ensureLocalOrderFromSheets(cityStr, orderId, req.user.tgId);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     if (String(order.user_id) !== String(req.user.tgId)) return res.status(403).json({ error: 'Forbidden' });
+    if (!String(order.delivery_method || '').trim()) {
+      return res.status(400).json({ error: 'Order must be confirmed before payment' });
+    }
     const current = normalizeOrderStatus(order.status);
     if (current === 'delivered' || current === 'cancelled') {
       return res.json({ success: true, status: current });
@@ -364,34 +436,26 @@ router.post('/payment', requireAuth, async (req, res) => {
     const nextStatus = current === 'buffer' ? 'pending' : current;
     order.status = nextStatus;
     {
-      try {
-        const sheetProducts = cityStr ? await getProducts(cityStr) : [];
-        const bySku = new Map(sheetProducts.map((p) => [String(p.sku), p]));
-
-        for (const oi of db.orderItems.values()) {
-          if (oi.order_id !== orderId) continue;
-          const sku = String(oi.product_id);
-          const p = bySku.get(sku);
-          if (!p) continue;
-          const newStock = Math.max(0, Number(p.stock) - Number(oi.quantity));
-          const newActive = newStock > 0;
-          try {
-            await updateProductStock(p, newStock, newActive);
-          } catch (e) {
-            console.error('Update stock failed:', e);
-          }
+      if (!order.stock_committed) {
+        const committed = await commitOrderStock(cityStr, orderId, order);
+        if (!committed.ok && committed.reason === 'IN_PROGRESS') {
+          return res.status(409).json({ error: 'STOCK_COMMIT_IN_PROGRESS' });
         }
-      } catch (e) {
-        console.error('Fetch products for stock update failed:', e);
       }
 
       let bonusUsed = 0;
       try {
-        const want = Math.max(0, Number(bonusApplied || 0));
+        const wantRaw = Number(bonusApplied || 0);
+        if (!Number.isFinite(wantRaw)) {
+          return res.status(400).json({ error: 'Invalid bonusApplied' });
+        }
+        const want = Math.max(0, wantRaw);
         if (want > 0) {
           const user = db.prepare('SELECT * FROM users WHERE tg_id = ?').get(req.user.tgId);
           const balance = Number(user?.bonus_balance || 0);
-          bonusUsed = Math.min(balance, want, Number(order.total_amount || 0));
+          const totalAmount = Number(order.total_amount || 0);
+          const maxByPolicy = totalAmount * 0.5;
+          bonusUsed = Math.min(balance, want, maxByPolicy);
           if (bonusUsed > 0) {
             db.prepare('UPDATE users SET bonus_balance = ? WHERE tg_id = ?').run(balance - bonusUsed, req.user.tgId);
             db.addBonusEvent({
@@ -440,7 +504,16 @@ router.post('/payment', requireAuth, async (req, res) => {
         console.error('Referral apply failed:', e);
       }
 
-      db.releaseReservationsByOrder(orderId);
+      try {
+        const userCart = Array.from(db.carts.values()).find((c) => String(c.user_id) === String(req.user.tgId));
+        if (userCart) {
+          for (const [k, v] of db.cartItems.entries()) {
+            if (String(v.cart_id) === String(userCart.id)) db.cartItems.delete(k);
+          }
+          db.carts.delete(String(userCart.id));
+        }
+      } catch {
+      }
 
       try {
         if (cityStr) {
@@ -458,7 +531,9 @@ router.post('/payment', requireAuth, async (req, res) => {
       db.persistState();
     }
 
-    res.json({ success: true, status: normalizeOrderStatus(db.orders.get(orderId)?.status) });
+    const payload = { success: true, status: normalizeOrderStatus(db.orders.get(orderId)?.status) };
+    db.setPaymentIdempotency(paymentKey, payload, 5 * 60 * 1000);
+    res.json(payload);
   } catch (error) {
     console.error('Payment error:', error);
     res.status(500).json({ error: 'Payment failed' });

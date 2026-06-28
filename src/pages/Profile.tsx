@@ -145,72 +145,59 @@ const Profile: React.FC = () => {
   const userLevel = getUserLevelInfo();
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-700 to-sky-600 text-white p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold">Профиль</h1>
+    <div className="gold-glow min-h-screen px-4 pb-28 pt-4 text-white">
+      <div className="rounded-[28px] border border-sky-400/15 bg-[#100f12]/90 p-5 shadow-[0_18px_44px_rgba(0,0,0,0.48)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-xl font-black tracking-tight">Профиль</h1>
           <button
             onClick={() => navigate('/')}
-            className="p-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-colors"
+            className="rounded-2xl border border-sky-400/15 bg-sky-400/10 p-2 text-sky-300 transition-colors hover:bg-sky-400/15"
           >
-            <User className="w-5 h-5" />
+            <User className="h-5 w-5" />
           </button>
         </div>
-        
-        <div className="flex items-center space-x-4">
-          <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            <span className="text-2xl">{userLevel.icon}</span>
+
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sky-400/25 bg-sky-400/10 text-2xl">
+            <span>{userLevel.icon}</span>
           </div>
           <div>
-            <h2 className="text-lg font-semibold">{user?.firstName}</h2>
-            <p className="text-blue-100">{userLevel.title}</p>
-            <p className="text-blue-100 text-sm">@{user?.username}</p>
+            <h2 className="text-lg font-semibold">{user?.firstName || 'Пользователь'}</h2>
+            <p className="text-sm text-sky-300">{userLevel.title}</p>
+            <p className="text-sm text-slate-400">@{user?.username || 'telegram'}</p>
           </div>
         </div>
-      </div>
 
-      {/* Bonus Card */}
-      <div className="p-4">
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <Star className="w-5 h-5 text-yellow-500" />
+        <div className="mt-5 rounded-3xl border border-sky-400/15 bg-sky-400/5 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-sky-300" />
               <h3 className="font-semibold">Бонусный баланс</h3>
             </div>
-            <div className="text-2xl font-bold text-blue-600">
-              {bonusBalance}
-            </div>
+            <div className="text-2xl font-black text-sky-300">{bonusBalance}</div>
           </div>
-          
-          <div className={`${userLevel.bgColor} rounded-lg p-3`}>
-            <div className={`font-semibold ${userLevel.color} mb-2`}>
-              {userLevel.title}
-            </div>
-            <div className="space-y-1">
-              {userLevel.benefits.map((benefit, index) => (
-                <div key={index} className="text-sm text-gray-600 flex items-center space-x-2">
-                  <span>•</span>
-                  <span>{benefit}</span>
-                </div>
-              ))}
-            </div>
+          <div className="space-y-2 text-sm text-slate-300">
+            {userLevel.benefits.map((benefit, index) => (
+              <div key={index} className="flex items-start gap-2">
+                <span className="text-sky-300">•</span>
+                <span>{benefit}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="px-4 mb-4">
-        <div className="bg-white rounded-lg shadow-sm p-1 flex">
+      <div className="mt-5 mb-4">
+        <div className="flex rounded-[24px] border border-sky-400/15 bg-[#100f12]/90 p-1 shadow-[0_18px_44px_rgba(0,0,0,0.48)]">
           <button
             onClick={() => {
               setActiveTab('orders');
               trackEvent('profile_tab_click', { tab: 'orders' });
             }}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+            className={`flex-1 rounded-[18px] py-3 px-3 text-sm font-medium transition-colors ${
               activeTab === 'orders'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-sky-400/20 text-sky-300'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <div className="flex items-center justify-center space-x-2">
@@ -223,10 +210,10 @@ const Profile: React.FC = () => {
               setActiveTab('bonuses');
               trackEvent('profile_tab_click', { tab: 'bonuses' });
             }}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+            className={`flex-1 rounded-[18px] py-3 px-3 text-sm font-medium transition-colors ${
               activeTab === 'bonuses'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-sky-400/20 text-sky-300'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <div className="flex items-center justify-center space-x-2">
@@ -240,10 +227,10 @@ const Profile: React.FC = () => {
               loadFavorites();
               trackEvent('profile_tab_click', { tab: 'favorites' });
             }}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+            className={`flex-1 rounded-[18px] py-3 px-3 text-sm font-medium transition-colors ${
               activeTab === 'favorites'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-sky-400/20 text-sky-300'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <div className="flex items-center justify-center space-x-2">
@@ -254,21 +241,20 @@ const Profile: React.FC = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="px-4 pb-4">
+      <div className="pb-4">
         {activeTab === 'orders' && (
           <div>
             {loading ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-sky-300"></div>
               </div>
             ) : orders.length === 0 ? (
               <div className="text-center py-8">
-                <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600">У вас еще нет заказов</p>
+                <Package className="mx-auto mb-3 h-12 w-12 text-slate-500" />
+                <p className="text-slate-400">У вас еще нет заказов</p>
                 <button
                   onClick={() => navigate('/catalog')}
-                  className="mt-3 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                  className="mt-3 rounded-2xl bg-gradient-to-b from-sky-300 to-blue-500 px-4 py-2 text-white transition-colors hover:opacity-90"
                 >
                   Перейти в каталог
                 </button>
@@ -276,11 +262,11 @@ const Profile: React.FC = () => {
             ) : (
               <div className="space-y-3">
                 {orders.map((order) => (
-                  <div key={order.id} className="bg-white rounded-lg shadow-sm p-4">
+                  <div key={order.id} className="rounded-[24px] border border-sky-400/15 bg-[#100f12]/90 p-4 shadow-[0_18px_44px_rgba(0,0,0,0.48)]">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h4 className="font-semibold">Заказ #{order.id}</h4>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-slate-400">
                           {new Date(order.createdAt).toLocaleDateString('ru-RU')}
                         </p>
                       </div>
@@ -291,15 +277,15 @@ const Profile: React.FC = () => {
                     
                     <div className="space-y-2 mb-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Товаров:</span>
+                        <span className="text-slate-400">Товаров:</span>
                         <span>{order.itemCount} шт.</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Сумма:</span>
+                        <span className="text-slate-400">Сумма:</span>
                         <span className="font-semibold">{formatCurrency(Number(order.totalAmount || 0))}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Доставка:</span>
+                        <span className="text-slate-400">Доставка:</span>
                         <span>{order.deliveryMethod === 'courier' ? 'Курьер' : 'Самовывоз'}</span>
                       </div>
                     </div>
@@ -310,7 +296,7 @@ const Profile: React.FC = () => {
                           navigate(`/order/${order.id}`);
                           trackEvent('view_order_details', { order_id: order.id });
                         }}
-                        className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg text-sm hover:bg-blue-600 transition-colors"
+                        className="flex-1 rounded-2xl bg-gradient-to-b from-sky-300 to-blue-500 py-2 px-3 text-sm text-white transition-colors hover:opacity-90"
                       >
                         Подробнее
                       </button>
@@ -319,7 +305,7 @@ const Profile: React.FC = () => {
                           // Repeat order logic would go here
                           WebApp.showAlert('Функция повторения заказа в разработке');
                         }}
-                        className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg text-sm hover:bg-gray-200 transition-colors"
+                        className="flex-1 rounded-2xl border border-sky-400/15 bg-sky-400/8 py-2 px-3 text-sm text-slate-200 transition-colors hover:bg-sky-400/12"
                       >
                         Повторить
                       </button>
@@ -332,41 +318,41 @@ const Profile: React.FC = () => {
         )}
 
         {activeTab === 'bonuses' && (
-          <div>
-            <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+          <div className="space-y-4">
+            <div className="rounded-[24px] border border-sky-400/15 bg-[#100f12]/90 p-4 shadow-[0_18px_44px_rgba(0,0,0,0.48)]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">История бонусов</h3>
-                <Clock className="w-5 h-5 text-gray-400" />
+                <Clock className="w-5 h-5 text-slate-400" />
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2 border-b border-gray-100">
                   <div>
                     <div className="font-medium">Заказ #ORD-ABC123</div>
-                    <div className="text-sm text-gray-600">15.01.2024</div>
+                    <div className="text-sm text-slate-400">15.01.2024</div>
                   </div>
-                  <div className="text-green-600 font-semibold">+50</div>
+                  <div className="font-semibold text-sky-300">+50</div>
                 </div>
-                
+
                 <div className="flex justify-between items-center py-2 border-b border-gray-100">
                   <div>
                     <div className="font-medium">Списание бонусов</div>
-                    <div className="text-sm text-gray-600">10.01.2024</div>
+                    <div className="text-sm text-slate-400">10.01.2024</div>
                   </div>
-                  <div className="text-blue-600 font-semibold">-30</div>
+                  <div className="font-semibold text-blue-300">-30</div>
                 </div>
-                
+
                 <div className="flex justify-between items-center py-2">
                   <div>
                     <div className="font-medium">Приветственный бонус</div>
-                    <div className="text-sm text-gray-600">01.01.2024</div>
+                    <div className="text-sm text-slate-400">01.01.2024</div>
                   </div>
-                  <div className="text-green-600 font-semibold">+100</div>
+                  <div className="font-semibold text-sky-300">+100</div>
                 </div>
               </div>
             </div>
-            
-            <div className="bg-gradient-to-r from-blue-500 to-sky-500 rounded-lg p-4 text-white">
+
+            <div className="rounded-[24px] bg-gradient-to-r from-blue-600 to-sky-500 p-4 text-white shadow-[0_18px_44px_rgba(0,0,0,0.32)]">
               <div className="flex items-center space-x-2 mb-2">
                 <Gift className="w-5 h-5" />
                 <h3 className="font-semibold">Как получить бонусы?</h3>
@@ -382,23 +368,23 @@ const Profile: React.FC = () => {
         )}
 
         {activeTab === 'bonuses' && (
-          <div className="space-y-3">
-            <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="mt-4 space-y-3">
+            <div className="rounded-[24px] border border-sky-400/15 bg-[#100f12]/90 p-4 shadow-[0_18px_44px_rgba(0,0,0,0.48)]">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">Доступно бонусов</div>
-                <div className="text-xl font-bold text-blue-600">{bonusBalance}</div>
+                <div className="text-sm text-slate-400">Доступно бонусов</div>
+                <div className="text-xl font-bold text-sky-300">{bonusBalance}</div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow-sm p-4">
-              <div className="font-semibold mb-3">История</div>
+            <div className="rounded-[24px] border border-sky-400/15 bg-[#100f12]/90 p-4 shadow-[0_18px_44px_rgba(0,0,0,0.48)]">
+              <div className="mb-3 font-semibold">История</div>
               {bonusHistory.length === 0 ? (
-                <div className="text-sm text-gray-600">Пока нет операций</div>
+                <div className="text-sm text-slate-400">Пока нет операций</div>
               ) : (
                 <div className="space-y-2">
                   {bonusHistory.slice(0, 20).map((x) => (
                     <div key={x.id} className="flex items-center justify-between text-sm">
-                      <div className="text-gray-700">{x.type}</div>
-                      <div className={`${Number(x.amount) < 0 ? 'text-blue-600' : 'text-sky-600'} font-semibold`}>{Number(x.amount)}</div>
+                      <div className="text-slate-300">{x.type}</div>
+                      <div className={`${Number(x.amount) < 0 ? 'text-blue-300' : 'text-sky-300'} font-semibold`}>{Number(x.amount)}</div>
                     </div>
                   ))}
                 </div>
@@ -411,11 +397,11 @@ const Profile: React.FC = () => {
           <div>
             {favorites.length === 0 ? (
               <div className="text-center py-8">
-                <Heart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600">Пока нет избранных товаров</p>
+                <Heart className="mx-auto mb-3 h-12 w-12 text-slate-500" />
+                <p className="text-slate-400">Пока нет избранных товаров</p>
                 <button
                   onClick={() => navigate('/catalog')}
-                  className="mt-3 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                  className="mt-3 rounded-2xl bg-gradient-to-b from-sky-300 to-blue-500 px-4 py-2 text-white transition-colors hover:opacity-90"
                 >
                   Перейти в каталог
                 </button>
@@ -426,19 +412,19 @@ const Profile: React.FC = () => {
                   <button
                     key={p.id}
                     onClick={() => navigate(`/product/${p.id}`)}
-                    className="w-full bg-white rounded-lg shadow-sm p-4 flex items-center space-x-3 text-left"
+                    className="flex w-full items-center space-x-3 rounded-[24px] border border-sky-400/15 bg-[#100f12]/90 p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.48)]"
                   >
-                    <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                    <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-900">
                       {p.image ? (
                         <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
                       ) : null}
                     </div>
                     <div className="flex-1">
-                      <div className="font-semibold text-gray-800">{p.name}</div>
-                      <div className="text-sm text-gray-600">{p.brand}</div>
-                      <div className="text-xs text-gray-500">{p.category}</div>
+                      <div className="font-semibold text-white">{p.name}</div>
+                      <div className="text-sm text-slate-400">{p.brand}</div>
+                      <div className="text-xs text-slate-500">{p.category}</div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                    <ChevronRight className="w-4 h-4 text-slate-500" />
                   </button>
                 ))}
               </div>

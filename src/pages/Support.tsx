@@ -37,7 +37,7 @@ const Support: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: theme.padding.screen }}>
+    <div style={{ padding: theme.padding.screen }} className="gold-glow">
       <div
         style={{
           textAlign: 'center',
@@ -45,6 +45,8 @@ const Support: React.FC = () => {
           fontSize: theme.typography.fontSize['2xl'],
           fontWeight: theme.typography.fontWeight.bold,
           marginBottom: theme.spacing.lg,
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
         }}
       >
         Поддержка
@@ -52,7 +54,7 @@ const Support: React.FC = () => {
 
       <GlassCard padding="lg" variant="elevated">
         <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm, lineHeight: '1.5', marginBottom: theme.spacing.md }}>
-          Свяжись с менеджером в Telegram.
+          Свяжись с поддержкой в Telegram.
         </div>
         <PrimaryButton fullWidth onClick={open}>
           Открыть чат

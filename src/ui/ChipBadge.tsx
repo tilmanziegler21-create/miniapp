@@ -23,10 +23,10 @@ export const ChipBadge: React.FC<ChipBadgeProps> = ({
     },
     bonus: {
       background: theme.colors.dark.accentGold,
-      color: '#000000',
+      color: '#08111f',
     },
     default: {
-      background: 'rgba(255,255,255,0.2)',
+      background: 'rgba(96,165,250,0.14)',
       color: theme.colors.dark.text,
     },
   };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { theme, GlassCard, SectionDivider, PrimaryButton, SecondaryButton } from '../ui';
+import { theme, SectionDivider, PrimaryButton, SecondaryButton } from '../ui';
 import { useAuthStore } from '../store/useAuthStore';
 import { useToastStore } from '../store/useToastStore';
 import { RotateCcw, Gift, Star, Trophy } from 'lucide-react';
@@ -27,14 +27,14 @@ const FortuneWheel: React.FC = () => {
   const [tier, setTier] = useState<'regular' | 'vip' | 'elite'>('regular');
 
   const prizes: WheelPrize[] = [
-    { id: '1', name: '2 бонуса', type: 'bonus', value: 2, probability: 0.25, color: '#ff2d55' },
-    { id: '2', name: 'WELCOME10', type: 'discount', value: 10, probability: 0.10, color: '#ff4d6d' },
-    { id: '3', name: '5 бонусов', type: 'bonus', value: 5, probability: 0.20, color: '#ff9800' },
-    { id: '4', name: 'Попробуйте еще', type: 'nothing', value: 0, probability: 0.18, color: '#607d8b' },
-    { id: '5', name: '10 бонусов', type: 'bonus', value: 10, probability: 0.15, color: '#2196f3' },
-    { id: '6', name: '2 бонуса', type: 'bonus', value: 2, probability: 0.13, color: '#9c27b0' },
-    { id: '7', name: '20 бонусов', type: 'bonus', value: 20, probability: 0.07, color: '#4caf50' },
-    { id: '8', name: '5 бонусов', type: 'bonus', value: 5, probability: 0.12, color: '#ffc107' },
+    { id: '1', name: '2 бонуса', type: 'bonus', value: 2, probability: 0.25, color: '#2563eb' },
+    { id: '2', name: 'WELCOME10', type: 'discount', value: 10, probability: 0.10, color: '#38bdf8' },
+    { id: '3', name: '5 бонусов', type: 'bonus', value: 5, probability: 0.20, color: '#0f172a' },
+    { id: '4', name: 'Попробуйте еще', type: 'nothing', value: 0, probability: 0.18, color: '#334155' },
+    { id: '5', name: '10 бонусов', type: 'bonus', value: 10, probability: 0.15, color: '#60a5fa' },
+    { id: '6', name: '2 бонуса', type: 'bonus', value: 2, probability: 0.13, color: '#1d4ed8' },
+    { id: '7', name: '20 бонусов', type: 'bonus', value: 20, probability: 0.07, color: '#7dd3fc' },
+    { id: '8', name: '5 бонусов', type: 'bonus', value: 5, probability: 0.12, color: '#1e40af' },
   ];
 
   useEffect(() => {
@@ -118,7 +118,7 @@ const FortuneWheel: React.FC = () => {
       position: 'relative' as const,
       overflow: 'hidden',
       boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
-      border: '4px solid rgba(255,255,255,0.2)',
+      border: '4px solid rgba(96,165,250,0.18)',
       transition: 'transform 3s cubic-bezier(0.25, 0.1, 0.25, 1)',
     },
     sector: {
@@ -145,7 +145,7 @@ const FortuneWheel: React.FC = () => {
       height: 0,
       borderLeft: '15px solid transparent',
       borderRight: '15px solid transparent',
-      borderTop: '30px solid #ff2d55',
+      borderTop: '30px solid #60a5fa',
       zIndex: 10,
     },
     centerButton: {
@@ -156,18 +156,18 @@ const FortuneWheel: React.FC = () => {
       width: '80px',
       height: '80px',
       borderRadius: '50%',
-      background: 'linear-gradient(135deg, #ff2d55 0%, #b0003a 100%)',
-      border: '4px solid rgba(255,255,255,0.3)',
+      background: theme.gradients.primary,
+      border: '4px solid rgba(96,165,250,0.24)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       cursor: 'pointer',
-      boxShadow: '0 8px 24px rgba(255,45,85,0.4)',
+      boxShadow: '0 8px 24px rgba(37,99,235,0.35)',
       zIndex: 5,
     },
     resultCard: {
-      background: 'linear-gradient(135deg, rgba(255,193,7,0.15) 0%, rgba(255,152,0,0.1) 100%)',
-      border: '1px solid rgba(255,193,7,0.3)',
+      background: 'linear-gradient(135deg, rgba(96,165,250,0.16) 0%, rgba(56,189,248,0.10) 100%)',
+      border: '1px solid rgba(96,165,250,0.24)',
       borderRadius: theme.radius.lg,
       padding: theme.spacing.lg,
       margin: `0 ${theme.padding.screen} ${theme.spacing.lg}`,
@@ -177,7 +177,7 @@ const FortuneWheel: React.FC = () => {
       width: 64,
       height: 64,
       borderRadius: '50%',
-      background: 'linear-gradient(135deg, #ffc107 0%, #ff9800 100%)',
+      background: theme.gradients.primary,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -185,7 +185,7 @@ const FortuneWheel: React.FC = () => {
       marginBottom: theme.spacing.md,
     },
     statsCard: {
-      background: 'rgba(255,255,255,0.05)',
+      background: 'rgba(16,15,18,0.82)',
       borderRadius: theme.radius.md,
       padding: theme.spacing.md,
       margin: `0 ${theme.padding.screen} ${theme.spacing.md}`,
@@ -194,16 +194,16 @@ const FortuneWheel: React.FC = () => {
       alignItems: 'center',
     },
     rulesCard: {
-      background: 'rgba(255,255,255,0.03)',
+      background: 'rgba(16,15,18,0.72)',
       borderRadius: theme.radius.md,
       padding: theme.spacing.md,
       margin: `0 ${theme.padding.screen}`,
-      border: '1px solid rgba(255,255,255,0.1)',
+      border: '1px solid rgba(96,165,250,0.12)',
     },
   };
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="gold-glow">
       <SectionDivider title="Колесо фортуны" />
 
       {/* Stats */}
@@ -212,7 +212,7 @@ const FortuneWheel: React.FC = () => {
           <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.dark.textSecondary }}>
             Осталось вращений
           </div>
-          <div style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, color: dailySpins > 0 ? '#4caf50' : '#ff2d55' }}>
+          <div style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, color: dailySpins > 0 ? '#7dd3fc' : theme.colors.dark.primary }}>
             {dailySpins}
           </div>
         </div>
@@ -257,7 +257,7 @@ const FortuneWheel: React.FC = () => {
           style={styles.centerButton}
           onClick={spinWheel}
         >
-          <RotateCcw size={32} color="#ffffff" />
+          <RotateCcw size={32} color="#eff6ff" />
         </div>
       </div>
 
@@ -265,10 +265,10 @@ const FortuneWheel: React.FC = () => {
       {showResult && selectedPrize && (
         <div style={styles.resultCard}>
           <div style={styles.prizeIcon}>
-            {selectedPrize.type === 'bonus' ? <Star size={32} color="#000" /> :
-             selectedPrize.type === 'discount' ? <Gift size={32} color="#000" /> :
-             selectedPrize.type === 'gift' ? <Trophy size={32} color="#000" /> :
-             <RotateCcw size={32} color="#000" />}
+            {selectedPrize.type === 'bonus' ? <Star size={32} color="#08111f" /> :
+             selectedPrize.type === 'discount' ? <Gift size={32} color="#08111f" /> :
+             selectedPrize.type === 'gift' ? <Trophy size={32} color="#08111f" /> :
+             <RotateCcw size={32} color="#08111f" />}
           </div>
           <h3 style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, marginBottom: theme.spacing.sm }}>
             {selectedPrize.type === 'nothing' ? 'Не повезло!' : 'Поздравляем!'}

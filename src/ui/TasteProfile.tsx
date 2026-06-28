@@ -55,8 +55,8 @@ export const TasteProfile: React.FC<TasteProfileProps> = ({
       boxShadow: '0 2px 4px rgba(96,165,250,0.3)',
     },
     dotEmpty: {
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      border: '1px solid rgba(255,255,255,0.2)',
+      backgroundColor: 'rgba(96,165,250,0.08)',
+      border: '1px solid rgba(96,165,250,0.18)',
     },
   };
 

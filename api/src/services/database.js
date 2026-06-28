@@ -12,6 +12,8 @@ class InMemoryDB {
     this.products = new Map();
     this.reservations = new Map();
     this.favorites = new Map();
+    this.orderIdempotency = new Map();
+    this.paymentIdempotency = new Map();
     this.bonusLedger = [];
     this.analyticsEvents = [];
     this.promos = new Map();
@@ -46,6 +48,21 @@ class InMemoryDB {
         if (!f?.id || !f?.user_id || !f?.product_id) continue;
         this.favorites.set(String(f.id), f);
       }
+      const reservations = Array.isArray(parsed.reservations) ? parsed.reservations : [];
+      for (const r of reservations) {
+        if (!r?.id || !r?.order_id || !r?.product_id) continue;
+        this.reservations.set(String(r.id), r);
+      }
+      const orderIdempotency = Array.isArray(parsed.orderIdempotency) ? parsed.orderIdempotency : [];
+      for (const row of orderIdempotency) {
+        if (!row?.key) continue;
+        this.orderIdempotency.set(String(row.key), row);
+      }
+      const paymentIdempotency = Array.isArray(parsed.paymentIdempotency) ? parsed.paymentIdempotency : [];
+      for (const row of paymentIdempotency) {
+        if (!row?.key) continue;
+        this.paymentIdempotency.set(String(row.key), row);
+      }
       const bonusLedger = Array.isArray(parsed.bonusLedger) ? parsed.bonusLedger : [];
       this.bonusLedger = bonusLedger;
 
@@ -70,6 +87,9 @@ class InMemoryDB {
       const payload = {
         users: Array.from(this.users.values()),
         favorites: Array.from(this.favorites.values()),
+        reservations: Array.from(this.reservations.values()),
+        orderIdempotency: Array.from(this.orderIdempotency.values()),
+        paymentIdempotency: Array.from(this.paymentIdempotency.values()),
         bonusLedger: this.bonusLedger,
         orders: Array.from(this.orders.values()),
         orderItems: Array.from(this.orderItems.values()),
@@ -319,6 +339,7 @@ class InMemoryDB {
     for (const r of this.reservations.values()) {
       if (r.order_id === orderId) r.released = true;
     }
+    this.persistState();
   }
 
 
@@ -337,6 +358,60 @@ class InMemoryDB {
       }
     }
     return { expiredOrders: Array.from(expiredOrders) };
+  }
+
+  cleanupIdempotency() {
+    const now = Date.now();
+    let changed = false;
+    for (const [k, v] of this.orderIdempotency.entries()) {
+      if (Number(v?.expiresAt || 0) <= now) {
+        this.orderIdempotency.delete(k);
+        changed = true;
+      }
+    }
+    for (const [k, v] of this.paymentIdempotency.entries()) {
+      if (Number(v?.expiresAt || 0) <= now) {
+        this.paymentIdempotency.delete(k);
+        changed = true;
+      }
+    }
+    if (changed) this.persistState();
+  }
+
+  getOrderIdempotency(key) {
+    const row = this.orderIdempotency.get(String(key));
+    if (!row) return null;
+    if (Number(row.expiresAt || 0) <= Date.now()) {
+      this.orderIdempotency.delete(String(key));
+      this.persistState();
+      return null;
+    }
+    return row;
+  }
+
+  setOrderIdempotency(key, payload, ttlMs) {
+    const row = { key: String(key), expiresAt: Date.now() + Number(ttlMs || 0), payload };
+    this.orderIdempotency.set(String(key), row);
+    this.persistState();
+    return row;
+  }
+
+  getPaymentIdempotency(key) {
+    const row = this.paymentIdempotency.get(String(key));
+    if (!row) return null;
+    if (Number(row.expiresAt || 0) <= Date.now()) {
+      this.paymentIdempotency.delete(String(key));
+      this.persistState();
+      return null;
+    }
+    return row;
+  }
+
+  setPaymentIdempotency(key, payload, ttlMs) {
+    const row = { key: String(key), expiresAt: Date.now() + Number(ttlMs || 0), payload };
+    this.paymentIdempotency.set(String(key), row);
+    this.persistState();
+    return row;
   }
 
   getFavorites(tgId) {

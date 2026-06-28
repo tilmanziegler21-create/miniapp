@@ -134,23 +134,26 @@ const Checkout: React.FC = () => {
       return;
     }
 
+    const errors: string[] = [];
     if (deliveryMethod === 'courier') {
-      if (!address.trim()) {
-        toast.push('Для курьера не указан адрес в таблице', 'error');
-        return;
-      }
-      if (!courierId) {
-        toast.push('Выбери курьера', 'error');
-        return;
-      }
-      if (!deliveryDate) {
-        toast.push('Выбери дату', 'error');
-        return;
-      }
-      if (!deliveryTime) {
-        toast.push('Выбери время', 'error');
-        return;
-      }
+      if (!address.trim()) errors.push('Для курьера не указан адрес в таблице');
+      if (!courierId) errors.push('Выбери курьера');
+      if (!deliveryDate) errors.push('Выбери дату');
+      if (!deliveryTime) errors.push('Выбери время');
+    } else if (!pickupPoint.trim()) {
+      errors.push('Выбери точку самовывоза');
+    }
+
+    if (bonusInputValue > bonusBalance) {
+      errors.push('Бонусов больше, чем на балансе');
+    }
+    if (bonusInputValue > bonusApplyLimit) {
+      errors.push('Бонусами можно оплатить до 50% заказа');
+    }
+
+    if (errors.length) {
+      toast.push(errors.join(' • '), 'error');
+      return;
     }
 
     setLoading(true);
@@ -172,9 +175,9 @@ const Checkout: React.FC = () => {
 
       let applied = 0;
       try {
-        const want = Math.max(0, Number(bonusWant || 0));
+        const want = Math.max(0, Math.min(bonusInputValue, bonusApplyLimit));
         if (want > 0) {
-          const resp = await bonusesAPI.apply(want);
+          const resp = await bonusesAPI.apply(want, Number(totalAmount || pricing.total));
           applied = Number(resp.data.applied || 0);
         }
       } catch (e) {
@@ -241,8 +244,8 @@ const Checkout: React.FC = () => {
     input: {
       width: '100%',
       borderRadius: theme.radius.md,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: 'rgba(255,255,255,0.06)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: 'rgba(16,15,18,0.84)',
       color: theme.colors.dark.text,
       padding: '10px 12px',
       outline: 'none',
@@ -258,7 +261,7 @@ const Checkout: React.FC = () => {
       fontSize: theme.typography.fontSize.xs,
       letterSpacing: '0.14em',
       textTransform: 'uppercase' as const,
-      color: 'rgba(255,255,255,0.55)',
+      color: theme.colors.dark.textSecondary,
       marginBottom: theme.spacing.xs,
     },
     summary: {
@@ -286,6 +289,9 @@ const Checkout: React.FC = () => {
     return { subtotal, discount: 0, total: subtotal };
   })();
 
+  const bonusInputValue = Number(String(bonusWant || '').replace(',', '.')) || 0;
+  const bonusApplyLimit = Math.max(0, Math.min(bonusBalance, pricing.total * 0.5));
+
   if (!cart?.items?.length) {
     return (
       <div style={{ padding: theme.padding.screen }}>
@@ -300,7 +306,7 @@ const Checkout: React.FC = () => {
   }
 
   return (
-    <div style={{ paddingBottom: theme.spacing.xl }}>
+    <div style={{ paddingBottom: theme.spacing.xl }} className="gold-glow">
       <div style={styles.title}>Оформление заказа</div>
 
       <SectionDivider title="Способ получения" />
@@ -420,8 +426,22 @@ const Checkout: React.FC = () => {
             <span style={styles.muted}>Баланс</span>
             <span>{formatCurrency(bonusBalance)}</span>
           </div>
+          <div style={{ ...styles.summaryRow, marginBottom: theme.spacing.sm }}>
+            <span style={styles.muted}>Максимум к списанию</span>
+            <span>{formatCurrency(bonusApplyLimit)}</span>
+          </div>
           <div style={styles.label}>Сколько списать</div>
-          <input value={bonusWant} onChange={(e) => setBonusWant(e.target.value)} placeholder="0" style={styles.input} inputMode="numeric" />
+          <input
+            value={bonusWant}
+            onChange={(e) => setBonusWant(e.target.value)}
+            onBlur={() => {
+              const clamped = Math.max(0, Math.min(bonusInputValue, bonusApplyLimit));
+              setBonusWant(clamped ? String(clamped) : '');
+            }}
+            placeholder="0"
+            style={styles.input}
+            inputMode="decimal"
+          />
         </GlassCard>
       </div>
 

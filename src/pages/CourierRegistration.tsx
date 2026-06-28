@@ -47,7 +47,7 @@ const CourierRegistration: React.FC = () => {
   };
 
   return (
-    <div style={{ paddingBottom: theme.spacing.xl }}>
+    <div style={{ paddingBottom: theme.spacing.xl }} className="gold-glow">
       <SectionDivider title="Добавить курьера" />
       <div style={{ padding: `0 ${theme.padding.screen}`, display: 'grid', gap: theme.spacing.md }}>
         <GlassCard padding="lg" variant="elevated">
@@ -61,8 +61,8 @@ const CourierRegistration: React.FC = () => {
                 width: '100%',
                 padding: theme.spacing.md,
                 borderRadius: theme.radius.md,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(96,165,250,0.14)',
+                background: 'rgba(16,15,18,0.84)',
                 color: theme.colors.dark.text,
                 outline: 'none',
               }}
@@ -76,8 +76,8 @@ const CourierRegistration: React.FC = () => {
                 width: '100%',
                 padding: theme.spacing.md,
                 borderRadius: theme.radius.md,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(96,165,250,0.14)',
+                background: 'rgba(16,15,18,0.84)',
                 color: theme.colors.dark.text,
                 outline: 'none',
               }}
@@ -91,8 +91,8 @@ const CourierRegistration: React.FC = () => {
                 width: '100%',
                 padding: theme.spacing.md,
                 borderRadius: theme.radius.md,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(96,165,250,0.14)',
+                background: 'rgba(16,15,18,0.84)',
                 color: theme.colors.dark.text,
                 outline: 'none',
               }}
@@ -108,8 +108,8 @@ const CourierRegistration: React.FC = () => {
                     width: '100%',
                     padding: theme.spacing.md,
                     borderRadius: theme.radius.md,
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(96,165,250,0.14)',
+                    background: 'rgba(16,15,18,0.84)',
                     color: theme.colors.dark.text,
                     outline: 'none',
                   }}
@@ -125,8 +125,8 @@ const CourierRegistration: React.FC = () => {
                     width: '100%',
                     padding: theme.spacing.md,
                     borderRadius: theme.radius.md,
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(96,165,250,0.14)',
+                    background: 'rgba(16,15,18,0.84)',
                     color: theme.colors.dark.text,
                     outline: 'none',
                   }}

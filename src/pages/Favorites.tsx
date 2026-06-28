@@ -79,11 +79,15 @@ const Favorites: React.FC = () => {
   };
 
   const styles = {
+    container: {
+      minHeight: '100vh',
+      paddingBottom: theme.spacing.xl,
+    },
     title: {
       textAlign: 'center' as const,
       padding: `0 ${theme.padding.screen}`,
       marginTop: theme.spacing.md,
-      marginBottom: theme.spacing.md,
+      marginBottom: theme.spacing.lg,
       fontSize: theme.typography.fontSize['2xl'],
       fontWeight: theme.typography.fontWeight.bold,
       letterSpacing: '0.06em',
@@ -99,7 +103,7 @@ const Favorites: React.FC = () => {
   };
 
   return (
-    <div>
+    <div style={styles.container} className="gold-glow">
       <div style={styles.title}>Избранное</div>
       <SectionDivider title="Товары" />
 
@@ -109,10 +113,10 @@ const Favorites: React.FC = () => {
             <div
               key={i}
               style={{
-                height: 280,
+                height: 320,
                 borderRadius: theme.radius.lg,
-                border: '1px solid rgba(255,255,255,0.10)',
-                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(96,165,250,0.10)',
+                background: 'rgba(16,15,18,0.82)',
                 animation: 'pulse 1.5s ease-in-out infinite',
               }}
             />

@@ -164,7 +164,7 @@ export const favoritesAPI = {
 export const bonusesAPI = {
   balance: () => api.get('/bonuses/balance'),
   history: () => api.get('/bonuses/history'),
-  apply: (amount: number) => api.post('/bonuses/apply', { amount }),
+  apply: (amount: number, total?: number) => api.post('/bonuses/apply', { amount, total }),
 };
 
 export const referralAPI = {

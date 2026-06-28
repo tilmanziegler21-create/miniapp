@@ -51,7 +51,7 @@ const Referral: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: theme.padding.screen }}>
+    <div style={{ padding: theme.padding.screen }} className="gold-glow">
       <GlassCard padding="lg" variant="elevated" style={{ marginTop: theme.spacing.md }}>
         <div style={{ textAlign: 'center' }}>
           <div

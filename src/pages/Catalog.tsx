@@ -5,7 +5,7 @@ import WebApp from '@twa-dev/sdk';
 import { catalogAPI, cartAPI } from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { ProductCard, GlassCard, SecondaryButton, SectionDivider, theme } from '../ui';
+import { ProductCard, GlassCard, SecondaryButton, theme } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { useCityStore } from '../store/useCityStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
@@ -168,26 +168,63 @@ const Catalog: React.FC = () => {
     return result;
   }, [products, query]);
 
+  const bannerUrl = `${import.meta.env.BASE_URL || '/'}banner-open.png`.replace(/([^:]\/)\/+/g, '$1');
+
   const styles = {
     container: {
       paddingBottom: theme.spacing.xl,
+    },
+    headerWrap: {
+      padding: `0 ${theme.padding.screen}`,
+      marginBottom: theme.spacing.lg,
+    },
+    banner: {
+      overflow: 'hidden',
+      borderRadius: '28px',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: `linear-gradient(180deg, rgba(6,11,22,0.16) 0%, rgba(6,11,22,0.70) 100%), url(${bannerUrl}) center/cover`,
+      minHeight: 180,
+      boxShadow: theme.shadow.card,
+      marginBottom: theme.spacing.lg,
+    },
+    bannerInner: {
+      minHeight: 180,
+      padding: theme.spacing.lg,
+      display: 'flex',
+      flexDirection: 'column' as const,
+      justifyContent: 'flex-end',
+      background: 'linear-gradient(180deg, rgba(4,9,20,0.10) 0%, rgba(4,9,20,0.74) 100%)',
+    },
+    bannerTitle: {
+      fontSize: theme.typography.fontSize['2xl'],
+      fontWeight: theme.typography.fontWeight.bold,
+      lineHeight: 1.1,
+      maxWidth: 260,
+    },
+    bannerText: {
+      marginTop: theme.spacing.sm,
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.dark.textSecondary,
+      maxWidth: 280,
+      lineHeight: 1.45,
     },
     searchRow: {
       padding: `0 ${theme.padding.screen}`,
       display: 'flex',
       gap: theme.spacing.sm,
       alignItems: 'center',
+      marginBottom: theme.spacing.lg,
     },
     searchBox: {
       flex: 1,
       display: 'flex',
       alignItems: 'center',
       gap: theme.spacing.sm,
-      borderRadius: 999,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: 'rgba(255,255,255,0.06)',
+      borderRadius: 18,
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: 'rgba(16,15,18,0.82)',
       backdropFilter: `blur(${theme.blur.glass})`,
-      padding: '10px 14px',
+      padding: '14px 16px',
       boxShadow: theme.shadow.card,
     },
     input: {
@@ -204,10 +241,35 @@ const Catalog: React.FC = () => {
       gridTemplateColumns: '1fr 1fr',
       gap: theme.spacing.md,
     },
+    categoryScrollerWrap: {
+      padding: `0 ${theme.padding.screen}`,
+    },
+    categoryScroller: {
+      display: 'flex',
+      gap: theme.spacing.sm,
+      overflowX: 'auto' as const,
+      paddingBottom: 6,
+      scrollbarWidth: 'none' as const,
+      msOverflowStyle: 'none' as const,
+    },
+    categoryPill: (active: boolean) => ({
+      minWidth: 120,
+      minHeight: 44,
+      padding: '0 16px',
+      borderRadius: 999,
+      border: `1px solid ${active ? 'rgba(96,165,250,0.32)' : 'rgba(96,165,250,0.14)'}`,
+      background: active ? 'rgba(96,165,250,0.16)' : 'rgba(16,15,18,0.82)',
+      color: active ? theme.colors.dark.primary : theme.colors.dark.text,
+      fontSize: theme.typography.fontSize.sm,
+      fontWeight: theme.typography.fontWeight.semibold,
+      cursor: 'pointer',
+      boxShadow: theme.shadow.card,
+      whiteSpace: 'nowrap' as const,
+    }),
     overlay: {
       position: 'fixed' as const,
       inset: 0,
-      background: 'rgba(0,0,0,0.6)',
+      background: 'rgba(0,0,0,0.72)',
       zIndex: 1200,
       display: 'flex',
       alignItems: 'flex-end',
@@ -217,8 +279,8 @@ const Catalog: React.FC = () => {
     sheet: {
       width: '100%',
       borderRadius: theme.radius.lg,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: 'rgba(12, 10, 26, 0.78)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: 'rgba(16,15,18,0.92)',
       backdropFilter: `blur(${theme.blur.glass})`,
       boxShadow: theme.shadow.card,
       padding: theme.spacing.lg,
@@ -227,14 +289,14 @@ const Catalog: React.FC = () => {
       fontSize: theme.typography.fontSize.xs,
       letterSpacing: '0.14em',
       textTransform: 'uppercase' as const,
-      color: 'rgba(255,255,255,0.55)',
+      color: theme.colors.dark.textSecondary,
       marginBottom: theme.spacing.xs,
     },
     select: {
       width: '100%',
       borderRadius: theme.radius.md,
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: 'rgba(255,255,255,0.06)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      background: 'rgba(16,15,18,0.84)',
       color: theme.colors.dark.text,
       padding: '10px 12px',
       outline: 'none',
@@ -255,12 +317,21 @@ const Catalog: React.FC = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <SectionDivider title="Все товары" />
+    <div style={styles.container} className="gold-glow">
+      <div style={styles.headerWrap}>
+        <div style={styles.banner}>
+          <div style={styles.bannerInner}>
+            <div style={styles.bannerTitle}>Каталог в новом blue/cyan дизайне</div>
+            <div style={styles.bannerText}>
+              Визуальная подача из архива совмещена с текущими фильтрами, API, избранным и one-tap добавлением в корзину.
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div style={styles.searchRow}>
         <div style={styles.searchBox}>
-          <Search size={18} color="rgba(255,255,255,0.65)" />
+          <Search size={18} color={theme.colors.dark.textSecondary} />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -284,16 +355,38 @@ const Catalog: React.FC = () => {
         </SecondaryButton>
       </div>
 
+      <div style={styles.categoryScrollerWrap}>
+        <div style={styles.categoryScroller} className="no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setFilters({ ...filters, category: '' })}
+            style={styles.categoryPill(!filters.category)}
+          >
+            Все
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setFilters({ ...filters, category: c })}
+              style={styles.categoryPill(filters.category === c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {loading ? (
         <div style={styles.grid}>
           {[...Array(6)].map((_, i) => (
             <div
               key={i}
               style={{
-                height: 280,
+                height: 320,
                 borderRadius: theme.radius.lg,
-                border: '1px solid rgba(255,255,255,0.10)',
-                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(96,165,250,0.10)',
+                background: 'rgba(16,15,18,0.82)',
                 animation: 'pulse 1.5s ease-in-out infinite',
               }}
             />

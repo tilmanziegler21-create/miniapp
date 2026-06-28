@@ -43,7 +43,7 @@ const Bonuses: React.FC = () => {
     {
       level: 'vip',
       name: 'VIP',
-      benefits: ['Повышенный кэшбэк 3%', 'Приоритетная поддержка', 'Эксклюзивные акции', 'Персональный менеджер'],
+      benefits: ['Повышенный кэшбэк 3%', 'Приоритетная поддержка', 'Эксклюзивные акции', 'Ранний доступ к акциям'],
       minBonus: 1000,
       cashback: 3
     },
@@ -155,7 +155,7 @@ const Bonuses: React.FC = () => {
       margin: `0 ${theme.padding.screen} ${theme.spacing.lg}`,
     },
     transactionCard: {
-      background: 'rgba(255,255,255,0.05)',
+      background: 'rgba(16,15,18,0.72)',
       borderRadius: theme.radius.md,
       padding: theme.spacing.md,
       marginBottom: theme.spacing.sm,
@@ -182,7 +182,7 @@ const Bonuses: React.FC = () => {
       width: 32,
       height: 32,
       borderRadius: '50%',
-      background: 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)',
+      background: theme.gradients.primary,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -195,7 +195,7 @@ const Bonuses: React.FC = () => {
       fontSize: theme.typography.fontSize.sm,
     },
     referralCode: {
-      background: 'rgba(255,255,255,0.1)',
+      background: 'rgba(16,15,18,0.72)',
       borderRadius: theme.radius.md,
       padding: theme.spacing.md,
       fontFamily: 'monospace',
@@ -207,7 +207,7 @@ const Bonuses: React.FC = () => {
     },
     progressBar: {
       height: 8,
-      background: 'rgba(255,255,255,0.1)',
+      background: 'rgba(96,165,250,0.10)',
       borderRadius: theme.radius.sm,
       overflow: 'hidden' as const,
       marginTop: theme.spacing.md,
@@ -239,7 +239,7 @@ const Bonuses: React.FC = () => {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="gold-glow">
       <SectionDivider title="Мои бонусы" />
 
       {/* Balance Card */}
@@ -307,7 +307,7 @@ const Bonuses: React.FC = () => {
       {/* Referral Card */}
       <div style={styles.referralCard}>
         <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
-          <div style={{...styles.statusIcon, background: 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)' }}>
+          <div style={{...styles.statusIcon }}>
             <Users size={18} color="#fff" />
           </div>
           <div>

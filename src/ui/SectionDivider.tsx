@@ -13,16 +13,15 @@ export const SectionDivider: React.FC<Props> = ({ title }) => {
         alignItems: 'center',
         gap: theme.spacing.md,
         padding: `${theme.spacing.md} ${theme.padding.screen}`,
-        color: 'rgba(255,255,255,0.55)',
+        color: theme.colors.dark.textSecondary,
         textTransform: 'uppercase',
         letterSpacing: '0.16em',
         fontSize: theme.typography.fontSize.xs,
       }}
     >
-      <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', flex: 1 }} />
+      <div style={{ height: 1, background: 'rgba(96,165,250,0.14)', flex: 1 }} />
       <div style={{ whiteSpace: 'nowrap' }}>{title}</div>
-      <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', flex: 1 }} />
+      <div style={{ height: 1, background: 'rgba(96,165,250,0.14)', flex: 1 }} />
     </div>
   );
 };
-

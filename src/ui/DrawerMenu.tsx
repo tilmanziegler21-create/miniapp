@@ -62,8 +62,8 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
     gap: theme.spacing.md,
     padding: `${theme.spacing.md} ${theme.spacing.sm}`,
     borderRadius: theme.radius.md,
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(96,165,250,0.14)',
+    background: 'rgba(16,15,18,0.82)',
     color: theme.colors.dark.text,
     cursor: 'pointer',
     textAlign: 'left' as const,
@@ -115,8 +115,8 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
               minWidth: 22,
               padding: '2px 8px',
               borderRadius: 999,
-              background: 'rgba(148,163,184,0.18)',
-              color: theme.colors.dark.text,
+              background: 'rgba(96,165,250,0.16)',
+              color: theme.colors.dark.primary,
               fontSize: theme.typography.fontSize.xs,
               fontWeight: theme.typography.fontWeight.bold,
               textAlign: 'center',
@@ -155,7 +155,7 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
+      background: 'rgba(0,0,0,0.72)',
           zIndex: theme.zIndex.overlay,
         }}
         onClick={onClose}
@@ -167,12 +167,13 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
         width: '80%',
         maxWidth: '320px',
         height: '100%',
-        background: theme.colors.dark.bg,
+        background: '#0b0f18',
         backdropFilter: `blur(${theme.blur.glass})`,
         zIndex: theme.zIndex.drawer,
         padding: theme.padding.screen,
         overflowY: 'auto',
         animation: 'slideInLeft 0.25s ease-out',
+        borderRight: '1px solid rgba(96,165,250,0.12)',
       }}>
         <style>{`
           @keyframes slideInLeft {
