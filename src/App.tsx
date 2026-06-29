@@ -41,7 +41,10 @@ function App() {
   };
 
   useEffect(() => {
-    if (!isLoading && user) {
+    // Only process fade out if auth has completed
+    if (isLoading) return;
+
+    if (user) {
       if (isAppReady) {
         // Once auth is done AND the home page data is ready, trigger fade out
         setIsFadingOut(true);
@@ -55,7 +58,7 @@ function App() {
         }, 2500);
         return () => clearTimeout(fallback);
       }
-    } else if (!isLoading && !user) {
+    } else {
       // If auth failed, hide splash immediately
       setShowSplash(false);
     }
@@ -161,7 +164,7 @@ function App() {
     };
   }, [setUser, setLoading]);
 
-  if (!isLoading && !user) {
+  if (!isLoading && !user && !showSplash) {
     return (
       <SafeAreaProvider>
         <div style={{
