@@ -4,8 +4,9 @@ import WebApp from '@twa-dev/sdk';
 import { useAuthStore } from './store/useAuthStore';
 import { authAPI } from './services/api';
 import { SafeAreaProvider, AppShell } from './ui';
-import { branding } from './config/branding';
+import { useBranding } from './hooks/useBranding';
 import { useSplashStore } from './store/useSplashStore';
+import { useConfigStore } from './store/useConfigStore';
 
 const Home = React.lazy(() => import('./pages/Home'));
 const Catalog = React.lazy(() => import('./pages/Catalog'));
@@ -26,6 +27,8 @@ const FortuneWheel = React.lazy(() => import('./pages/FortuneWheel'));
 const CourierRegistration = React.lazy(() => import('./pages/CourierRegistration'));
 
 function App() {
+  const branding = useBranding();
+  const { load: loadConfig } = useConfigStore();
   const { user, setUser, setLoading, isLoading } = useAuthStore();
   const { isReady: isAppReady } = useSplashStore();
   const authStartedRef = React.useRef(false);
@@ -96,6 +99,9 @@ function App() {
     const authenticate = async () => {
       setLoading(true);
       try {
+        // Preload config parallel to auth
+        loadConfig().catch(() => {});
+        
         const forceDevAuth = import.meta.env.DEV && String(import.meta.env?.VITE_FORCE_DEV_AUTH || '') === '1';
         const storedToken = (() => {
           try {
