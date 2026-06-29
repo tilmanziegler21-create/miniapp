@@ -28,7 +28,7 @@ const CourierRegistration = React.lazy(() => import('./pages/CourierRegistration
 
 function App() {
   const branding = useBranding();
-  const { load: loadConfig } = useConfigStore();
+  const { load: loadConfig, config } = useConfigStore();
   const { user, setUser, setLoading, isLoading } = useAuthStore();
   const { isReady: isAppReady } = useSplashStore();
   const authStartedRef = React.useRef(false);
@@ -247,12 +247,14 @@ function App() {
                 boxShadow: '0 0 40px rgba(96,165,250,0.3)',
                 border: '1px solid rgba(96,165,250,0.3)',
                 animation: 'pulseGlow 2s infinite',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                opacity: config ? 1 : 0,
+                transition: 'opacity 0.3s ease-in'
               }}>
                 <img src={branding.brandAvatarUrl || "/favicon.svg"} alt="logo" style={{ width: branding.brandAvatarUrl ? '100%' : '60px', height: branding.brandAvatarUrl ? '100%' : '60px', objectFit: 'cover', filter: branding.brandAvatarUrl ? 'none' : 'drop-shadow(0 0 10px rgba(96,165,250,0.8))' }} />
               </div>
-            <h1 style={{ color: '#ffffff', fontSize: '28px', fontWeight: 'bold', marginBottom: '8px', letterSpacing: '0.05em' }}>{branding.name}</h1>
-            <p style={{ color: '#93c5fd', fontSize: '14px', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{branding.subtitle}</p>
+            <h1 style={{ color: '#ffffff', fontSize: '28px', fontWeight: 'bold', marginBottom: '8px', letterSpacing: '0.05em', opacity: config ? 1 : 0, transition: 'opacity 0.3s ease-in' }}>{branding.name}</h1>
+            <p style={{ color: '#93c5fd', fontSize: '14px', opacity: config ? 0.8 : 0, textTransform: 'uppercase', letterSpacing: '0.1em', transition: 'opacity 0.3s ease-in' }}>{branding.subtitle}</p>
           </div>
         </div>
       )}

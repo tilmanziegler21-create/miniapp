@@ -38,21 +38,32 @@ type ConfigState = {
   load: () => Promise<AppConfig | null>;
 };
 
-export const useConfigStore = create<ConfigState>((set, get) => ({
-  config: null,
-  isLoading: false,
-  error: null,
-  load: async () => {
-    if (get().isLoading) return get().config;
-    set({ isLoading: true, error: null });
-    try {
-      const resp = await configAPI.get();
-      set({ config: resp.data, isLoading: false, error: null });
-      return resp.data;
-    } catch (e) {
-      console.error('Failed to load config:', e);
-      set({ isLoading: false, error: 'CONFIG_LOAD_FAILED' });
-      return null;
-    }
-  },
-}));
+export const useConfigStore = create<ConfigState>((set, get) => {
+  let loadPromise: Promise<AppConfig | null> | null = null;
+
+  return {
+    config: null,
+    isLoading: false,
+    error: null,
+    load: () => {
+      if (get().config) return Promise.resolve(get().config);
+      if (loadPromise) return loadPromise;
+
+      set({ isLoading: true, error: null });
+      loadPromise = configAPI.get()
+        .then((resp) => {
+          set({ config: resp.data, isLoading: false, error: null });
+          loadPromise = null;
+          return resp.data;
+        })
+        .catch((e) => {
+          console.error('Failed to load config:', e);
+          set({ isLoading: false, error: 'CONFIG_LOAD_FAILED' });
+          loadPromise = null;
+          return null;
+        });
+
+      return loadPromise;
+    },
+  };
+});
