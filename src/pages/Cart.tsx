@@ -7,7 +7,7 @@ import { bonusesAPI, cartAPI, couriersAPI, orderAPI } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { GlassCard, PrimaryButton, SecondaryButton, SectionDivider, theme } from '../ui';
+import { GlassCard, PrimaryButton, theme } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
@@ -21,7 +21,7 @@ const Cart: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToastStore();
   const { user } = useAuthStore();
-  const { cart, setCart } = useCartStore();
+  const { cart, setCart, updateQuantityOptimistic, removeItemOptimistic, scheduleSync, syncCart } = useCartStore();
   const { trackRemoveFromCart, trackCheckout, trackOrderComplete } = useAnalytics();
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
@@ -29,49 +29,51 @@ const Cart: React.FC = () => {
   const { config } = useConfigStore();
   const branding = useBranding();
   const pickupPoints = (config?.pickupPoints || []).map((p) => p.address);
-  const [promoCode, setPromoCode] = React.useState('');
+  const [promoCode] = React.useState('');
   const [fulfillment, setFulfillment] = React.useState<Fulfillment>('pickup');
   const [pickup, setPickup] = React.useState('');
 
   const idempotencyKeyRef = React.useRef<string>('');
-  const [comment, setComment] = React.useState('');
-  const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>('cash');
+  const [comment] = React.useState('');
+  const [paymentMethod] = React.useState<PaymentMethod>('cash');
   const [address, setAddress] = React.useState('');
   const [couriers, setCouriers] = React.useState<Array<{ courier_id: string; name: string; tg_id: string; time_from?: string; time_to?: string; address?: string }>>([]);
-  const [courierId, setCourierId] = React.useState('');
-  const [deliveryDate, setDeliveryDate] = React.useState('');
-  const [deliveryTime, setDeliveryTime] = React.useState('');
+  const [courierId] = React.useState('');
+  const [deliveryDate] = React.useState('');
+  const [deliveryTime] = React.useState('');
   const [bonusBalance, setBonusBalance] = React.useState(0);
-  const [bonusWant, setBonusWant] = React.useState<string>('');
+  const [bonusWant] = React.useState<string>('');
 
   React.useEffect(() => {
     if (!pickup && pickupPoints.length) setPickup(pickupPoints[0]);
   }, [pickup, pickupPoints.join('|')]);
 
-  const load = async () => {
-    try {
-      setLoading(true);
-      if (!city) {
-        toast.push('Выберите город', 'error');
-        return;
-      }
-      const resp = await cartAPI.getCart(city);
-      setCart(resp.data.cart);
-    } catch (e) {
-      console.error('Failed to load cart:', e);
-      try {
-        WebApp.showAlert('Ошибка загрузки корзины');
-      } catch {
-        toast.push('Ошибка загрузки корзины', 'error');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   React.useEffect(() => {
-    load();
-  }, [city]);
+    if (!city) {
+      setLoading(false);
+      return;
+    }
+
+    const currentCart = useCartStore.getState().cart;
+    const hasCartForCity = Boolean(currentCart && currentCart.city === city);
+    if (hasCartForCity) {
+      setLoading(false);
+      syncCart(city).catch(() => {});
+      return;
+    }
+
+    setLoading(true);
+    syncCart(city)
+      .catch((e) => {
+        console.error('Failed to load cart:', e);
+        try {
+          WebApp.showAlert('Ошибка загрузки корзины');
+        } catch {
+          toast.push('Ошибка загрузки корзины', 'error');
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [city, syncCart, toast]);
 
   React.useEffect(() => {
     (async () => {
@@ -107,39 +109,20 @@ const Cart: React.FC = () => {
     }
   }, [courierId, couriers, fulfillment]);
 
-  const timeOptions = React.useMemo(() => {
-    const c = couriers.find((x) => x.courier_id === courierId);
-    const from = String(c?.time_from || '').trim();
-    const to = String(c?.time_to || '').trim();
-    const toMin = (t: string) => {
-      const [h, m] = t.split(':').map((x) => Number(x));
-      if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-      return h * 60 + m;
-    };
-    const fm = toMin(from);
-    const tm = toMin(to);
-    if (fm == null || tm == null || tm <= fm) return [];
-    const out: string[] = [];
-    for (let m = fm; m <= tm - 30; m += 30) {
-      const hh = String(Math.floor(m / 60)).padStart(2, '0');
-      const mm = String(m % 60).padStart(2, '0');
-      out.push(`${hh}:${mm}`);
-    }
-    return out;
-  }, [courierId, couriers]);
-
   const setQty = async (itemId: string, nextQty: number) => {
     if (nextQty <= 0) return;
+    const previousCart = useCartStore.getState().cart;
     try {
       if (!city) {
         toast.push('Выберите город', 'error');
         return;
       }
+      updateQuantityOptimistic(itemId, nextQty);
       await cartAPI.updateItem(itemId, nextQty);
-      const resp = await cartAPI.getCart(city);
-      setCart(resp.data.cart);
+      scheduleSync(city);
     } catch (e) {
       console.error('Failed to update qty:', e);
+      if (previousCart) setCart(previousCart);
       const status = (e as any)?.response?.status;
       if (status === 409) toast.push('Недостаточно товара на складе', 'error');
       else toast.push('Ошибка изменения количества', 'error');
@@ -147,6 +130,7 @@ const Cart: React.FC = () => {
   };
 
   const removeItem = async (itemId: string) => {
+    const previousCart = useCartStore.getState().cart;
     try {
       if (!city) {
         toast.push('Выберите город', 'error');
@@ -154,12 +138,13 @@ const Cart: React.FC = () => {
       }
       const item = cart?.items.find((i) => i.id === itemId);
       if (item) trackRemoveFromCart(item.productId, item.name, item.price, item.quantity);
+      removeItemOptimistic(itemId);
       await cartAPI.removeItem(itemId);
-      const resp = await cartAPI.getCart(city);
-      setCart(resp.data.cart);
+      scheduleSync(city);
       toast.push('Товар удалён', 'success');
     } catch (e) {
       console.error('Failed to remove item:', e);
+      if (previousCart) setCart(previousCart);
       toast.push('Ошибка удаления товара', 'error');
     }
   };
@@ -369,6 +354,18 @@ const Cart: React.FC = () => {
       color: theme.colors.dark.primary,
       whiteSpace: 'nowrap' as const,
     },
+    removeButton: {
+      width: 28,
+      height: 28,
+      borderRadius: 999,
+      border: '1px solid rgba(248,113,113,0.24)',
+      background: 'rgba(127,29,29,0.22)',
+      color: '#fecaca',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+    },
     sectionTitle: {
       fontSize: '12px',
       letterSpacing: '0.05em',
@@ -564,6 +561,9 @@ const Cart: React.FC = () => {
                 </button>
               </div>
               <div style={styles.itemPrice}>{formatCurrency(item.price * item.quantity)}</div>
+              <button type="button" style={styles.removeButton} onClick={() => removeItem(item.id)} aria-label={`Удалить ${item.name} из корзины`}>
+                <Trash2 size={14} />
+              </button>
             </div>
           </div>
         ))}

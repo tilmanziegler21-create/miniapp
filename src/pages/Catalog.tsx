@@ -32,7 +32,7 @@ interface Product {
 const Catalog: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToastStore();
-  const { setCart } = useCartStore();
+  const { addItemOptimistic, scheduleSync, setCart } = useCartStore();
   const { trackAddToCart, trackFilterUse, trackCategoryView } = useAnalytics();
   const { city } = useCityStore();
   const branding = useBranding();
@@ -139,6 +139,19 @@ const Catalog: React.FC = () => {
       return;
     }
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
+    const previousCart = useCartStore.getState().cart;
+    addItemOptimistic({
+      city,
+      quantity: 1,
+      product: {
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        brand: product.brand,
+        price: product.price,
+        image: product.image,
+      },
+    });
     try {
       await cartAPI.addItem({
         productId: product.id,
@@ -146,12 +159,16 @@ const Catalog: React.FC = () => {
         city,
         price: product.price,
       });
-      const response = await cartAPI.getCart(city);
-      setCart(response.data.cart);
+      scheduleSync(city);
       toast.push('Добавлено в корзину', 'success');
       trackAddToCart(product.id, product.name, product.price, 1);
     } catch (error) {
       console.error('Add to cart failed:', error);
+      if (previousCart) {
+        setCart(previousCart);
+      } else {
+        setCart({ id: '', city, items: [], total: 0 });
+      }
       toast.push('Ошибка добавления в корзину', 'error');
     }
   };

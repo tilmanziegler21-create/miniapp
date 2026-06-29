@@ -8,6 +8,10 @@ export const FooterBar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { cart } = useCartStore();
+  const cartCount = React.useMemo(
+    () => (cart?.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+    [cart],
+  );
 
   const items = [
     { key: 'home', label: 'Меню', icon: Home, route: '/home', match: ['/', '/home'] },
@@ -73,7 +77,7 @@ export const FooterBar: React.FC = () => {
             >
               <span style={{ position: 'relative', display: 'inline-flex' }}>
                 <Icon size={20} color={active ? theme.colors.dark.primary : theme.colors.dark.textSecondary} />
-                {item.key === 'cart' && (cart?.items?.length || 0) > 0 ? (
+                {item.key === 'cart' && cartCount > 0 ? (
                   <span
                     style={{
                       position: 'absolute',
@@ -93,7 +97,7 @@ export const FooterBar: React.FC = () => {
                       boxShadow: '0 0 18px rgba(96,165,250,0.35)',
                     }}
                   >
-                    {cart?.items?.length || 0}
+                    {cartCount}
                   </span>
                 ) : null}
               </span>

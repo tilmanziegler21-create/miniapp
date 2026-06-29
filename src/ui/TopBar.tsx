@@ -16,6 +16,7 @@ interface TopBarProps {
   onBackClick?: () => void;
   showSettings?: boolean;
   onSettingsClick?: () => void;
+  cartPulseKey?: number;
   onBonusClick?: () => void;
   onProfileClick?: () => void;
 }
@@ -28,6 +29,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onBackClick,
   showSettings = false,
   onSettingsClick,
+  cartPulseKey = 0,
 }) => {
   const navigate = useNavigate();
   const branding = useBranding();
@@ -124,7 +126,14 @@ export const TopBar: React.FC<TopBarProps> = ({
         {showSettings ? (
           <IconButton icon={<Settings size={20} />} onClick={onSettingsClick} variant="glass" size="md" />
         ) : onCartClick ? (
-          <div style={{ position: 'relative' }}>
+          <div
+            data-cart-anchor="true"
+            style={{
+              position: 'relative',
+              transform: cartPulseKey ? 'scale(1)' : undefined,
+              animation: cartPulseKey ? 'cartIconPulse 560ms ease-out' : undefined,
+            }}
+          >
             <IconButton icon={<ShoppingCart size={20} />} onClick={onCartClick} variant="glass" size="md" />
             {cartCount > 0 ? (
               <span

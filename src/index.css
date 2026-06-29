@@ -254,6 +254,12 @@ a {
   100% { transform: scale(1); filter: brightness(1); }
 }
 
+@keyframes cartIconPulse {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
 .sparkle-button {
   position: relative;
   overflow: hidden;
@@ -276,4 +282,10 @@ a {
 }
 .sparkle-icon {
   animation: buttonSparkle 2s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sparkle-icon {
+    animation: none;
+  }
 }

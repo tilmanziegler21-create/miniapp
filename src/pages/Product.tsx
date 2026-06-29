@@ -15,6 +15,7 @@ import {
   getStableTasteProfile,
   getStableTrustData,
 } from '../lib/productPresentation';
+import { triggerCartFly } from '../lib/cartFeedback';
 
 type ProductEntity = {
   id: string;
@@ -102,9 +103,15 @@ const FlavorRow = ({ flavor, onAdd }: { flavor: string, onAdd: (f: string) => Pr
         {flavor}
       </div>
       <button
-        onClick={() => {
+        onClick={(e) => {
           if (added) return;
+          const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
           try { WebApp.HapticFeedback.impactOccurred('medium'); } catch(e){}
+          triggerCartFly({
+            startX: rect.left + rect.width / 2,
+            startY: rect.top + rect.height / 2,
+            label: flavor,
+          });
           setAdded(true);
           setTimeout(() => setAdded(false), 2000);
           onAdd(flavor); // don't await, let network run in background
@@ -131,7 +138,7 @@ const Product: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToastStore();
-  const { setCart } = useCartStore();
+  const { addItemOptimistic, scheduleSync, setCart } = useCartStore();
   const { trackProductView, trackAddToCart } = useAnalytics();
   const [product, setProduct] = React.useState<ProductEntity | null>(null);
   const [social, setSocial] = React.useState<SocialProof | null>(null);
@@ -205,14 +212,32 @@ const Product: React.FC = () => {
       return;
     }
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
+    const previousCart = useCartStore.getState().cart;
+    addItemOptimistic({
+      city,
+      quantity,
+      variant: variant || defaultFlavors[0],
+      product: {
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        brand: product.brand,
+        price: product.price,
+        image: product.image,
+      },
+    });
     try {
       await cartAPI.addItem({ productId: product.id, quantity, city, variant: variant || defaultFlavors[0] });
-      const cartResp = await cartAPI.getCart(city);
-      setCart(cartResp.data.cart);
+      scheduleSync(city);
       toast.push('Добавлено в корзину', 'success');
       trackAddToCart(product.id, product.name, product.price, quantity);
     } catch (e) {
       console.error('Add to cart failed:', e);
+      if (previousCart) {
+        setCart(previousCart);
+      } else {
+        setCart({ id: '', city, items: [], total: 0 });
+      }
       toast.push('Ошибка добавления в корзину', 'error');
     }
   };
@@ -473,9 +498,16 @@ const Product: React.FC = () => {
 
         <button 
           style={addedToCart ? { ...styles.primaryButton, background: theme.colors.dark.accentGreen } : styles.primaryButton} 
-          onClick={() => {
+          onClick={(e) => {
             if (addedToCart) return;
+            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
             try { WebApp.HapticFeedback.impactOccurred('medium'); } catch(e){}
+            triggerCartFly({
+              startX: rect.left + rect.width / 2,
+              startY: rect.top + rect.height / 2,
+              image: posterImage,
+              label: product.name,
+            });
             setAddedToCart(true);
             setTimeout(() => setAddedToCart(false), 2000);
             addToCart(1); // don't await
@@ -515,14 +547,31 @@ const Product: React.FC = () => {
                   toast.push('Выберите город', 'error');
                   return;
                 }
+                const previousCart = useCartStore.getState().cart;
+                addItemOptimistic({
+                  city,
+                  quantity: 1,
+                  product: {
+                    id: p.id,
+                    name: p.name,
+                    category: p.category,
+                    brand: p.brand,
+                    price: p.price,
+                    image: p.image,
+                  },
+                });
                 cartAPI.addItem({ productId: p.id, quantity: 1, city, price: p.price })
-                  .then(() => cartAPI.getCart(city))
-                  .then((cartResp) => {
-                    setCart(cartResp.data.cart);
+                  .then(() => {
+                    scheduleSync(city);
                     toast.push('Добавлено в корзину', 'success');
                     trackAddToCart(p.id, p.name, p.price, 1);
                   })
                   .catch(() => {
+                    if (previousCart) {
+                      setCart(previousCart);
+                    } else {
+                      setCart({ id: '', city, items: [], total: 0 });
+                    }
                     toast.push('Ошибка добавления в корзину', 'error');
                   });
               }}

@@ -5,6 +5,7 @@ import { Heart, Plus, ShoppingCart, Star } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import { formatCurrency } from '../lib/currency';
 import { getProductPlaceholderDataUrl } from '../lib/productPresentation';
+import { triggerCartFly } from '../lib/cartFeedback';
 
 interface ProductCardProps {
   id: string;
@@ -222,7 +223,14 @@ export const ProductCard = React.memo<ProductCardProps>(({
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (added || stock <= 0) return;
+    const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
+    triggerCartFly({
+      startX: rect.left + rect.width / 2,
+      startY: rect.top + rect.height / 2,
+      image: resolvedImage,
+      label: name,
+    });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
     onAddToCart?.(id);

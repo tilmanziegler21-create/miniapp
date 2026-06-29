@@ -21,7 +21,7 @@ interface Product {
 
 export function useHomePage() {
   const toast = useToastStore();
-  const { setCart } = useCartStore();
+  const { addItemOptimistic, scheduleSync, setCart } = useCartStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -83,12 +83,29 @@ export function useHomePage() {
       return;
     }
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
+    const previousCart = useCartStore.getState().cart;
+    addItemOptimistic({
+      city,
+      quantity: 1,
+      product: {
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        brand: product.brand,
+        price: product.price,
+        image: product.image,
+      },
+    });
     try {
       await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price });
-      const resp = await cartAPI.getCart(city);
-      setCart(resp.data.cart);
+      scheduleSync(city);
       toast.push('Добавлено в корзину', 'success');
     } catch {
+      if (previousCart) {
+        setCart(previousCart);
+      } else {
+        setCart({ id: '', city, items: [], total: 0 });
+      }
       toast.push('Ошибка добавления в корзину', 'error');
     }
   };
