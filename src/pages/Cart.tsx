@@ -2,7 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
 import { Minus, Plus, Trash2, Truck, Store } from 'lucide-react';
-import { cartAPI, orderAPI } from '../services/api';
+import { bonusesAPI, cartAPI, couriersAPI, orderAPI } from '../services/api';
+
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
@@ -33,6 +34,15 @@ const Cart: React.FC = () => {
   const [pickup, setPickup] = React.useState('');
 
   const idempotencyKeyRef = React.useRef<string>('');
+  const [comment, setComment] = React.useState('');
+  const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>('cash');
+  const [address, setAddress] = React.useState('');
+  const [couriers, setCouriers] = React.useState<Array<{ courier_id: string; name: string; tg_id: string; time_from?: string; time_to?: string; address?: string }>>([]);
+  const [courierId, setCourierId] = React.useState('');
+  const [deliveryDate, setDeliveryDate] = React.useState('');
+  const [deliveryTime, setDeliveryTime] = React.useState('');
+  const [bonusBalance, setBonusBalance] = React.useState(0);
+  const [bonusWant, setBonusWant] = React.useState<string>('');
 
   React.useEffect(() => {
     if (!pickup && pickupPoints.length) setPickup(pickupPoints[0]);
@@ -62,6 +72,61 @@ const Cart: React.FC = () => {
   React.useEffect(() => {
     load();
   }, [city]);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const resp = await bonusesAPI.balance();
+        setBonusBalance(Number(resp.data.balance || 0));
+      } catch {
+        setBonusBalance(0);
+      }
+    })();
+  }, []);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        if (!city) return;
+        const resp = await couriersAPI.list(city);
+        setCouriers(resp.data.couriers || []);
+      } catch {
+        setCouriers([]);
+      }
+    })();
+  }, [city]);
+
+  React.useEffect(() => {
+    if (fulfillment !== 'delivery') return;
+    const selectedCourier = couriers.find((x) => x.courier_id === courierId);
+    const courierAddress = String(selectedCourier?.address || '').trim();
+    if (courierAddress) {
+      setAddress(courierAddress);
+    } else if (courierId) {
+      setAddress('');
+    }
+  }, [courierId, couriers, fulfillment]);
+
+  const timeOptions = React.useMemo(() => {
+    const c = couriers.find((x) => x.courier_id === courierId);
+    const from = String(c?.time_from || '').trim();
+    const to = String(c?.time_to || '').trim();
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map((x) => Number(x));
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+      return h * 60 + m;
+    };
+    const fm = toMin(from);
+    const tm = toMin(to);
+    if (fm == null || tm == null || tm <= fm) return [];
+    const out: string[] = [];
+    for (let m = fm; m <= tm - 30; m += 30) {
+      const hh = String(Math.floor(m / 60)).padStart(2, '0');
+      const mm = String(m % 60).padStart(2, '0');
+      out.push(`${hh}:${mm}`);
+    }
+    return out;
+  }, [courierId, couriers]);
 
   const setQty = async (itemId: string, nextQty: number) => {
     if (nextQty <= 0) return;
@@ -105,6 +170,31 @@ const Cart: React.FC = () => {
       return;
     }
 
+    const errors: string[] = [];
+    if (fulfillment === 'delivery') {
+      if (!address.trim()) errors.push('Для курьера не указан адрес в таблице');
+      if (!courierId) errors.push('Выбери курьера');
+      if (!deliveryDate) errors.push('Выбери дату');
+      if (!deliveryTime) errors.push('Выбери время');
+    } else if (!pickup.trim()) {
+      errors.push('Выбери точку самовывоза');
+    }
+
+    const bonusInputValue = Number(String(bonusWant || '').replace(',', '.')) || 0;
+    const bonusApplyLimit = Math.max(0, Math.min(bonusBalance, pricing.total * 0.5));
+
+    if (bonusInputValue > bonusBalance) {
+      errors.push('Бонусов больше, чем на балансе');
+    }
+    if (bonusInputValue > bonusApplyLimit) {
+      errors.push('Бонусами можно оплатить до 50% заказа');
+    }
+
+    if (errors.length) {
+      toast.push(errors.join(' • '), 'error');
+      return;
+    }
+
     setBusy(true);
     try {
       if (!idempotencyKeyRef.current) {
@@ -116,23 +206,35 @@ const Cart: React.FC = () => {
       const orderData = {
         city,
         items: cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity, variant: item.variant || '' })),
-        promoCode: '',
+        promoCode,
       };
 
       const createResp = await orderAPI.createOrder(orderData, idempotencyKeyRef.current);
       const { orderId, totalAmount } = createResp.data;
 
+      let applied = 0;
+      try {
+        const want = Math.max(0, Math.min(bonusInputValue, bonusApplyLimit));
+        if (want > 0) {
+          const resp = await bonusesAPI.apply(want, Number(totalAmount || pricing.total));
+          applied = Number(resp.data.applied || 0);
+        }
+      } catch (e) {
+        console.error('Bonuses apply failed:', e);
+        toast.push('Не удалось применить бонусы', 'error');
+      }
+
       await orderAPI.confirmOrder({
         orderId,
         deliveryMethod: fulfillment === 'delivery' ? 'courier' : 'pickup',
         city,
-        promoCode: '',
-        courier_id: '',
-        delivery_date: '',
-        delivery_time: '',
+        promoCode,
+        courier_id: fulfillment === 'delivery' ? courierId : '',
+        delivery_date: fulfillment === 'delivery' ? deliveryDate : '',
+        delivery_time: fulfillment === 'delivery' ? deliveryTime : '',
         courierData: {
-          address: fulfillment === 'delivery' ? 'DHL' : 'Кассель',
-          comment: '',
+          address: fulfillment === 'delivery' ? address : pickup,
+          comment: String(comment || '').slice(0, 500),
           user: {
             tgId: user?.tgId || '',
             username: user?.username || '',
@@ -140,7 +242,7 @@ const Cart: React.FC = () => {
         },
       });
 
-      await orderAPI.processPayment({ orderId, paymentMethod: 'cash', city, bonusApplied: 0 });
+      await orderAPI.processPayment({ orderId, paymentMethod, city, bonusApplied: applied });
       trackOrderComplete(orderId, Number(totalAmount || cart.total), cart.items);
 
       await cartAPI.clear(city);
