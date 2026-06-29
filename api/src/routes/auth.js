@@ -40,7 +40,7 @@ router.post('/verify', verifyTelegramAuth, async (req, res) => {
     const { tgId, username, firstName, lastName } = req.user;
 
     const existing = db.prepare('SELECT * FROM users WHERE tg_id = ?').get(tgId);
-    const ageVerified = existing ? Boolean(existing.age_verified) : false;
+    const ageVerified = true; // Automatically verify age for all users
     const status = await resolveStatus(tgId);
     
     const stmt = db.prepare(`

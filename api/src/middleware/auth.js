@@ -85,10 +85,6 @@ export const requireAuth = (req, res, next) => {
       status: user.status,
     };
 
-    if (!req.user.ageVerified) {
-      return res.status(403).json({ error: 'Age verification required' });
-    }
-
     next();
   } catch (err) {
     console.error('JWT auth error:', err);
