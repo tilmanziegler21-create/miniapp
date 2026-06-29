@@ -190,37 +190,16 @@ const Catalog: React.FC = () => {
     },
     headerWrap: {
       padding: `0 ${theme.padding.screen}`,
-      marginBottom: theme.spacing.lg,
+      marginTop: theme.spacing.md,
+      marginBottom: theme.spacing.md,
     },
-    banner: {
-      overflow: 'hidden',
-      borderRadius: '28px',
-      border: '1px solid rgba(96,165,250,0.14)',
-      background: `linear-gradient(180deg, rgba(6,11,22,0.16) 0%, rgba(6,11,22,0.70) 100%), url(${bannerUrl}) center/cover`,
-      minHeight: 180,
-      boxShadow: theme.shadow.card,
-      marginBottom: theme.spacing.lg,
-    },
-    bannerInner: {
-      minHeight: 180,
-      padding: theme.spacing.lg,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      justifyContent: 'flex-end',
-      background: 'linear-gradient(180deg, rgba(4,9,20,0.10) 0%, rgba(4,9,20,0.74) 100%)',
-    },
-    bannerTitle: {
+    title: {
       fontSize: theme.typography.fontSize['2xl'],
       fontWeight: theme.typography.fontWeight.bold,
-      lineHeight: 1.1,
-      maxWidth: 260,
-    },
-    bannerText: {
-      marginTop: theme.spacing.sm,
-      fontSize: theme.typography.fontSize.sm,
-      color: theme.colors.dark.textSecondary,
-      maxWidth: 280,
-      lineHeight: 1.45,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase' as const,
+      color: theme.colors.dark.text,
+      textAlign: 'center' as const,
     },
     searchRow: {
       padding: `0 ${theme.padding.screen}`,
@@ -333,10 +312,7 @@ const Catalog: React.FC = () => {
   return (
     <div style={styles.container} className="gold-glow">
       <div style={styles.headerWrap}>
-        <div style={styles.banner}>
-          <div style={styles.bannerInner}>
-          </div>
-        </div>
+        <div style={styles.title}>Каталог</div>
       </div>
 
       <div style={styles.searchRow}>

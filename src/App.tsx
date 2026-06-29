@@ -35,6 +35,7 @@ function App() {
   const [authFinished, setAuthFinished] = React.useState(false);
   const [showSplash, setShowSplash] = React.useState(true);
   const [isFadingOut, setIsFadingOut] = React.useState(false);
+  const mountTimeRef = React.useRef(Date.now());
 
   const safeAlert = (message: string) => {
     try {
@@ -50,16 +51,21 @@ function App() {
 
     if (user) {
       if (isAppReady) {
-        // Once auth is done AND the home page data is ready, trigger fade out
-        setIsFadingOut(true);
-        const t2 = setTimeout(() => setShowSplash(false), 500); // 500ms fade duration
-        return () => clearTimeout(t2);
+        // Guarantee the splash screen shows for at least 1.5 seconds
+        const elapsed = Date.now() - mountTimeRef.current;
+        const delay = Math.max(0, 1500 - elapsed);
+        
+        const t1 = setTimeout(() => {
+          setIsFadingOut(true);
+          const t2 = setTimeout(() => setShowSplash(false), 500); // 500ms fade duration
+        }, delay);
+        return () => clearTimeout(t1);
       } else {
-        // Fallback: if data takes too long or they are on another page, hide splash after 2.5 seconds
+        // Fallback: if data takes too long or they are on another page, hide splash after 3 seconds total
         const fallback = setTimeout(() => {
           setIsFadingOut(true);
           setTimeout(() => setShowSplash(false), 500);
-        }, 2500);
+        }, 3000);
         return () => clearTimeout(fallback);
       }
     } else {

@@ -118,6 +118,7 @@ export const ProductCard = React.memo<ProductCardProps>(({
       display: 'flex',
       flexDirection: 'column' as const,
       minHeight: 0,
+      height: '100%',
     },
     imageButton: {
       position: 'relative' as const,
@@ -158,6 +159,10 @@ export const ProductCard = React.memo<ProductCardProps>(({
       cursor: onClick ? 'pointer' : 'default',
       minHeight: 'unset',
       minWidth: 'unset',
+      flex: '1 1 auto',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      alignItems: 'flex-start',
     },
     title: {
       fontSize: '17px',
@@ -172,6 +177,7 @@ export const ProductCard = React.memo<ProductCardProps>(({
       marginTop: theme.spacing.sm,
       color: theme.colors.dark.textSecondary,
       fontSize: theme.typography.fontSize.xs,
+      flexShrink: 0,
     },
     subtext: {
       marginTop: 6,
@@ -179,12 +185,15 @@ export const ProductCard = React.memo<ProductCardProps>(({
       fontSize: '13px',
       lineHeight: 1.4,
       minHeight: 18,
+      flexShrink: 0,
     },
     footer: {
       display: 'flex',
       alignItems: 'center',
       gap: theme.spacing.sm,
-      marginTop: theme.spacing.md,
+      marginTop: 'auto', // Pushes footer to the bottom
+      paddingTop: theme.spacing.md,
+      flexShrink: 0,
     },
     priceButton: {
       flex: 1,
