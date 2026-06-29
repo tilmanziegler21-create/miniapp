@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Settings } from 'lucide-react';
+import { ArrowLeft, Menu, Settings, ShoppingCart } from 'lucide-react';
 import { theme } from './theme';
 import { IconButton } from './IconButton';
 import { useBranding } from '../hooks/useBranding';
@@ -22,6 +22,10 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({
   onMenuClick,
+  onCartClick,
+  cartCount = 0,
+  showBackButton = false,
+  onBackClick,
   showSettings = false,
   onSettingsClick,
 }) => {
@@ -60,8 +64,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         }}
       >
         <IconButton
-          icon={<Menu size={20} />}
-          onClick={onMenuClick}
+          icon={showBackButton ? <ArrowLeft size={20} /> : <Menu size={20} />}
+          onClick={showBackButton ? (onBackClick || (() => navigate(-1))) : onMenuClick}
           variant="glass"
           size="md"
         />
@@ -118,12 +122,34 @@ export const TopBar: React.FC<TopBarProps> = ({
         }}
       >
         {showSettings ? (
-          <IconButton
-            icon={<Settings size={20} />}
-            onClick={onSettingsClick}
-            variant="glass"
-            size="md"
-          />
+          <IconButton icon={<Settings size={20} />} onClick={onSettingsClick} variant="glass" size="md" />
+        ) : onCartClick ? (
+          <div style={{ position: 'relative' }}>
+            <IconButton icon={<ShoppingCart size={20} />} onClick={onCartClick} variant="glass" size="md" />
+            {cartCount > 0 ? (
+              <span
+                style={{
+                  position: 'absolute',
+                  right: -5,
+                  top: -4,
+                  minWidth: 18,
+                  height: 18,
+                  padding: '0 5px',
+                  borderRadius: 999,
+                  background: theme.gradients.primary,
+                  color: '#08111f',
+                  fontSize: 10,
+                  fontWeight: theme.typography.fontWeight.bold,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 18px rgba(96,165,250,0.35)',
+                }}
+              >
+                {cartCount}
+              </span>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </div>

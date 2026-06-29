@@ -197,17 +197,32 @@ router.post('/add', requireAuth, async (req, res) => {
       cart = newCart;
     }
 
-    const itemId = generateId();
-    const newItem = {
-      id: itemId,
-      cart_id: cart.id,
-      product_id: productId,
-      variant: variant ? String(variant) : '',
-      quantity: qty,
-      price: Number(p.price)
-    };
-    db.cartItems.set(itemId, newItem);
+    const normalizedVariant = variant ? String(variant) : '';
+    const existingItem = Array.from(db.cartItems.values()).find(
+      (item) =>
+        String(item.cart_id) === String(cart.id) &&
+        String(item.product_id) === String(productId) &&
+        String(item.variant || '') === normalizedVariant,
+    );
 
+    let itemId = '';
+    if (existingItem) {
+      existingItem.quantity = Number(existingItem.quantity || 0) + qty;
+      existingItem.price = Number(p.price);
+      db.cartItems.set(existingItem.id, existingItem);
+      itemId = String(existingItem.id);
+    } else {
+      itemId = generateId();
+      const newItem = {
+        id: itemId,
+        cart_id: cart.id,
+        product_id: productId,
+        variant: normalizedVariant,
+        quantity: qty,
+        price: Number(p.price)
+      };
+      db.cartItems.set(itemId, newItem);
+    }
     res.json({ success: true, message: 'Product added to cart' });
   } catch (error) {
     console.error('Add to cart error:', error);
@@ -217,12 +232,18 @@ router.post('/add', requireAuth, async (req, res) => {
 
 router.post('/remove', requireAuth, (req, res) => {
   try {
+    const { tgId } = req.user;
     const { itemId } = req.body;
     
     if (!itemId) {
       return res.status(400).json({ error: 'Item ID is required' });
     }
-
+    const item = db.cartItems.get(itemId);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    const cart = db.carts.get(String(item.cart_id));
+    if (!cart || String(cart.user_id) !== String(tgId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     db.cartItems.delete(itemId);
     
     res.json({ success: true, message: 'Item removed from cart' });
@@ -234,6 +255,7 @@ router.post('/remove', requireAuth, (req, res) => {
 
 router.post('/update', requireAuth, async (req, res) => {
   try {
+    const { tgId } = req.user;
     const { itemId, quantity } = req.body;
     if (!itemId) return res.status(400).json({ error: 'Item ID is required' });
     const qty = Number(quantity || 0);
@@ -241,13 +263,16 @@ router.post('/update', requireAuth, async (req, res) => {
 
     const item = db.cartItems.get(itemId);
     if (!item) return res.status(404).json({ error: 'Item not found' });
+    const cart = db.carts.get(String(item.cart_id));
+    if (!cart || String(cart.user_id) !== String(tgId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     if (qty <= 0) {
       db.cartItems.delete(itemId);
       return res.json({ success: true });
     }
 
-    const cart = db.carts.get(String(item.cart_id));
     const city = String(cart?.city || '').trim();
     if (!city) return res.status(400).json({ error: 'City is required' });
 

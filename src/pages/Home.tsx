@@ -6,10 +6,12 @@ import { formatCurrency } from '../lib/currency';
 import { useHomePage } from '../hooks/useHomePage';
 
 import { useConfigStore } from '../store/useConfigStore';
+import { resolveBrandAssetUrl, useBranding } from '../hooks/useBranding';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const { config } = useConfigStore();
+  const branding = useBranding();
   const {
     products,
     loading,
@@ -27,7 +29,7 @@ const Home: React.FC = () => {
     extra: 14
   };
 
-  const bannerUrl = `${import.meta.env.BASE_URL || '/'}assets/brand/banners/banner-1.jpg`.replace(/([^:]\/)\/+/g, '$1');
+  const bannerUrl = resolveBrandAssetUrl('banners/banner-1.jpg', branding.assetBasePath);
 
   const styles = {
     container: {
@@ -163,8 +165,10 @@ const Home: React.FC = () => {
         <div style={styles.heroCard}>
           <div style={styles.heroOverlay}>
             <div style={styles.heroEyebrow}>Премиум качество</div>
-            <div style={styles.heroTitle}>Твой идеальный выбор</div>
-            <div style={styles.heroText}>Открой для себя лучшие вкусы и бренды</div>
+            <div style={styles.heroTitle}>{branding.name}</div>
+            <div style={styles.heroText}>
+              {branding.subtitle || 'Открой для себя лучшие вкусы и бренды'}
+            </div>
           </div>
         </div>
       </div>

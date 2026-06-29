@@ -29,13 +29,23 @@ const CourierRegistration = React.lazy(() => import('./pages/CourierRegistration
 function App() {
   const branding = useBranding();
   const { load: loadConfig, config } = useConfigStore();
-  const { user, setUser, setLoading, isLoading } = useAuthStore();
+  const { user, setUser, setLoading } = useAuthStore();
   const { isReady: isAppReady } = useSplashStore();
   const authStartedRef = React.useRef(false);
   const [authFinished, setAuthFinished] = React.useState(false);
   const [showSplash, setShowSplash] = React.useState(true);
   const [isFadingOut, setIsFadingOut] = React.useState(false);
   const mountTimeRef = React.useRef(Date.now());
+  const fireflies = React.useMemo(
+    () =>
+      Array.from({ length: 15 }, () => ({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 5}s`,
+        animationDuration: `${5 + Math.random() * 5}s`,
+      })),
+    [],
+  );
 
   const safeAlert = (message: string) => {
     try {
@@ -49,24 +59,32 @@ function App() {
     // Only process fade out if auth has completed
     if (!authFinished) return;
 
+    let hideSplashTimer: number | undefined;
+
     if (user) {
       if (isAppReady) {
         // Guarantee the splash screen shows for at least 1.5 seconds
         const elapsed = Date.now() - mountTimeRef.current;
         const delay = Math.max(0, 1500 - elapsed);
-        
-        const t1 = setTimeout(() => {
+
+        const t1 = window.setTimeout(() => {
           setIsFadingOut(true);
-          const t2 = setTimeout(() => setShowSplash(false), 500); // 500ms fade duration
+          hideSplashTimer = window.setTimeout(() => setShowSplash(false), 500); // 500ms fade duration
         }, delay);
-        return () => clearTimeout(t1);
+        return () => {
+          window.clearTimeout(t1);
+          if (hideSplashTimer) window.clearTimeout(hideSplashTimer);
+        };
       } else {
         // Fallback: if data takes too long or they are on another page, hide splash after 3 seconds total
-        const fallback = setTimeout(() => {
+        const fallback = window.setTimeout(() => {
           setIsFadingOut(true);
-          setTimeout(() => setShowSplash(false), 500);
+          hideSplashTimer = window.setTimeout(() => setShowSplash(false), 500);
         }, 3000);
-        return () => clearTimeout(fallback);
+        return () => {
+          window.clearTimeout(fallback);
+          if (hideSplashTimer) window.clearTimeout(hideSplashTimer);
+        };
       }
     } else {
       // If auth failed, hide splash immediately
@@ -231,12 +249,12 @@ function App() {
         }}>
           {/* Animated fireflies on background */}
           <div className="fireflies-container">
-            {[...Array(15)].map((_, i) => (
+            {fireflies.map((style, i) => (
               <div key={i} className="firefly" style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${5 + Math.random() * 5}s`
+                left: style.left,
+                top: style.top,
+                animationDelay: style.animationDelay,
+                animationDuration: style.animationDuration,
               }}></div>
             ))}
           </div>
@@ -270,12 +288,12 @@ function App() {
           <div className="min-h-screen bg-app safe-bottom relative">
             {/* Animated fireflies on global background */}
             <div className="fireflies-container fixed">
-              {[...Array(15)].map((_, i) => (
+              {fireflies.map((style, i) => (
                 <div key={i} className="firefly" style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 5}s`,
-                  animationDuration: `${5 + Math.random() * 5}s`
+                  left: style.left,
+                  top: style.top,
+                  animationDelay: style.animationDelay,
+                  animationDuration: style.animationDuration,
                 }}></div>
               ))}
             </div>

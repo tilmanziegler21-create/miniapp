@@ -505,7 +505,9 @@ router.post('/payment', requireAuth, async (req, res) => {
       }
 
       try {
-        const userCart = Array.from(db.carts.values()).find((c) => String(c.user_id) === String(req.user.tgId));
+        const userCart = Array.from(db.carts.values()).find(
+          (c) => String(c.user_id) === String(req.user.tgId) && String(c.city || '') === cityStr,
+        );
         if (userCart) {
           for (const [k, v] of db.cartItems.entries()) {
             if (String(v.cart_id) === String(userCart.id)) db.cartItems.delete(k);

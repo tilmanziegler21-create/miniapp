@@ -25,18 +25,6 @@ import cron from 'node-cron';
 import db from './services/database.js';
 import { updateOrderRowByOrderId } from './services/sheets.js';
 
-// Import TS Backend pieces
-import { startBot } from '../../src/bot/Bot.ts';
-import { initDb } from '../../src/infra/db/sqlite.ts';
-import { registerCron } from '../../src/infra/cron/scheduler.ts';
-import { loadState } from '../../src/infra/storage/InMemoryStorage.ts';
-import { logger } from '../../src/infra/logger.ts';
-import { getDefaultCity, getBackend } from '../../src/infra/backend/index.ts';
-import { validateSheetsSchemaOrThrow } from '../../src/infra/sheets/SchemaValidator.ts';
-import { testSheetsAuth } from '../../src/infra/sheets/SheetsClient.ts';
-import { getQtyReservedSnapshot } from '../../src/domain/inventory/InventoryService.ts';
-import { env, useSheets } from '../../src/infra/config.ts';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '../..');
@@ -75,7 +63,10 @@ app.use(
     origin(origin, callback) {
       if (!origin) return callback(null, true);
       if (allowedOrigins.has(origin)) return callback(null, true);
-      if (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:')) {
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))
+      ) {
         return callback(null, true);
       }
       return callback(new Error('Not allowed by CORS'));
@@ -102,22 +93,24 @@ app.use('/api/referral', referralRoutes);
 app.use('/api/fortune', fortuneRoutes);
 
 app.get('/health', (req, res) => {
-  const sheetsStatus = env.DATA_BACKEND === "sheets" ? (testSheetsAuth() ? "OK" : "FAIL") : "DISABLED";
+  const dataBackend = process.env.DATA_BACKEND || 'mock';
+  const sheetsStatus = dataBackend === "sheets" ? "CHECK_DEFERRED" : "DISABLED";
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    backend: env.DATA_BACKEND, 
+    backend: dataBackend, 
     sheets_auth: sheetsStatus
   });
 });
 
 app.get("/metrics", (req, res) => {
+  const metricsToken = process.env.METRICS_TOKEN || "";
   const auth = req.headers.authorization || "";
   const token = String(auth).startsWith("Bearer ") ? String(auth).slice(7) : "";
-  if ((env.METRICS_TOKEN || "").length > 0 && token !== env.METRICS_TOKEN) {
+  if (metricsToken.length > 0 && token !== metricsToken) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  res.json({ qty_reserved: getQtyReservedSnapshot() });
+  res.json({ qty_reserved: null });
 });
 
 if (fs.existsSync(distDir)) {
@@ -131,6 +124,26 @@ if (fs.existsSync(distDir)) {
 // Initialize TS Backend
 async function initTSBackend() {
   try {
+    const [
+      { startBot },
+      { initDb },
+      { registerCron },
+      { loadState },
+      { logger },
+      { getDefaultCity, getBackend },
+      { validateSheetsSchemaOrThrow },
+      { env, useSheets },
+    ] = await Promise.all([
+      import('../../src/bot/Bot.ts'),
+      import('../../src/infra/db/sqlite.ts'),
+      import('../../src/infra/cron/scheduler.ts'),
+      import('../../src/infra/storage/InMemoryStorage.ts'),
+      import('../../src/infra/logger.ts'),
+      import('../../src/infra/backend/index.ts'),
+      import('../../src/infra/sheets/SchemaValidator.ts'),
+      import('../../src/infra/config.ts'),
+    ]);
+
     loadState();
     logger.info("[BOT] State loaded from persistent storage");
     

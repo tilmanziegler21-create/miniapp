@@ -224,30 +224,27 @@ const Cart: React.FC = () => {
         toast.push('Не удалось применить бонусы', 'error');
       }
 
-      // We run confirm and payment concurrently and don't await cart clearance to speed up UI
-      const [, , orderResp] = await Promise.all([
-        orderAPI.confirmOrder({
-          orderId,
-          deliveryMethod: fulfillment === 'delivery' ? 'courier' : 'pickup',
-          city,
-          promoCode,
-          courier_id: fulfillment === 'delivery' ? courierId : '',
-          delivery_date: fulfillment === 'delivery' ? deliveryDate : '',
-          delivery_time: fulfillment === 'delivery' ? deliveryTime : '',
-          courierData: {
-            address: fulfillment === 'delivery' ? address : pickup,
-            comment: String(comment || '').slice(0, 500),
-            user: {
-              tgId: user?.tgId || '',
-              username: user?.username || '',
-            },
+      await orderAPI.confirmOrder({
+        orderId,
+        deliveryMethod: fulfillment === 'delivery' ? 'courier' : 'pickup',
+        city,
+        promoCode,
+        courier_id: fulfillment === 'delivery' ? courierId : '',
+        delivery_date: fulfillment === 'delivery' ? deliveryDate : '',
+        delivery_time: fulfillment === 'delivery' ? deliveryTime : '',
+        courierData: {
+          address: fulfillment === 'delivery' ? address : pickup,
+          comment: String(comment || '').slice(0, 500),
+          user: {
+            tgId: user?.tgId || '',
+            username: user?.username || '',
           },
-        }),
-        orderAPI.processPayment({ orderId, paymentMethod, city, bonusApplied: applied }),
-        cartAPI.clear(city)
-      ]);
+        },
+      });
+
+      await orderAPI.processPayment({ orderId, paymentMethod, city, bonusApplied: applied });
+      cartAPI.clear(city).catch(() => {});
       
-      // Update cart state locally without waiting for another network request
       setCart({ id: String(cart.id || ''), city, items: [], total: 0 });
       trackOrderComplete(orderId, Number(totalAmount || cart.total), cart.items);
 

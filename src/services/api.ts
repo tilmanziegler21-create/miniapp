@@ -2,7 +2,11 @@ import axios from 'axios';
 import { useToastStore } from '../store/useToastStore';
 import { useAuthStore } from '../store/useAuthStore';
 
-const API_BASE_URL = (import.meta.env?.VITE_API_URL as string) || '/api';
+const configuredApiUrl = String(import.meta.env?.VITE_API_URL || '').trim();
+const localDevApiUrl =
+  configuredApiUrl === 'http://localhost:8080/api' ||
+  configuredApiUrl === 'http://127.0.0.1:8080/api';
+const API_BASE_URL = import.meta.env.DEV && localDevApiUrl ? '/api' : configuredApiUrl || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

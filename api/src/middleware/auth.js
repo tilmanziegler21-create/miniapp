@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import db from '../services/database.js';
 
+const JWT_FALLBACK_SECRET = 'fallback-secret-for-dev-only';
+
 export const verifyTelegramAuth = (req, res, next) => {
   try {
     const { initData } = req.body;
@@ -68,7 +70,7 @@ export const requireAuth = (req, res, next) => {
     }
 
     const token = authHeader.slice('Bearer '.length);
-    const secret = process.env.JWT_SECRET || 'your-secret-key';
+    const secret = process.env.JWT_SECRET || JWT_FALLBACK_SECRET;
     const payload = jwt.verify(token, secret);
 
     const user = db.prepare('SELECT * FROM users WHERE tg_id = ?').get(payload.tgId);
@@ -100,7 +102,7 @@ export const requireAuthAllowUnverified = (req, res, next) => {
     }
 
     const token = authHeader.slice('Bearer '.length);
-    const secret = process.env.JWT_SECRET || 'your-secret-key';
+    const secret = process.env.JWT_SECRET || JWT_FALLBACK_SECRET;
     const payload = jwt.verify(token, secret);
 
     const user = db.prepare('SELECT * FROM users WHERE tg_id = ?').get(payload.tgId);

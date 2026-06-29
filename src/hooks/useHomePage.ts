@@ -82,12 +82,12 @@ export function useHomePage() {
       toast.push('Выберите город', 'error');
       return;
     }
-    toast.push('Добавлено в корзину', 'success');
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
     try {
       await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price });
       const resp = await cartAPI.getCart(city);
       setCart(resp.data.cart);
+      toast.push('Добавлено в корзину', 'success');
     } catch {
       toast.push('Ошибка добавления в корзину', 'error');
     }

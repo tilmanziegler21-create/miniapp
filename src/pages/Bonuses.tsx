@@ -60,6 +60,33 @@ const Bonuses: React.FC = () => {
     loadBonusData();
   }, []);
 
+  const copyText = async (value: string, successMessage: string) => {
+    const text = String(value || '').trim();
+    if (!text) {
+      toast.push('Нет данных для копирования', 'error');
+      return;
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      toast.push(successMessage, 'success');
+    } catch {
+      toast.push('Ошибка копирования', 'error');
+    }
+  };
+
   const loadBonusData = async () => {
     try {
       setLoading(true);
@@ -93,21 +120,11 @@ const Bonuses: React.FC = () => {
   };
 
   const copyReferralCode = async () => {
-    try {
-      await navigator.clipboard.writeText(referralCode);
-      toast.push('Реферальный код скопирован', 'success');
-    } catch {
-      toast.push('Ошибка копирования', 'error');
-    }
+    await copyText(referralCode, 'Реферальный код скопирован');
   };
 
   const copyReferralLink = async () => {
-    try {
-      await navigator.clipboard.writeText(referralLink);
-      toast.push('Реферальная ссылка скопирована', 'success');
-    } catch {
-      toast.push('Ошибка копирования', 'error');
-    }
+    await copyText(referralLink, 'Реферальная ссылка скопирована');
   };
 
   const getCurrentStatus = (): UserStatus => {

@@ -4,6 +4,7 @@ import { IconButton } from './IconButton';
 import { Heart, Plus, ShoppingCart, Star } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import { formatCurrency } from '../lib/currency';
+import { getProductPlaceholderDataUrl } from '../lib/productPresentation';
 
 interface ProductCardProps {
   id: string;
@@ -71,23 +72,11 @@ export const ProductCard = React.memo<ProductCardProps>(({
     return assetUrl(raw.startsWith('/') ? raw : `/${raw}`);
   };
 
-  const brandKey = (s: string) => {
-    const cleaned = String(s || '')
-      .toLowerCase()
-      .trim()
-      .replace(/[_-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .replace(/[^a-z0-9 ]/g, '');
-    return { cleaned, compact: cleaned.replace(/\s+/g, '') };
-  };
-
-  // Brand-based image logic with gradient fallback
   const getBrandImage = (brand: string, productImage: string) => {
     const normalized = normalizeProvidedImage(productImage);
     if (normalized) return normalized;
-    
-    // Always return a clean, simple product placeholder instead of brand-specific hardcoded images
-    return 'https://via.placeholder.com/300x300/0f172a/60a5fa?text=Product';
+
+    return getProductPlaceholderDataUrl(brand || 'Product');
   };
 
   // Brand-based gradient backgrounds as fallback
@@ -232,7 +221,7 @@ export const ProductCard = React.memo<ProductCardProps>(({
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (added) return;
+    if (added || stock <= 0) return;
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
@@ -247,7 +236,7 @@ export const ProductCard = React.memo<ProductCardProps>(({
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
       >
-        {resolvedImage ? <img src={resolvedImage} onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/300x300/0f172a/60a5fa?text=Product'; }} alt="" style={styles.bgImage} /> : null}
+        {resolvedImage ? <img src={resolvedImage} onError={(e) => { e.currentTarget.src = getProductPlaceholderDataUrl(name); }} alt="" style={styles.bgImage} /> : null}
         <div style={styles.scrim} />
         <div style={styles.favoriteButton}>
           <IconButton
@@ -290,9 +279,10 @@ export const ProductCard = React.memo<ProductCardProps>(({
         <button
           type="button"
           onClick={handleAddToCart}
-          style={added ? { ...styles.addButton, background: theme.colors.dark.accentGreen } : styles.addButton}
-          className={added ? "" : "sparkle-button"}
+          style={stock <= 0 ? { ...styles.addButton, background: 'rgba(148,163,184,0.22)', color: theme.colors.dark.textSecondary, boxShadow: 'none', cursor: 'not-allowed' } : added ? { ...styles.addButton, background: theme.colors.dark.accentGreen } : styles.addButton}
+          className={added || stock <= 0 ? "" : "sparkle-button"}
           aria-label={`Добавить ${name} в корзину`}
+          disabled={stock <= 0}
         >
           {added ? <span style={{fontSize: '20px'}}>✓</span> : (stock === 0 ? <ShoppingCart size={20} /> : <Plus className="sparkle-icon" size={22} strokeWidth={2.4} />)}
         </button>

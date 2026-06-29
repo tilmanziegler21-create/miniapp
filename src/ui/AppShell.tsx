@@ -76,11 +76,12 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
     <>
       <TopBar
         onMenuClick={showMenu ? () => setDrawerOpen(true) : () => undefined}
+        onBackClick={() => navigate(-1)}
         onCartClick={() => navigate('/cart')}
         cartCount={cart?.items?.length || 0}
         userName={user?.firstName}
         showBackButton={showBackButton}
-        showSettings={user?.status === 'admin'}
+        showSettings={user?.status === 'admin' && location.pathname === '/admin'}
         onSettingsClick={() => navigate('/admin')}
       />
       <DrawerMenu
@@ -96,7 +97,7 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
         }}
       />
       <div style={{ paddingBottom: '104px' }}>
-        <div key={location.key} className="page-transition">{children}</div>
+        <div className="page-transition">{children}</div>
       </div>
       <FooterBar />
       <ToastHost />

@@ -9,8 +9,12 @@ import { GlassCard, IconButton, ProductCard, SectionDivider, theme, TasteProfile
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
-import { useConfigStore } from '../store/useConfigStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
+import {
+  getProductPlaceholderDataUrl,
+  getStableTasteProfile,
+  getStableTrustData,
+} from '../lib/productPresentation';
 
 type ProductEntity = {
   id: string;
@@ -68,21 +72,11 @@ const normalizeProvidedImage = (v: string) => {
   return '';
 };
 
-const brandKey = (s: string) => {
-  const cleaned = String(s || '')
-    .toLowerCase()
-    .trim()
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/[^a-z0-9 ]/g, '');
-  return { cleaned, compact: cleaned.replace(/\s+/g, '') };
-};
-
 const getBrandImage = (brand: string, productImage: string) => {
     const normalized = normalizeProvidedImage(productImage);
     if (normalized) return normalized;
-    
-    return 'https://via.placeholder.com/400x400/0f172a/60a5fa?text=Product';
+
+    return getProductPlaceholderDataUrl(brand || 'Product');
   };
 
 const getBrandGradient = (brand: string) => {
@@ -144,11 +138,7 @@ const Product: React.FC = () => {
   const [similar, setSimilar] = React.useState<SimilarProduct[]>([]);
   const [loading, setLoading] = React.useState(true);
   const { city } = useCityStore();
-
-  const [flavor, setFlavor] = React.useState<string>(defaultFlavors[0]);
   const favorites = useFavoritesStore();
-
-  const { config } = useConfigStore();
 
   const [addedToCart, setAddedToCart] = React.useState(false);
 
@@ -214,12 +204,12 @@ const Product: React.FC = () => {
       toast.push('Выберите город', 'error');
       return;
     }
-    toast.push('Добавлено в корзину', 'success');
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
     try {
-      await cartAPI.addItem({ productId: product.id, quantity, city, variant: variant || flavor });
+      await cartAPI.addItem({ productId: product.id, quantity, city, variant: variant || defaultFlavors[0] });
       const cartResp = await cartAPI.getCart(city);
       setCart(cartResp.data.cart);
+      toast.push('Добавлено в корзину', 'success');
       trackAddToCart(product.id, product.name, product.price, quantity);
     } catch (e) {
       console.error('Add to cart failed:', e);
@@ -432,7 +422,7 @@ const Product: React.FC = () => {
       <SectionDivider title="Добавление товара в корзину" />
 
       <div style={styles.poster}>
-        {posterImage ? <img src={posterImage} onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/400x400/0f172a/60a5fa?text=Product'; }} alt="" style={styles.posterImg} /> : null}
+        {posterImage ? <img src={posterImage} onError={(e) => { e.currentTarget.src = getProductPlaceholderDataUrl(product.name); }} alt="" style={styles.posterImg} /> : null}
         <div style={styles.posterScrim} />
       </div>
 
@@ -488,7 +478,7 @@ const Product: React.FC = () => {
             try { WebApp.HapticFeedback.impactOccurred('medium'); } catch(e){}
             setAddedToCart(true);
             setTimeout(() => setAddedToCart(false), 2000);
-            addToCart(1, flavor); // don't await
+            addToCart(1); // don't await
           }}
           className={addedToCart ? "" : "sparkle-button"}
         >
@@ -515,20 +505,27 @@ const Product: React.FC = () => {
                 price={p.price}
                 image={p.image}
                 brand={p.brand} // Add brand prop
-                tasteProfile={{
-                  sweetness: Math.floor(Math.random() * 5) + 1,
-                  fruitiness: Math.floor(Math.random() * 5) + 1,
-                  coolness: Math.floor(Math.random() * 3) + 1,
-                }}
-                trustData={{
-                  rating: 4.2 + Math.random() * 0.8,
-                  reviewCount: Math.floor(Math.random() * 200) + 50,
-                  weeklyOrders: Math.floor(Math.random() * 100) + 20,
-                }}
+                tasteProfile={getStableTasteProfile(`${p.id}:${p.name}:${p.brand}`)}
+                trustData={getStableTrustData(`${p.id}:${p.name}:${p.brand}`)}
                 showTasteProfile={true}
                 showTrustIndicators={true}
                 onClick={(pid) => navigate(`/product/${pid}`)}
-                onAddToCart={(pid) => navigate(`/product/${pid}`)}
+              onAddToCart={() => {
+                if (!city) {
+                  toast.push('Выберите город', 'error');
+                  return;
+                }
+                cartAPI.addItem({ productId: p.id, quantity: 1, city, price: p.price })
+                  .then(() => cartAPI.getCart(city))
+                  .then((cartResp) => {
+                    setCart(cartResp.data.cart);
+                    toast.push('Добавлено в корзину', 'success');
+                    trackAddToCart(p.id, p.name, p.price, 1);
+                  })
+                  .catch(() => {
+                    toast.push('Ошибка добавления в корзину', 'error');
+                  });
+              }}
               />
             ))}
           </div>

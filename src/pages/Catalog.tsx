@@ -8,8 +8,9 @@ import { useAnalytics } from '../hooks/useAnalytics';
 import { ProductCard, GlassCard, SecondaryButton, theme } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { useCityStore } from '../store/useCityStore';
-import { useConfigStore } from '../store/useConfigStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
+import { resolveBrandAssetUrl, useBranding } from '../hooks/useBranding';
+import { getStableTrustData } from '../lib/productPresentation';
 
 interface Product {
   id: string;
@@ -34,7 +35,7 @@ const Catalog: React.FC = () => {
   const { setCart } = useCartStore();
   const { trackAddToCart, trackFilterUse, trackCategoryView } = useAnalytics();
   const { city } = useCityStore();
-  const { config } = useConfigStore();
+  const branding = useBranding();
   const favorites = useFavoritesStore();
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
@@ -137,7 +138,6 @@ const Catalog: React.FC = () => {
       toast.push('Выберите город', 'error');
       return;
     }
-    toast.push('Добавлено в корзину', 'success');
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
     try {
       await cartAPI.addItem({
@@ -148,6 +148,7 @@ const Catalog: React.FC = () => {
       });
       const response = await cartAPI.getCart(city);
       setCart(response.data.cart);
+      toast.push('Добавлено в корзину', 'success');
       trackAddToCart(product.id, product.name, product.price, 1);
     } catch (error) {
       console.error('Add to cart failed:', error);
@@ -172,17 +173,26 @@ const Catalog: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (products.length === 0) return [];
-    if (!q) {
-      return products;
-    }
-    const result = products.filter((p) =>
-      [p.name, p.brand, p.category].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)),
-    );
-    return result;
-  }, [products, query]);
+    const minSweetness = Number(filters.taste_sweetness_min || 0);
+    const maxSweetness = Number(filters.taste_sweetness_max || 0);
+    const minCoolness = Number(filters.taste_coolness_min || 0);
+    const minFruitiness = Number(filters.taste_fruitiness_min || 0);
 
-  const bannerUrl = `${import.meta.env.BASE_URL || '/'}banner-open.png`.replace(/([^:]\/)\/+/g, '$1');
+    return products.filter((p) => {
+      const matchesQuery = !q || [p.name, p.brand, p.category].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+      if (!matchesQuery) return false;
+
+      const taste = p.tasteProfile;
+      if (minSweetness && (!taste?.sweetness || Number(taste.sweetness) < minSweetness)) return false;
+      if (maxSweetness && taste?.sweetness && Number(taste.sweetness) > maxSweetness) return false;
+      if (minCoolness && (!taste?.coolness || Number(taste.coolness) < minCoolness)) return false;
+      if (minFruitiness && (!taste?.fruitiness || Number(taste.fruitiness) < minFruitiness)) return false;
+
+      return true;
+    });
+  }, [products, query, filters.taste_sweetness_min, filters.taste_sweetness_max, filters.taste_coolness_min, filters.taste_fruitiness_min]);
+
+  const bannerUrl = resolveBrandAssetUrl('banners/banner-1.jpg', branding.assetBasePath);
 
   const styles = {
     container: {
@@ -192,6 +202,51 @@ const Catalog: React.FC = () => {
       padding: `0 ${theme.padding.screen}`,
       marginTop: theme.spacing.md,
       marginBottom: theme.spacing.md,
+    },
+    introCard: {
+      margin: `0 ${theme.padding.screen} ${theme.spacing.md}`,
+      borderRadius: theme.radius.lg,
+      minHeight: 132,
+      overflow: 'hidden' as const,
+      border: '1px solid rgba(96,165,250,0.16)',
+      background: `linear-gradient(135deg, rgba(6,11,22,0.26) 0%, rgba(6,11,22,0.82) 100%), url(${bannerUrl}) center/cover`,
+      boxShadow: theme.shadow.card,
+    },
+    introOverlay: {
+      minHeight: 132,
+      padding: theme.spacing.lg,
+      display: 'flex',
+      flexDirection: 'column' as const,
+      justifyContent: 'space-between',
+      background: 'linear-gradient(180deg, rgba(8,17,31,0.06) 0%, rgba(8,17,31,0.82) 100%)',
+    },
+    introEyebrow: {
+      fontSize: theme.typography.fontSize.xs,
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.14em',
+      color: theme.colors.dark.primary,
+      opacity: 0.9,
+    },
+    introTitle: {
+      fontSize: theme.typography.fontSize.xl,
+      fontWeight: theme.typography.fontWeight.bold,
+      lineHeight: 1.15,
+      maxWidth: 260,
+    },
+    introMeta: {
+      display: 'flex',
+      gap: theme.spacing.sm,
+      flexWrap: 'wrap' as const,
+      marginTop: theme.spacing.md,
+    },
+    introPill: {
+      borderRadius: 999,
+      padding: '6px 10px',
+      background: 'rgba(8,17,31,0.54)',
+      border: '1px solid rgba(96,165,250,0.18)',
+      color: theme.colors.dark.textSecondary,
+      fontSize: theme.typography.fontSize.xs,
+      letterSpacing: '0.04em',
     },
     title: {
       fontSize: theme.typography.fontSize['2xl'],
@@ -315,6 +370,22 @@ const Catalog: React.FC = () => {
         <div style={styles.title}>Каталог</div>
       </div>
 
+      <div style={styles.introCard}>
+        <div style={styles.introOverlay}>
+          <div>
+            <div style={styles.introEyebrow}>{branding.name}</div>
+            <div style={styles.introTitle}>
+              {filters.category ? getCategoryName(filters.category) : 'Подборка вкусов и устройств'}
+            </div>
+          </div>
+          <div style={styles.introMeta}>
+            <div style={styles.introPill}>{city ? `Город: ${city}` : 'Город не выбран'}</div>
+            <div style={styles.introPill}>{filtered.length} товаров</div>
+            {filters.brand ? <div style={styles.introPill}>{filters.brand}</div> : null}
+          </div>
+        </div>
+      </div>
+
       <div style={styles.searchRow}>
         <div style={styles.searchBox}>
           <Search size={18} color={theme.colors.dark.textSecondary} />
@@ -391,11 +462,7 @@ const Catalog: React.FC = () => {
               isNew={Boolean((p as any).isNew)}
               stock={(p as any).qtyAvailable || 0}
               tasteProfile={p.tasteProfile}
-              trustData={{
-                rating: 4.2 + Math.random() * 0.8,
-                reviewCount: Math.floor(Math.random() * 200) + 50,
-                weeklyOrders: Math.floor(Math.random() * 100) + 20,
-              }}
+              trustData={getStableTrustData(`${p.id}:${p.name}:${p.brand}`)}
               showTasteProfile={true}
               showTrustIndicators={true}
               onClick={(id) => navigate(`/product/${id}`)}

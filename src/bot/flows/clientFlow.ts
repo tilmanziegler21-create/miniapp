@@ -146,7 +146,7 @@ export function registerClientFlow(bot: TelegramBot) {
       try { await bot.deleteMessage(chatId, messageId); } catch {}
       const { getManagerContact } = await import("../../config/managerContacts");
       const managerContact = getManagerContact(shopConfig.cityCode);
-      await bot.sendMessage(chatId, `� <b>Как заказать</b>\n\n1️⃣ Выбор товаров\n2️⃣ Курьер и время\n3️⃣ Оплата\n\n❓ Вопросы?\n${managerContact}`, { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" });
+      await bot.sendMessage(chatId, `🧾 <b>Как заказать</b>\n\n1️⃣ Выбор товаров\n2️⃣ Курьер и время\n3️⃣ Оплата\n\n❓ Вопросы?\n${managerContact}`, { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" });
       return;
     }
     if (data === "catalog_liquids") {

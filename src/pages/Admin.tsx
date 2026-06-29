@@ -138,6 +138,14 @@ const Admin: React.FC = () => {
     }
   };
 
+  const openCourierEdit = () => {
+    toast.push('Редактирование курьера будет доступно в следующем обновлении', 'info');
+  };
+
+  const openPromoEditor = () => {
+    toast.push('Редактор акций пока недоступен. Используйте переключение активности ниже.', 'info');
+  };
+
   const getStatusColor = (status: AdminOrder['status']) => {
     switch (status) {
       case 'pending': return '#38bdf8';
@@ -665,7 +673,7 @@ const Admin: React.FC = () => {
                     </PrimaryButton>
                     <SecondaryButton
                       size="sm"
-                      onClick={() => navigate(`/courier/${courier.courier_id}`)}
+                      onClick={openCourierEdit}
                     >
                       <Edit size={16} style={{ marginRight: '4px' }} />
                       Редактировать
@@ -685,7 +693,7 @@ const Admin: React.FC = () => {
           <div style={{ padding: `0 ${theme.padding.screen}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md }}>
               <div style={styles.statLabel}>Активных акций: {stats.activePromos}</div>
-              <PrimaryButton size="sm" onClick={() => navigate('/promo-editor')}>
+              <PrimaryButton size="sm" onClick={openPromoEditor}>
                 <Plus size={16} style={{ marginRight: '4px' }} />
                 Создать акцию
               </PrimaryButton>
@@ -758,14 +766,14 @@ const Admin: React.FC = () => {
                     </PrimaryButton>
                     <SecondaryButton
                       size="sm"
-                      onClick={() => navigate(`/promo-editor/${promo.id}`)}
+                      onClick={openPromoEditor}
                     >
                       <Edit size={16} style={{ marginRight: '4px' }} />
                       Редактировать
                     </SecondaryButton>
                     <SecondaryButton
                       size="sm"
-                      onClick={() => {/* TODO: Delete promo */}}
+                      onClick={() => toast.push('Удаление акции пока недоступно', 'info')}
                       style={{ background: 'rgba(15,23,42,0.82)', color: theme.colors.dark.textSecondary, borderColor: 'rgba(96,165,250,0.14)' }}
                     >
                       <Trash2 size={16} style={{ marginRight: '4px' }} />
