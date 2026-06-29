@@ -137,6 +137,8 @@ const Catalog: React.FC = () => {
       toast.push('Выберите город', 'error');
       return;
     }
+    toast.push('Добавлено в корзину', 'success');
+    try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
     try {
       await cartAPI.addItem({
         productId: product.id,
@@ -147,37 +149,6 @@ const Catalog: React.FC = () => {
       const response = await cartAPI.getCart(city);
       setCart(response.data.cart);
       trackAddToCart(product.id, product.name, product.price, 1);
-      toast.push('Товар сразу добавлен в корзину', 'success');
-
-      if (product.category === 'liquids' || product.category === 'Жидкости') {
-        if (Math.random() > 0.5) {
-          setTimeout(() => {
-            try {
-              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
-              WebApp.showConfirm(`Возьмите еще одну жидкость!\n1 шт - ${lp['1'] || 18}\n2 шт - ${lp['2'] || 32}\n3 шт - ${lp['3'] || 45}\nкаждая следующая по ${lp['extra'] || 14}`, (confirmed) => {
-                if (confirmed) {
-                  setFilters({ ...filters, category: product.category });
-                }
-              });
-            } catch {
-              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
-              toast.push(`Скидки на жидкости: 1=${lp['1']||18}, 2=${lp['2']||32}, 3=${lp['3']||45}, далее по ${lp['extra']||14}!`, 'info');
-            }
-          }, 1000);
-        }
-      } else if (product.category === 'pods' || product.category === 'Поды') {
-        setTimeout(() => {
-          try {
-            WebApp.showConfirm('Собери набор!\nНабор это 1 под + 2 жидкости.\nДобавить жидкости?', (confirmed) => {
-              if (confirmed) {
-                setFilters({ ...filters, category: 'liquids' });
-              }
-            });
-          } catch {
-            toast.push('Набор: 1 под + 2 жидкости. Загляни в каталог!', 'info');
-          }
-        }, 1000);
-      }
     } catch (error) {
       console.error('Add to cart failed:', error);
       toast.push('Ошибка добавления в корзину', 'error');

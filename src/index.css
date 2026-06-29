@@ -13,6 +13,17 @@
 }
 
 .bg-app {
+  color: #f4f1ea;
+  position: relative;
+}
+
+.bg-app::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   background: 
     radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.15) 0%, transparent 40%),
     radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
@@ -20,8 +31,7 @@
     linear-gradient(-45deg, #08070a, #0f172a, #081121, #1e3a8a, #0f172a);
   background-size: 200% 200%, 200% 200%, 200% 200%, 400% 400%;
   animation: bgAnimation 20s ease-in-out infinite alternate;
-  color: #f4f1ea;
-  position: relative;
+  z-index: -1;
 }
 
 @keyframes bgAnimation {
@@ -96,10 +106,10 @@
 html,
 body {
   width: 100%;
-  height: 100%;
-  overflow-y: auto;
+  min-height: 100vh;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  background-color: #08070a;
 }
 
 /* Smooth scrolling */
@@ -191,4 +201,78 @@ a {
 
 .safe-right {
   padding-right: var(--safe-area-right, 0px);
+}
+
+/* Splash and Fireflies Animations */
+@keyframes splashFadeIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 20px rgba(96,165,250,0.2); }
+  50% { box-shadow: 0 0 50px rgba(96,165,250,0.6); }
+  100% { box-shadow: 0 0 20px rgba(96,165,250,0.2); }
+}
+
+.fireflies-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+.fireflies-container.fixed {
+  position: fixed;
+}
+
+.firefly {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #60a5fa;
+  border-radius: 50%;
+  box-shadow: 0 0 10px 2px #60a5fa, 0 0 20px 4px #93c5fd;
+  opacity: 0;
+  animation: floatFirefly linear infinite;
+}
+
+@keyframes floatFirefly {
+  0% { transform: translateY(0) translateX(0) scale(0); opacity: 0; }
+  10% { opacity: 1; scale: 1; }
+  90% { opacity: 1; scale: 1; }
+  100% { transform: translateY(-100px) translateX(50px) scale(0); opacity: 0; }
+}
+
+@keyframes buttonSparkle {
+  0% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.1); filter: brightness(1.3) drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+.sparkle-button {
+  position: relative;
+  overflow: hidden;
+}
+.sparkle-button::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
+  transform: rotate(45deg);
+  animation: shine 3s infinite;
+}
+@keyframes shine {
+  0% { left: -100%; }
+  20% { left: 100%; }
+  100% { left: 100%; }
+}
+.sparkle-icon {
+  animation: buttonSparkle 2s infinite;
 }

@@ -1,32 +1,36 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
 import { useAuthStore } from './store/useAuthStore';
 import { authAPI } from './services/api';
 import { SafeAreaProvider, AppShell } from './ui';
-import AgeVerify from './pages/AgeVerify';
-import Home from './pages/Home';
-import Catalog from './pages/Catalog';
-import Product from './pages/Product';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import Profile from './pages/Profile';
-import Orders from './pages/Orders';
-import OrderDetails from './pages/OrderDetails';
-import Favorites from './pages/Favorites';
-import Referral from './pages/Referral';
-import Support from './pages/Support';
-import Categories from './pages/Categories';
-import Admin from './pages/Admin';
-import Courier from './pages/Courier';
-import Promotions from './pages/Promotions';
-import Bonuses from './pages/Bonuses';
-import FortuneWheel from './pages/FortuneWheel';
-import CourierRegistration from './pages/CourierRegistration';
+import { branding } from './config/branding';
+import { useSplashStore } from './store/useSplashStore';
+
+const Home = React.lazy(() => import('./pages/Home'));
+const Catalog = React.lazy(() => import('./pages/Catalog'));
+const Product = React.lazy(() => import('./pages/Product'));
+const Cart = React.lazy(() => import('./pages/Cart'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const Orders = React.lazy(() => import('./pages/Orders'));
+const OrderDetails = React.lazy(() => import('./pages/OrderDetails'));
+const Favorites = React.lazy(() => import('./pages/Favorites'));
+const Referral = React.lazy(() => import('./pages/Referral'));
+const Support = React.lazy(() => import('./pages/Support'));
+const Categories = React.lazy(() => import('./pages/Categories'));
+const Admin = React.lazy(() => import('./pages/Admin'));
+const Courier = React.lazy(() => import('./pages/Courier'));
+const Promotions = React.lazy(() => import('./pages/Promotions'));
+const Bonuses = React.lazy(() => import('./pages/Bonuses'));
+const FortuneWheel = React.lazy(() => import('./pages/FortuneWheel'));
+const CourierRegistration = React.lazy(() => import('./pages/CourierRegistration'));
 
 function App() {
   const { user, setUser, setLoading, isLoading } = useAuthStore();
+  const { isReady: isAppReady } = useSplashStore();
   const authStartedRef = React.useRef(false);
+  const [showSplash, setShowSplash] = React.useState(true);
+  const [isFadingOut, setIsFadingOut] = React.useState(false);
 
   const safeAlert = (message: string) => {
     try {
@@ -37,6 +41,33 @@ function App() {
   };
 
   useEffect(() => {
+    if (!isLoading && user) {
+      if (isAppReady) {
+        // Once auth is done AND the home page data is ready, trigger fade out
+        setIsFadingOut(true);
+        const t2 = setTimeout(() => setShowSplash(false), 500); // 500ms fade duration
+        return () => clearTimeout(t2);
+      } else {
+        // Fallback: if data takes too long or they are on another page, hide splash after 2.5 seconds
+        const fallback = setTimeout(() => {
+          setIsFadingOut(true);
+          setTimeout(() => setShowSplash(false), 500);
+        }, 2500);
+        return () => clearTimeout(fallback);
+      }
+    } else if (!isLoading && !user) {
+      // If auth failed, hide splash immediately
+      setShowSplash(false);
+    }
+  }, [isLoading, user, isAppReady]);
+
+  useEffect(() => {
+    try {
+      WebApp.expand();
+    } catch (e) {
+      // Ignore
+    }
+    
     if (authStartedRef.current) return;
     authStartedRef.current = true;
 
@@ -130,34 +161,7 @@ function App() {
     };
   }, [setUser, setLoading]);
 
-  if (isLoading) {
-    return (
-      <SafeAreaProvider>
-        <div style={{
-          minHeight: '100vh',
-          background: 'linear-gradient(135deg, #08111f 0%, #0f1a2d 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              border: '4px solid rgba(96,165,250,0.26)',
-              borderTop: '4px solid #60a5fa',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 16px',
-            }} />
-            <p style={{ color: '#ffffff', fontSize: '16px' }}>Авторизация...</p>
-          </div>
-        </div>
-      </SafeAreaProvider>
-    );
-  }
-
-  if (!user) {
+  if (!isLoading && !user) {
     return (
       <SafeAreaProvider>
         <div style={{
@@ -192,39 +196,94 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <Router>
-        <div className="min-h-screen bg-app safe-bottom">
-          {!user.ageVerified ? (
-            <Routes>
-              <Route path="/age" element={<AgeVerify />} />
-              <Route path="*" element={<Navigate to="/age" replace />} />
-            </Routes>
-          ) : (
-            <Routes>
-              <Route path="/" element={<Navigate to="/home" replace />} />
-              <Route path="/home" element={<AppShell><Home /></AppShell>} />
-              <Route path="/categories" element={<AppShell><Categories /></AppShell>} />
-              <Route path="/catalog" element={<AppShell><Catalog /></AppShell>} />
-              <Route path="/product/:id" element={<AppShell showMenu={false}><Product /></AppShell>} />
-              <Route path="/cart" element={<AppShell showMenu={false}><Cart /></AppShell>} />
-              <Route path="/checkout" element={<AppShell showMenu={false}><Checkout /></AppShell>} />
-              <Route path="/orders" element={<AppShell><Orders /></AppShell>} />
-              <Route path="/order/:id" element={<AppShell showMenu={false}><OrderDetails /></AppShell>} />
-              <Route path="/favorites" element={<AppShell><Favorites /></AppShell>} />
-              <Route path="/referral" element={<AppShell><Referral /></AppShell>} />
-              <Route path="/support" element={<AppShell><Support /></AppShell>} />
-              <Route path="/promotions" element={<AppShell><Promotions /></AppShell>} />
-              <Route path="/bonuses" element={<AppShell><Bonuses /></AppShell>} />
-              <Route path="/fortune" element={<AppShell><FortuneWheel /></AppShell>} />
-              <Route path="/profile" element={<AppShell><Profile /></AppShell>} />
-              <Route path="/courier" element={(user.status === 'courier' || user.status === 'admin') ? <AppShell><Courier /></AppShell> : <Navigate to="/home" replace />} />
-              <Route path="/admin" element={user.status === 'admin' ? <AppShell><Admin /></AppShell> : <Navigate to="/home" replace />} />
-              <Route path="/courier-registration" element={user.status === 'admin' ? <AppShell><CourierRegistration /></AppShell> : <Navigate to="/home" replace />} />
-              <Route path="*" element={<Navigate to="/home" replace />} />
-            </Routes>
-          )}
+      {showSplash && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: 'linear-gradient(135deg, #08070a 0%, #0f172a 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          transition: 'opacity 0.5s ease-out',
+          opacity: isFadingOut ? 0 : 1,
+          pointerEvents: isFadingOut ? 'none' : 'auto'
+        }}>
+          {/* Animated fireflies on background */}
+          <div className="fireflies-container">
+            {[...Array(15)].map((_, i) => (
+              <div key={i} className="firefly" style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 5}s`,
+                animationDuration: `${5 + Math.random() * 5}s`
+              }}></div>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', zIndex: 10, animation: 'splashFadeIn 1s ease-out' }}>
+            <div style={{
+                width: '100px',
+                height: '100px',
+                background: 'linear-gradient(135deg, rgba(96,165,250,0.2) 0%, rgba(37,99,235,0.2) 100%)',
+                borderRadius: '24px',
+                margin: '0 auto 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 40px rgba(96,165,250,0.3)',
+                border: '1px solid rgba(96,165,250,0.3)',
+                animation: 'pulseGlow 2s infinite',
+                overflow: 'hidden'
+              }}>
+                <img src={branding.brandAvatarUrl || "/favicon.svg"} alt="logo" style={{ width: branding.brandAvatarUrl ? '100%' : '60px', height: branding.brandAvatarUrl ? '100%' : '60px', objectFit: 'cover', filter: branding.brandAvatarUrl ? 'none' : 'drop-shadow(0 0 10px rgba(96,165,250,0.8))' }} />
+              </div>
+            <h1 style={{ color: '#ffffff', fontSize: '28px', fontWeight: 'bold', marginBottom: '8px', letterSpacing: '0.05em' }}>{branding.name}</h1>
+            <p style={{ color: '#93c5fd', fontSize: '14px', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{branding.subtitle}</p>
+          </div>
         </div>
-      </Router>
+      )}
+
+      {user && (
+        <Router>
+          <div className="min-h-screen bg-app safe-bottom relative">
+            {/* Animated fireflies on global background */}
+            <div className="fireflies-container fixed">
+              {[...Array(15)].map((_, i) => (
+                <div key={i} className="firefly" style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 5}s`,
+                  animationDuration: `${5 + Math.random() * 5}s`
+                }}></div>
+              ))}
+            </div>
+            <Suspense fallback={null}>
+              <Routes>
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<AppShell><Home /></AppShell>} />
+                <Route path="/categories" element={<AppShell><Categories /></AppShell>} />
+                <Route path="/catalog" element={<AppShell><Catalog /></AppShell>} />
+                <Route path="/product/:id" element={<AppShell showMenu={false}><Product /></AppShell>} />
+                <Route path="/cart" element={<AppShell showMenu={false}><Cart /></AppShell>} />
+                <Route path="/orders" element={<AppShell><Orders /></AppShell>} />
+                <Route path="/order/:id" element={<AppShell showMenu={false}><OrderDetails /></AppShell>} />
+                <Route path="/favorites" element={<AppShell><Favorites /></AppShell>} />
+                <Route path="/referral" element={<AppShell><Referral /></AppShell>} />
+                <Route path="/support" element={<AppShell><Support /></AppShell>} />
+                <Route path="/promotions" element={<AppShell><Promotions /></AppShell>} />
+                <Route path="/bonuses" element={<AppShell><Bonuses /></AppShell>} />
+                <Route path="/fortune" element={<AppShell><FortuneWheel /></AppShell>} />
+                <Route path="/profile" element={<AppShell><Profile /></AppShell>} />
+                <Route path="/courier" element={(user.status === 'courier' || user.status === 'admin') ? <AppShell><Courier /></AppShell> : <Navigate to="/home" replace />} />
+                <Route path="/admin" element={user.status === 'admin' ? <AppShell><Admin /></AppShell> : <Navigate to="/home" replace />} />
+                <Route path="/courier-registration" element={user.status === 'admin' ? <AppShell><CourierRegistration /></AppShell> : <Navigate to="/home" replace />} />
+                <Route path="*" element={<Navigate to="/home" replace />} />
+              </Routes>
+            </Suspense>
+          </div>
+        </Router>
+      )}
     </SafeAreaProvider>
   );
 }

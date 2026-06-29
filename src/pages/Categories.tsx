@@ -43,7 +43,7 @@ const Categories: React.FC = () => {
               height: 140,
               borderRadius: theme.radius.lg,
               overflow: 'hidden',
-              background: `linear-gradient(135deg, rgba(13, 27, 51, 0.92) 0%, rgba(10, 20, 38, 0.96) 100%), url(${t.imageUrl}) center/contain no-repeat`,
+              background: `url(${t.imageUrl}) center/contain no-repeat`,
               cursor: 'pointer',
               position: 'relative',
               border: '1px solid rgba(96,165,250,0.18)',
@@ -73,7 +73,7 @@ const Categories: React.FC = () => {
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: 'linear-gradient(135deg, rgba(8,17,31,0.20) 0%, rgba(8,17,31,0.70) 100%)',
+                background: 'linear-gradient(180deg, transparent 50%, rgba(8,17,31,0.5) 100%)',
               }}
             />
             <div
@@ -87,6 +87,7 @@ const Categories: React.FC = () => {
                 fontWeight: theme.typography.fontWeight.bold,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
+                textShadow: '0 2px 4px rgba(0,0,0,0.8)',
               }}
             >
               {t.title}

@@ -12,6 +12,7 @@ import { CityPickerModal } from './CityPickerModal';
 import { useToastStore } from '../store/useToastStore';
 import { cartAPI, referralAPI } from '../services/api';
 import { useBranding } from '../hooks/useBranding';
+import { useSplashStore } from '../store/useSplashStore';
 
 type Props = {
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const { config, load } = useConfigStore();
   const { city, setCity, ensureCity } = useCityStore();
+  const { setReady } = useSplashStore();
   const [cityModalOpen, setCityModalOpen] = React.useState(false);
 
   // Determine if we should show back button
@@ -44,19 +46,13 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
       const codes = cities.map((c) => String(c.code || '')).filter(Boolean);
       if (!codes.length) {
         toast.push('Города не настроены', 'error');
+        setReady(true);
         return;
       }
-      const selected = ensureCity(codes);
-      if (!selected) {
-        setCityModalOpen(true);
-      }
+      ensureCity(codes);
+      setReady(true);
     })();
-  }, [ensureCity, load, toast]);
-
-  React.useEffect(() => {
-    if (!config?.cities?.length) return;
-    if (!city) setCityModalOpen(true);
-  }, [city, config?.cities?.length]);
+  }, [ensureCity, load, toast, setReady]);
 
   React.useEffect(() => {
     (async () => {

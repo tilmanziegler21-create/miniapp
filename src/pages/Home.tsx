@@ -270,6 +270,9 @@ const Home: React.FC = () => {
         <PrimaryButton fullWidth onClick={() => navigate('/referral')}>
           Пригласить друга
         </PrimaryButton>
+        <div style={{ marginTop: theme.spacing.xl, textAlign: 'center', color: theme.colors.dark.textSecondary, fontSize: '11px', opacity: 0.7 }}>
+          Информация в данном приложении предназначена исключительно для лиц старше 18 лет.
+        </div>
       </div>
     </div>
   );

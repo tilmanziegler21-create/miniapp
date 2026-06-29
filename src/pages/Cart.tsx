@@ -2,7 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
 import { Minus, Plus, Trash2, Truck, Store } from 'lucide-react';
-import { cartAPI } from '../services/api';
+import { cartAPI, orderAPI } from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { GlassCard, PrimaryButton, SecondaryButton, SectionDivider, theme } from '../ui';
@@ -13,13 +14,16 @@ import { useConfigStore } from '../store/useConfigStore';
 import { useBranding, resolveBrandAssetUrl } from '../hooks/useBranding';
 
 type Fulfillment = 'delivery' | 'pickup';
+type PaymentMethod = 'cash' | 'card';
 
 const Cart: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToastStore();
+  const { user } = useAuthStore();
   const { cart, setCart } = useCartStore();
-  const { trackRemoveFromCart, trackCheckout } = useAnalytics();
+  const { trackRemoveFromCart, trackCheckout, trackOrderComplete } = useAnalytics();
   const [loading, setLoading] = React.useState(true);
+  const [busy, setBusy] = React.useState(false);
   const { city } = useCityStore();
   const { config } = useConfigStore();
   const branding = useBranding();
@@ -27,6 +31,8 @@ const Cart: React.FC = () => {
   const [promoCode, setPromoCode] = React.useState('');
   const [fulfillment, setFulfillment] = React.useState<Fulfillment>('pickup');
   const [pickup, setPickup] = React.useState('');
+
+  const idempotencyKeyRef = React.useRef<string>('');
 
   React.useEffect(() => {
     if (!pickup && pickupPoints.length) setPickup(pickupPoints[0]);
@@ -93,10 +99,68 @@ const Cart: React.FC = () => {
     }
   };
 
-  const goCheckout = () => {
-    if (!cart?.items?.length) return;
-    trackCheckout(cart.items, cart.total);
-    navigate('/checkout', { state: { fulfillment, pickup, promoCode } });
+  const createOrder = async () => {
+    if (!cart?.items?.length) {
+      toast.push('Корзина пуста', 'error');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+      }
+
+      trackCheckout(cart.items, cart.total);
+
+      const orderData = {
+        city,
+        items: cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity, variant: item.variant || '' })),
+        promoCode: '',
+      };
+
+      const createResp = await orderAPI.createOrder(orderData, idempotencyKeyRef.current);
+      const { orderId, totalAmount } = createResp.data;
+
+      await orderAPI.confirmOrder({
+        orderId,
+        deliveryMethod: fulfillment === 'delivery' ? 'courier' : 'pickup',
+        city,
+        promoCode: '',
+        courier_id: '',
+        delivery_date: '',
+        delivery_time: '',
+        courierData: {
+          address: fulfillment === 'delivery' ? 'DHL' : 'Кассель',
+          comment: '',
+          user: {
+            tgId: user?.tgId || '',
+            username: user?.username || '',
+          },
+        },
+      });
+
+      await orderAPI.processPayment({ orderId, paymentMethod: 'cash', city, bonusApplied: 0 });
+      trackOrderComplete(orderId, Number(totalAmount || cart.total), cart.items);
+
+      await cartAPI.clear(city);
+      const refreshed = await cartAPI.getCart(city);
+      setCart(refreshed.data.cart);
+
+      toast.push(`Заказ ${orderId} оформлен`, 'success');
+
+      navigate('/orders');
+    } catch (e) {
+      console.error('Failed to create order:', e);
+      try {
+        WebApp.showAlert('Ошибка создания заказа');
+      } catch {
+        toast.push('Ошибка создания заказа', 'error');
+      }
+    } finally {
+      setBusy(false);
+      idempotencyKeyRef.current = '';
+    }
   };
 
   // Calculate pricing with quantity discounts
@@ -137,94 +201,145 @@ const Cart: React.FC = () => {
     },
     itemCard: {
       borderRadius: theme.radius.lg,
-      overflow: 'hidden',
       border: '1px solid rgba(96,165,250,0.14)',
       background: 'rgba(16,15,18,0.84)',
       backdropFilter: `blur(${theme.blur.glass})`,
       boxShadow: theme.shadow.card,
       padding: theme.spacing.md,
       position: 'relative' as const,
-    },
-    sale: {
-      position: 'absolute' as const,
-      top: theme.spacing.md,
-      left: theme.spacing.md,
-      background: theme.colors.dark.accentRed,
-      color: '#eff6ff',
-      borderRadius: 999,
-      padding: '4px 10px',
-      fontSize: theme.typography.fontSize.xs,
-      fontWeight: theme.typography.fontWeight.bold,
-      letterSpacing: '0.08em',
-      textTransform: 'uppercase' as const,
-    },
-    trash: {
-      position: 'absolute' as const,
-      top: theme.spacing.md,
-      right: theme.spacing.md,
-    },
-    row: {
       display: 'flex',
-      gap: theme.spacing.md,
       alignItems: 'center',
-      marginTop: theme.spacing.lg,
+      gap: theme.spacing.md,
     },
     avatar: (img: string) => ({
-      width: 64,
-      height: 64,
-      borderRadius: 999,
+      width: 50,
+      height: 50,
+      borderRadius: theme.radius.md,
       border: '1px solid rgba(96,165,250,0.14)',
       background: `linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.65) 100%), url(${img}) center/cover`,
       flex: '0 0 auto',
-      boxShadow: '0 14px 30px rgba(0,0,0,0.35)',
+      boxShadow: '0 4px 10px rgba(0,0,0,0.35)',
     }),
-    name: {
-      fontSize: theme.typography.fontSize.base,
-      fontWeight: theme.typography.fontWeight.bold,
-      letterSpacing: '0.06em',
-      textTransform: 'uppercase' as const,
-      marginBottom: 6,
+    itemInfo: {
+      flex: 1,
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column' as const,
+      justifyContent: 'center',
     },
-    pricePill: {
-      background: 'rgba(191,219,254,0.18)',
-      color: '#eff6ff',
-      borderRadius: 999,
-      padding: '6px 12px',
+    name: {
+      fontSize: '15px',
       fontWeight: theme.typography.fontWeight.bold,
-      boxShadow: '0 14px 30px rgba(0,0,0,0.35)',
+      color: theme.colors.dark.text,
       whiteSpace: 'nowrap' as const,
-      border: '1px solid rgba(147,197,253,0.22)',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    },
+    flavor: {
+      fontSize: '12px',
+      color: theme.colors.dark.textSecondary,
+      marginTop: 2,
+    },
+    controlsRight: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: theme.spacing.md,
     },
     qtyWrap: {
       display: 'flex',
       alignItems: 'center',
       gap: theme.spacing.sm,
-      marginLeft: 'auto',
     },
     qtyBtn: {
-      width: 34,
-      height: 34,
+      width: 24,
+      height: 24,
       borderRadius: 999,
-      background: 'linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)',
-      border: 'none',
-      color: '#eff6ff',
+      background: 'transparent',
+      border: '1px solid rgba(96,165,250,0.3)',
+      color: theme.colors.dark.text,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       cursor: 'pointer',
-      boxShadow: '0 12px 24px rgba(0,0,0,0.35)',
     },
-    flavor: {
-      marginTop: theme.spacing.sm,
-      borderRadius: 999,
-      border: '1px solid rgba(96,165,250,0.14)',
-      background: 'rgba(16,15,18,0.8)',
-      padding: '8px 12px',
-      color: theme.colors.dark.textSecondary,
-      fontSize: theme.typography.fontSize.sm,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis' as const,
+    itemPrice: {
+      fontSize: '15px',
+      fontWeight: theme.typography.fontWeight.bold,
+      color: theme.colors.dark.primary,
       whiteSpace: 'nowrap' as const,
+    },
+    sectionTitle: {
+      fontSize: '12px',
+      letterSpacing: '0.05em',
+      textTransform: 'uppercase' as const,
+      color: theme.colors.dark.textSecondary,
+      padding: `0 ${theme.padding.screen}`,
+      marginTop: theme.spacing.xl,
+      marginBottom: theme.spacing.sm,
+    },
+    radioCard: (active: boolean) => ({
+      margin: `0 ${theme.padding.screen} ${theme.spacing.sm}`,
+      padding: theme.spacing.md,
+      borderRadius: theme.radius.md,
+      border: `1px solid ${active ? 'rgba(96,165,250,0.6)' : 'rgba(96,165,250,0.14)'}`,
+      background: 'rgba(16,15,18,0.84)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: theme.spacing.md,
+      cursor: 'pointer',
+    }),
+    radioCircle: (active: boolean) => ({
+      width: 20,
+      height: 20,
+      borderRadius: '50%',
+      border: `2px solid ${active ? theme.colors.dark.primary : 'rgba(255,255,255,0.3)'}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flex: '0 0 auto',
+    }),
+    radioInner: (active: boolean) => ({
+      width: 10,
+      height: 10,
+      borderRadius: '50%',
+      background: active ? theme.colors.dark.primary : 'transparent',
+    }),
+    radioTextWrap: {
+      flex: 1,
+    },
+    radioTitle: {
+      fontSize: '15px',
+      fontWeight: theme.typography.fontWeight.bold,
+      color: theme.colors.dark.text,
+      marginBottom: 2,
+    },
+    radioDesc: {
+      fontSize: '12px',
+      color: theme.colors.dark.textSecondary,
+    },
+    summaryRowPhoto: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      padding: `0 ${theme.padding.screen}`,
+      marginBottom: theme.spacing.sm,
+      fontSize: '14px',
+      color: theme.colors.dark.textSecondary,
+    },
+    totalRowPhoto: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: `0 ${theme.padding.screen}`,
+      marginBottom: theme.spacing.xl,
+      fontSize: '18px',
+      fontWeight: theme.typography.fontWeight.bold,
+    },
+    totalPricePill: {
+      background: 'rgba(16,15,18,0.84)',
+      border: '1px solid rgba(96,165,250,0.3)',
+      padding: '8px 16px',
+      borderRadius: 999,
+      color: theme.colors.dark.primary,
     },
     edit: {
       padding: `0 ${theme.padding.screen}`,
@@ -332,165 +447,75 @@ const Cart: React.FC = () => {
       <div style={styles.list}>
         {cart.items.map((item) => (
           <div key={item.id} style={styles.itemCard}>
-            <div style={styles.sale}>SALE</div>
-            <div style={styles.trash}>
-              <button
-                onClick={() => removeItem(item.id)}
-                style={{ background: 'transparent', border: 'none', color: theme.colors.dark.text, cursor: 'pointer' }}
-                aria-label="remove"
-              >
-                <Trash2 size={18} />
-              </button>
+            <div style={styles.avatar(item.image)} />
+            <div style={styles.itemInfo}>
+              <div style={styles.name}>{item.name}</div>
+              {item.variant && <div style={styles.flavor}>{item.variant}</div>}
             </div>
-
-            <div style={styles.row}>
-              <div style={styles.avatar(item.image)} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: 6 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={styles.name}>{item.name}</div>
-                  </div>
-                  <div style={styles.pricePill}>{formatCurrency(item.price)}</div>
-                </div>
-                {item.variant ? <div style={styles.flavor}>{item.variant}</div> : null}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: theme.spacing.md }}>
+            <div style={styles.controlsRight}>
               <div style={styles.qtyWrap}>
-                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity - 1)} aria-label="minus">
-                  <Minus size={18} />
+                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity - 1)}>
+                  <Minus size={14} />
                 </button>
-                <div style={{ width: 28, textAlign: 'center', fontWeight: theme.typography.fontWeight.bold }}>{item.quantity}</div>
-                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity + 1)} aria-label="plus">
-                  <Plus size={18} />
+                <div style={{ width: 14, textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }}>{item.quantity}</div>
+                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity + 1)}>
+                  <Plus size={14} />
                 </button>
               </div>
-              <div style={{ marginLeft: 'auto', color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm }}>
-                {formatCurrency(item.price * item.quantity)}
-              </div>
+              <div style={styles.itemPrice}>{formatCurrency(item.price * item.quantity)}</div>
             </div>
           </div>
         ))}
       </div>
 
-      <div style={styles.edit}>
-        <SecondaryButton fullWidth onClick={() => navigate('/catalog')} style={{ borderRadius: 999, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-          Редактировать заказ
-        </SecondaryButton>
+      <div style={styles.sectionTitle}>Способ получения</div>
+      <div style={styles.radioCard(fulfillment === 'pickup')} onClick={() => setFulfillment('pickup')}>
+        <div style={styles.radioCircle(fulfillment === 'pickup')}>
+          <div style={styles.radioInner(fulfillment === 'pickup')} />
+        </div>
+        <Store size={20} color={fulfillment === 'pickup' ? theme.colors.dark.primary : theme.colors.dark.textSecondary} />
+        <div style={styles.radioTextWrap}>
+          <div style={styles.radioTitle}>Самовывоз — Кассель</div>
+          <div style={styles.radioDesc}>Заберите в нашем магазине, адрес сообщим в личку</div>
+        </div>
       </div>
-
-      <SectionDivider title="Оформление заказа" />
-
-      <div style={styles.toggles}>
-        <SecondaryButton
-          fullWidth
-          onClick={() => setFulfillment('delivery')}
-          style={{
-            borderRadius: 999,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-            opacity: fulfillment === 'delivery' ? 1 : 0.7,
-          }}
-        >
-          <Truck size={18} />
-          Доставка
-        </SecondaryButton>
-        <SecondaryButton
-          fullWidth
-          onClick={() => setFulfillment('pickup')}
-          style={{
-            borderRadius: 999,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-            opacity: fulfillment === 'pickup' ? 1 : 0.7,
-          }}
-        >
-          <Store size={18} />
-          Самовывоз
-        </SecondaryButton>
-      </div>
-
-      <div style={styles.promoRow}>
-        <div style={styles.promoBox}>
-          <div style={styles.promoLabel}>Промокод:</div>
-          <input
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value)}
-            placeholder="Введите промокод"
-            style={styles.promoInput}
-          />
+      <div style={styles.radioCard(fulfillment === 'delivery')} onClick={() => setFulfillment('delivery')}>
+        <div style={styles.radioCircle(fulfillment === 'delivery')}>
+          <div style={styles.radioInner(fulfillment === 'delivery')} />
+        </div>
+        <Truck size={20} color={fulfillment === 'delivery' ? theme.colors.dark.primary : theme.colors.dark.textSecondary} />
+        <div style={styles.radioTextWrap}>
+          <div style={styles.radioTitle}>Доставка DHL</div>
+          <div style={styles.radioDesc}>Доставим по Германии</div>
         </div>
       </div>
 
-      {fulfillment === 'pickup' ? (
-        <div style={styles.pickupCard}>
-          <div style={styles.pickupInner}>
-            <div style={styles.pickupTitle}>Самовывоз</div>
-            <div style={{ color: theme.colors.dark.textSecondary, marginBottom: theme.spacing.sm }}>Выберите точку самовывоза</div>
-            <select value={pickup} onChange={(e) => setPickup(e.target.value)} style={styles.pickupSelect}>
-              {pickupPoints.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div style={styles.sectionTitle}>Способ оплаты</div>
+      <div style={styles.radioCard(true)}>
+        <div style={styles.radioCircle(true)}>
+          <div style={styles.radioInner(true)} />
         </div>
-      ) : null}
+        <span style={{ fontSize: '20px' }}>💵</span>
+        <div style={styles.radioTextWrap}>
+          <div style={styles.radioTitle}>Наличные</div>
+          <div style={styles.radioDesc}>Оплата при получении</div>
+        </div>
+      </div>
 
-      {/* Total and Pricing */}
-      <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.md }}>
-        <GlassCard padding="md" variant="elevated">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
-            <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.dark.textSecondary }}>Товары:</span>
-            <span style={{ fontSize: theme.typography.fontSize.sm }}>{formatCurrency(pricing.subtotal)}</span>
-          </div>
-          
-          {pricing.quantityDiscount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
-              <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.dark.primary }}>Скидка:</span>
-              <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.dark.primary }}>-{formatCurrency(pricing.quantityDiscount)}</span>
-            </div>
-          )}
-          
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            marginTop: theme.spacing.sm,
-            paddingTop: theme.spacing.sm,
-            borderTop: '1px solid rgba(96,165,250,0.12)'
-          }}>
-            <span style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold }}>Итого:</span>
-            <span style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, color: theme.colors.dark.primary }}>
-              {formatCurrency(pricing.total)}
-            </span>
-          </div>
-          
-          {pricing.quantityDiscount > 0 && (
-            <div style={{ 
-              marginTop: theme.spacing.sm,
-              padding: theme.spacing.sm,
-              background: 'rgba(96,165,250,0.10)',
-              borderRadius: theme.radius.md,
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.dark.primary,
-              textAlign: 'center' as const
-            }}>
-              💰 Применена скидка за объем!
-            </div>
-          )}
-        </GlassCard>
+      <div style={{ marginTop: theme.spacing.xl }} />
+
+      <div style={styles.summaryRowPhoto}>
+        <span>Сумма</span>
+        <span>{formatCurrency(pricing.subtotal)}</span>
+      </div>
+      <div style={styles.totalRowPhoto}>
+        <span>Итого</span>
+        <div style={styles.totalPricePill}>{formatCurrency(pricing.total)}</div>
       </div>
 
       <div style={styles.checkout}>
-        <PrimaryButton fullWidth onClick={goCheckout}>
-          Оформление заказа
+        <PrimaryButton fullWidth onClick={createOrder} disabled={busy}>
+          {busy ? 'Оформление...' : 'ОФОРМИТЬ ЗАКАЗ'}
         </PrimaryButton>
       </div>
     </div>

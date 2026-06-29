@@ -2,6 +2,7 @@ import React from 'react';
 import { theme } from './theme';
 import { IconButton } from './IconButton';
 import { Heart, Plus, ShoppingCart, Star } from 'lucide-react';
+import WebApp from '@twa-dev/sdk';
 import { formatCurrency } from '../lib/currency';
 
 interface ProductCardProps {
@@ -32,7 +33,7 @@ interface ProductCardProps {
   showTrustIndicators?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({
+export const ProductCard = React.memo<ProductCardProps>(({
   id,
   name,
   price,
@@ -218,6 +219,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     },
   };
 
+  const [added, setAdded] = React.useState(false);
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (added) return;
+    try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+    onAddToCart?.(id);
+  };
+
   return (
     <div style={styles.root}>
       <div
@@ -226,7 +238,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
       >
-        {resolvedImage ? <img src={resolvedImage} alt="" style={styles.bgImage} /> : null}
+        {resolvedImage ? <img src={resolvedImage} onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/300x300/0f172a/60a5fa?text=Product'; }} alt="" style={styles.bgImage} /> : null}
         <div style={styles.scrim} />
         <div style={styles.favoriteButton}>
           <IconButton
@@ -268,13 +280,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => onAddToCart?.(id)}
-          style={styles.addButton}
+          onClick={handleAddToCart}
+          style={added ? { ...styles.addButton, background: theme.colors.dark.accentGreen } : styles.addButton}
+          className={added ? "" : "sparkle-button"}
           aria-label={`Добавить ${name} в корзину`}
         >
-          {stock === 0 ? <ShoppingCart size={20} /> : <Plus size={22} strokeWidth={2.4} />}
+          {added ? <span style={{fontSize: '20px'}}>✓</span> : (stock === 0 ? <ShoppingCart size={20} /> : <Plus className="sparkle-icon" size={22} strokeWidth={2.4} />)}
         </button>
       </div>
     </div>
   );
-};
+});

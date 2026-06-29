@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
-import { Heart, ArrowLeft } from 'lucide-react';
+import { Heart, ArrowLeft, Plus } from 'lucide-react';
 import { cartAPI, productAPI } from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { AddToCartModal, GlassCard, IconButton, ProductCard, SectionDivider, theme, TasteProfile, TrustIndicators } from '../ui';
+import { GlassCard, IconButton, ProductCard, SectionDivider, theme, TasteProfile, TrustIndicators } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
@@ -90,6 +90,49 @@ const getBrandGradient = (brand: string) => {
   return 'linear-gradient(135deg, #10203b 0%, #17325f 52%, #0c1a31 100%)';
 };
 
+const FlavorRow = ({ flavor, onAdd }: { flavor: string, onAdd: (f: string) => Promise<void> }) => {
+  const [added, setAdded] = React.useState(false);
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '12px 16px',
+      background: 'rgba(16,15,18,0.84)',
+      border: '1px solid rgba(96,165,250,0.14)',
+      borderRadius: theme.radius.md,
+      marginBottom: theme.spacing.sm,
+    }}>
+      <div style={{ fontSize: '15px', color: theme.colors.dark.text, fontWeight: 500 }}>
+        {flavor}
+      </div>
+      <button
+        onClick={() => {
+          if (added) return;
+          try { WebApp.HapticFeedback.impactOccurred('medium'); } catch(e){}
+          setAdded(true);
+          setTimeout(() => setAdded(false), 2000);
+          onAdd(flavor); // don't await, let network run in background
+        }}
+        style={{
+          width: 36, height: 36,
+          borderRadius: '50%',
+          border: 'none',
+          background: added ? theme.colors.dark.accentGreen : theme.gradients.primary,
+          color: '#eff6ff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+          boxShadow: added ? 'none' : '0 4px 12px rgba(96,165,250,0.3)'
+        }}
+        className={added ? "" : "sparkle-button"}
+      >
+        {added ? <span style={{ fontSize: '18px' }}>✓</span> : <Plus className="sparkle-icon" size={20} strokeWidth={2.5} />}
+      </button>
+    </div>
+  );
+};
+
 const Product: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -103,10 +146,11 @@ const Product: React.FC = () => {
   const { city } = useCityStore();
 
   const [flavor, setFlavor] = React.useState<string>(defaultFlavors[0]);
-  const [addOpen, setAddOpen] = React.useState(false);
   const favorites = useFavoritesStore();
 
   const { config } = useConfigStore();
+
+  const [addedToCart, setAddedToCart] = React.useState(false);
 
   const load = async () => {
     try {
@@ -170,42 +214,13 @@ const Product: React.FC = () => {
       toast.push('Выберите город', 'error');
       return;
     }
+    toast.push('Добавлено в корзину', 'success');
+    try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
     try {
       await cartAPI.addItem({ productId: product.id, quantity, city, variant: variant || flavor });
       const cartResp = await cartAPI.getCart(city);
       setCart(cartResp.data.cart);
       trackAddToCart(product.id, product.name, product.price, quantity);
-      toast.push('Товар добавлен в корзину', 'success');
-
-      if (product.category === 'liquids' || product.category === 'Жидкости') {
-        if (Math.random() > 0.5) {
-          setTimeout(() => {
-            try {
-              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
-              WebApp.showConfirm(`Возьмите еще одну жидкость!\n1 шт - ${lp['1'] || 18}\n2 шт - ${lp['2'] || 32}\n3 шт - ${lp['3'] || 45}\nкаждая следующая по ${lp['extra'] || 14}`, (confirmed) => {
-                if (confirmed) {
-                  navigate('/catalog?category=liquids');
-                }
-              });
-            } catch {
-              const lp = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
-              toast.push(`Скидки на жидкости: 1=${lp['1']||18}, 2=${lp['2']||32}, 3=${lp['3']||45}, далее по ${lp['extra']||14}!`, 'info');
-            }
-          }, 1000);
-        }
-      } else if (product.category === 'pods' || product.category === 'Поды') {
-        setTimeout(() => {
-          try {
-            WebApp.showConfirm('Собери набор!\nНабор это 1 под + 2 жидкости.\nДобавить жидкости?', (confirmed) => {
-              if (confirmed) {
-                navigate('/catalog?category=liquids');
-              }
-            });
-          } catch {
-            toast.push('Набор: 1 под + 2 жидкости. Загляни в каталог!', 'info');
-          }
-        }, 1000);
-      }
     } catch (e) {
       console.error('Add to cart failed:', e);
       toast.push('Ошибка добавления в корзину', 'error');
@@ -417,7 +432,7 @@ const Product: React.FC = () => {
       <SectionDivider title="Добавление товара в корзину" />
 
       <div style={styles.poster}>
-        {posterImage ? <img src={posterImage} alt="" style={styles.posterImg} /> : null}
+        {posterImage ? <img src={posterImage} onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/400x400/0f172a/60a5fa?text=Product'; }} alt="" style={styles.posterImg} /> : null}
         <div style={styles.posterScrim} />
       </div>
 
@@ -457,30 +472,34 @@ const Product: React.FC = () => {
           {product.description}
         </div>
 
-        <div style={styles.flavorRow}>
-          <div style={styles.flavorPill}>
-            <span style={{ opacity: 0.8 }}>🍃</span>
-            <span>{flavor}</span>
-            <span style={{ opacity: 0.8 }}>🧊</span>
+        <div style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.sm }}>
+          <div style={{ fontSize: '13px', color: theme.colors.dark.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+            Доступные вкусы
           </div>
-          <div style={styles.selectedPill}>выбран</div>
-        </div>
-
-        <div style={styles.flavorsWrap}>
           {defaultFlavors.map((f) => (
-            <button key={f} onClick={() => setFlavor(f)} style={styles.chip(f === flavor)}>
-              {f}
-            </button>
+            <FlavorRow key={f} flavor={f} onAdd={(flv) => addToCart(1, flv)} />
           ))}
         </div>
 
-        <button style={styles.primaryButton} onClick={() => setAddOpen(true)}>
-          Добавить заказ в корзину
+        <button 
+          style={addedToCart ? { ...styles.primaryButton, background: theme.colors.dark.accentGreen } : styles.primaryButton} 
+          onClick={() => {
+            if (addedToCart) return;
+            try { WebApp.HapticFeedback.impactOccurred('medium'); } catch(e){}
+            setAddedToCart(true);
+            setTimeout(() => setAddedToCart(false), 2000);
+            addToCart(1, flavor); // don't await
+          }}
+          className={addedToCart ? "" : "sparkle-button"}
+        >
+          {addedToCart ? '✓ Добавлено' : 'Добавить заказ в корзину'}
         </button>
 
-        <button style={styles.disabledCta} disabled>
-          В наличии: {product.qtyAvailable}
-        </button>
+        {product.qtyAvailable === 0 && (
+          <button style={styles.disabledCta} disabled>
+            Нет в наличии
+          </button>
+        )}
 
       </GlassCard>
 
@@ -515,20 +534,6 @@ const Product: React.FC = () => {
           </div>
         </>
       ) : null}
-
-      <AddToCartModal
-        open={addOpen}
-        product={{ id: product.id, name: product.name, price: product.price, image: product.image, variants: defaultFlavors }}
-        onClose={() => setAddOpen(false)}
-        onConfirm={async ({ quantity, variant }) => {
-          if (!variant) {
-            toast.push('Выбери вкус', 'error');
-            return;
-          }
-          setFlavor(variant);
-          await addToCart(quantity, variant);
-        }}
-      />
     </div>
   );
 };
