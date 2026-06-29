@@ -46,6 +46,8 @@ const distIndexPath = join(distDir, 'index.html');
 dotenv.config({ path: join(__dirname, '../../.env') });
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (Render, Nginx, etc) for express-rate-limit
+
 const PORT = process.env.PORT || 8080;
 const allowedOrigins = new Set(
   [
