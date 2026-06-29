@@ -6,6 +6,7 @@ import { useCartStore } from '../store/useCartStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useConfigStore } from '../store/useConfigStore';
 import { useToastStore } from '../store/useToastStore';
+import { useSplashStore } from '../store/useSplashStore';
 
 interface Product {
   id: string;
@@ -27,6 +28,7 @@ export function useHomePage() {
   const { city } = useCityStore();
   const favorites = useFavoritesStore();
   const { config } = useConfigStore();
+  const { setReady } = useSplashStore();
 
   const categories = (config?.categoryTiles || []).map((t) => ({
     slug: t.slug,
@@ -71,6 +73,7 @@ export function useHomePage() {
       }
     } finally {
       setLoading(false);
+      setReady(true);
     }
   };
 

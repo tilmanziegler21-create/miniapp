@@ -29,6 +29,7 @@ function App() {
   const { user, setUser, setLoading, isLoading } = useAuthStore();
   const { isReady: isAppReady } = useSplashStore();
   const authStartedRef = React.useRef(false);
+  const [authFinished, setAuthFinished] = React.useState(false);
   const [showSplash, setShowSplash] = React.useState(true);
   const [isFadingOut, setIsFadingOut] = React.useState(false);
 
@@ -42,7 +43,7 @@ function App() {
 
   useEffect(() => {
     // Only process fade out if auth has completed
-    if (isLoading) return;
+    if (!authFinished) return;
 
     if (user) {
       if (isAppReady) {
@@ -62,7 +63,7 @@ function App() {
       // If auth failed, hide splash immediately
       setShowSplash(false);
     }
-  }, [isLoading, user, isAppReady]);
+  }, [authFinished, user, isAppReady]);
 
   useEffect(() => {
     try {
@@ -154,7 +155,10 @@ function App() {
           safeAlert('Ошибка авторизации');
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setAuthFinished(true);
+        }
       }
     };
 
@@ -164,7 +168,7 @@ function App() {
     };
   }, [setUser, setLoading]);
 
-  if (!isLoading && !user && !showSplash) {
+  if (authFinished && !user && !showSplash) {
     return (
       <SafeAreaProvider>
         <div style={{

@@ -22,7 +22,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
-  isLoading: false,
+  isLoading: true,
   setUser: (user, token) => set({ user, token }),
   setAgeVerified: (verified) => set((state) => ({
     user: state.user ? { ...state.user, ageVerified: verified } : null
