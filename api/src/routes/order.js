@@ -6,6 +6,7 @@ import { normalizeOrderStatus } from '../domain/orderStatus.js';
 
 const router = express.Router();
 const stockCommitting = new Set();
+const paymentProcessing = new Set();
 
 function generateOrderId() {
   return 'ORD-' + Date.now().toString(36).toUpperCase();
@@ -47,6 +48,16 @@ function safeJson(raw, fallback) {
   }
 }
 
+function buildPaymentPayload(order) {
+  return {
+    success: true,
+    status: normalizeOrderStatus(order?.status),
+    finalAmount: Number(order?.final_amount || 0),
+    bonusApplied: Number(order?.bonus_applied || 0),
+    paymentMethod: String(order?.payment_method || ''),
+  };
+}
+
 async function commitOrderStock(cityStr, orderId, order) {
   if (order.stock_committed) return { ok: true };
   const lockKey = String(orderId || '');
@@ -67,11 +78,7 @@ async function commitOrderStock(cityStr, orderId, order) {
       batchUpdates.push({ product: p, newStock, newActive });
     }
     if (batchUpdates.length > 0) {
-      try {
-        await updateProductStockBatch(batchUpdates);
-      } catch (e) {
-        console.error('Failed to commit stock to sheets:', e);
-      }
+      await updateProductStockBatch(batchUpdates);
     }
     order.stock_committed = true;
     db.releaseReservationsByOrder(orderId);
@@ -397,6 +404,9 @@ router.post('/confirm', requireAuth, async (req, res) => {
       if (!committed.ok && committed.reason === 'IN_PROGRESS') {
         return res.status(409).json({ error: 'STOCK_COMMIT_IN_PROGRESS' });
       }
+      if (!committed.ok) {
+        return res.status(503).json({ error: 'STOCK_COMMIT_FAILED' });
+      }
     }
 
     res.json({ success: true, status: 'pending' });
@@ -407,19 +417,28 @@ router.post('/confirm', requireAuth, async (req, res) => {
 });
 
 router.post('/payment', requireAuth, async (req, res) => {
+  let paymentLockKey = '';
   try {
     const { orderId, paymentMethod, city, bonusApplied } = req.body;
     
     if (!orderId) {
       return res.status(400).json({ error: 'Order ID is required' });
     }
+    if (!String(paymentMethod || '').trim()) {
+      return res.status(400).json({ error: 'Payment method is required' });
+    }
 
     const paymentKey = `${String(req.user.tgId)}:${String(orderId)}`;
+    paymentLockKey = paymentKey;
     db.cleanupIdempotency();
     const existingPayment = db.getPaymentIdempotency(paymentKey);
     if (existingPayment && Number(existingPayment.expiresAt || 0) > Date.now()) {
       return res.json(existingPayment.payload);
     }
+    if (paymentProcessing.has(paymentLockKey)) {
+      return res.status(409).json({ error: 'PAYMENT_IN_PROGRESS' });
+    }
+    paymentProcessing.add(paymentLockKey);
 
     let order = db.orders.get(orderId);
     const cityStr = String(city || order?.city || '');
@@ -429,9 +448,14 @@ router.post('/payment', requireAuth, async (req, res) => {
     if (!String(order.delivery_method || '').trim()) {
       return res.status(400).json({ error: 'Order must be confirmed before payment' });
     }
+    if (String(order.payment_method || '').trim()) {
+      const payload = buildPaymentPayload(order);
+      db.setPaymentIdempotency(paymentKey, payload, 30 * 60 * 1000);
+      return res.json(payload);
+    }
     const current = normalizeOrderStatus(order.status);
     if (current === 'delivered' || current === 'cancelled') {
-      return res.json({ success: true, status: current });
+      return res.json(buildPaymentPayload(order));
     }
     const nextStatus = current === 'buffer' ? 'pending' : current;
     order.status = nextStatus;
@@ -440,6 +464,9 @@ router.post('/payment', requireAuth, async (req, res) => {
         const committed = await commitOrderStock(cityStr, orderId, order);
         if (!committed.ok && committed.reason === 'IN_PROGRESS') {
           return res.status(409).json({ error: 'STOCK_COMMIT_IN_PROGRESS' });
+        }
+        if (!committed.ok) {
+          return res.status(503).json({ error: 'STOCK_COMMIT_FAILED' });
         }
       }
 
@@ -475,6 +502,7 @@ router.post('/payment', requireAuth, async (req, res) => {
       order.payment_method = String(paymentMethod || '');
       order.bonus_applied = Math.round(Number(bonusUsed || 0) * 100) / 100;
       order.final_amount = Math.round(Number(paidAmount || 0) * 100) / 100;
+      order.payment_processed_at = new Date().toISOString();
       const cashbackPercent = Number(process.env.BONUS_CASHBACK_PERCENT || 5);
       if (cashbackPercent > 0) {
         const earn = Math.round((paidAmount * cashbackPercent / 100) * 100) / 100;
@@ -533,12 +561,14 @@ router.post('/payment', requireAuth, async (req, res) => {
       db.persistState();
     }
 
-    const payload = { success: true, status: normalizeOrderStatus(db.orders.get(orderId)?.status) };
-    db.setPaymentIdempotency(paymentKey, payload, 5 * 60 * 1000);
+    const payload = buildPaymentPayload(db.orders.get(orderId));
+    db.setPaymentIdempotency(paymentKey, payload, 30 * 60 * 1000);
     res.json(payload);
   } catch (error) {
     console.error('Payment error:', error);
     res.status(500).json({ error: 'Payment failed' });
+  } finally {
+    if (paymentLockKey) paymentProcessing.delete(paymentLockKey);
   }
 });
 

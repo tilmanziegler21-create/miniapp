@@ -1,24 +1,13 @@
 import React from 'react';
 import WebApp from '@twa-dev/sdk';
 import { GlassCard, PrimaryButton, theme } from '../ui';
-import { configAPI } from '../services/api';
 import { useToastStore } from '../store/useToastStore';
+import { useConfigStore } from '../store/useConfigStore';
 
 const Support: React.FC = () => {
   const toast = useToastStore();
-  const [url, setUrl] = React.useState<string>('');
-
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const resp = await configAPI.get();
-        setUrl(String(resp.data.groupUrl || ''));
-      } catch (e) {
-        console.error('Support config load failed:', e);
-        setUrl('');
-      }
-    })();
-  }, []);
+  const config = useConfigStore((state) => state.config);
+  const url = String(config?.support?.supportUrl || config?.groupUrl || '');
 
   const open = () => {
     if (!url) {

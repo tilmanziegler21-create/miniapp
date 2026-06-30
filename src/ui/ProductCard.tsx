@@ -4,8 +4,8 @@ import { IconButton } from './IconButton';
 import { Heart, Plus, ShoppingCart, Star } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import { formatCurrency } from '../lib/currency';
-import { getProductPlaceholderDataUrl } from '../lib/productPresentation';
 import { triggerCartFly } from '../lib/cartFeedback';
+import { normalizeTasteProfile, resolveProductImage } from '../lib/productMedia';
 
 interface ProductCardProps {
   id: string;
@@ -52,48 +52,21 @@ export const ProductCard = React.memo<ProductCardProps>(({
   showTasteProfile = false,
   showTrustIndicators = false,
 }) => {
-  const assetUrl = (p: string) => {
-    const base = String(import.meta.env.BASE_URL || '/');
-    const prefix = base.endsWith('/') ? base.slice(0, -1) : base;
-    const path = p.startsWith('/') ? p : `/${p}`;
-    return `${prefix}${path}`;
-  };
-
-  const normalizeProvidedImage = (v: string) => {
-    const raw = String(v || '').trim();
-    if (!raw) return '';
-    const lower = raw.toLowerCase();
-    if (['-', '—', '–', 'null', 'undefined', '0', 'нет', 'no', 'n/a', 'na'].includes(lower)) return '';
-    if (lower.includes('via.placeholder.com')) return '';
-    if (lower.startsWith('data:image/')) return raw;
-    const base = lower.split('#')[0].split('?')[0];
-    const isImageUrl = /\.(png|jpe?g|webp|gif|svg)$/.test(base);
-    if (!isImageUrl) return '';
-    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-    return assetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-  };
-
-  const getBrandImage = (brand: string, productImage: string) => {
-    const normalized = normalizeProvidedImage(productImage);
-    if (normalized) return normalized;
-
-    return getProductPlaceholderDataUrl(brand || 'Product');
-  };
-
   // Brand-based gradient backgrounds as fallback
   const getBrandGradient = (_brand: string) => {
     return 'linear-gradient(135deg, #10203b 0%, #17325f 52%, #0c1a31 100%)';
   };
 
   const token = brand || name;
-  const resolvedImage = getBrandImage(token, image);
+  const resolvedImage = resolveProductImage(token, image);
   const resolvedGradient = getBrandGradient(token);
+  const resolvedTasteProfile = React.useMemo(() => normalizeTasteProfile(tasteProfile), [tasteProfile]);
   const rating = trustData?.rating ? Math.min(5, Math.max(4, trustData.rating)) : 5;
   const reviewCount = trustData?.reviewCount || 0;
-  const tasteBits = tasteProfile
+  const tasteBits = resolvedTasteProfile
     ? [
-        tasteProfile.sweetness ? `сладость ${tasteProfile.sweetness}/5` : '',
-        tasteProfile.coolness ? `холод ${tasteProfile.coolness}/5` : '',
+        resolvedTasteProfile.sweetness ? `сладость ${resolvedTasteProfile.sweetness}/5` : '',
+        resolvedTasteProfile.coolness ? `холод ${resolvedTasteProfile.coolness}/5` : '',
       ].filter(Boolean)
     : [];
   const metaText = (
@@ -244,7 +217,7 @@ export const ProductCard = React.memo<ProductCardProps>(({
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
       >
-        {resolvedImage ? <img src={resolvedImage} onError={(e) => { e.currentTarget.src = getProductPlaceholderDataUrl(name); }} alt="" style={styles.bgImage} /> : null}
+        {resolvedImage ? <img src={resolvedImage} loading="lazy" decoding="async" alt="" style={styles.bgImage} /> : null}
         <div style={styles.scrim} />
         <div style={styles.favoriteButton}>
           <IconButton

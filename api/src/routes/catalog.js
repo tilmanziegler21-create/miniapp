@@ -5,6 +5,36 @@ import { getProducts } from '../services/sheets.js';
 
 const router = express.Router();
 
+function normalizeCategory(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return '';
+  const map = {
+    liquids: 'liquids',
+    'жидкости': 'liquids',
+    electronics: 'electronics',
+    'электронки': 'electronics',
+    disposables: 'disposables',
+    'одноразки': 'disposables',
+    pods: 'pods',
+    'поды': 'pods',
+    cartridges: 'cartridges',
+    'картриджи': 'cartridges',
+  };
+  return map[raw] || raw;
+}
+
+function normalizeTasteProfile(profile) {
+  if (!profile || typeof profile !== 'object') return null;
+  const source = profile;
+  return {
+    sweetness: Number(source.sweetness || source.sweet || 0),
+    sourness: Number(source.sourness || source.sour || 0),
+    fruitiness: Number(source.fruitiness || source.fruit || 0),
+    coolness: Number(source.coolness || source.cool || source.ice || 0),
+    strength: Number(source.strength || source.hit || 0),
+  };
+}
+
 router.get('/', requireAuth, async (req, res) => {
   try {
     const { city, category, brand, price_min, price_max, discount, new: isNew } = req.query;
@@ -22,7 +52,7 @@ router.get('/', requireAuth, async (req, res) => {
           id: p.sku,
           sku: p.sku,
           name: p.name,
-          category: p.category,
+          category: normalizeCategory(p.category),
           brand: p.brand,
           price: p.price,
           qtyAvailable,
@@ -31,13 +61,13 @@ router.get('/', requireAuth, async (req, res) => {
           discount: Number(p.discount || 0),
           image: p.image || '',
           description: p.description || '',
-          tasteProfile: p.tasteProfile || null,
+          tasteProfile: normalizeTasteProfile(p.tasteProfile),
         };
       })
       .filter((product) => product.active && product.qtyAvailable > 0);
 
     if (category) {
-      filteredProducts = filteredProducts.filter(product => product.category === category);
+      filteredProducts = filteredProducts.filter((product) => normalizeCategory(product.category) === normalizeCategory(category));
     }
 
     if (brand) {

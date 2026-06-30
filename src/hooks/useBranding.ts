@@ -4,9 +4,11 @@ import { useConfigStore } from '../store/useConfigStore';
 
 const normalizeAssetBasePath = (input: string) => {
   const trimmed = String(input || '').trim();
-  if (!trimmed) return '/assets/brand';
+  const base = String(import.meta.env.BASE_URL || '/');
+  const prefix = base.endsWith('/') ? base.slice(0, -1) : base;
+  if (!trimmed) return `${prefix}/assets/brand`;
   const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  return withLeadingSlash.replace(/\/+$/, '') || '/assets/brand';
+  return `${prefix}${withLeadingSlash.replace(/\/+$/, '') || '/assets/brand'}`;
 };
 
 export const resolveBrandAssetUrl = (relativePath: string, assetBasePath?: string) => {

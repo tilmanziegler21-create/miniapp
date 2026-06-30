@@ -57,7 +57,7 @@ type Promo = {
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToastStore();
-  const { city } = useCityStore();
+  const city = useCityStore((state) => state.city);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [couriers, setCouriers] = useState<CourierRow[]>([]);
@@ -78,7 +78,9 @@ const Admin: React.FC = () => {
     try {
       setLoading(true);
       if (!city) {
-        toast.push('Выберите город', 'error');
+        setOrders([]);
+        setCouriers([]);
+        setPromos([]);
         return;
       }
       
@@ -92,7 +94,15 @@ const Admin: React.FC = () => {
       setOrders(ordersRes.data.orders || []);
       setCouriers(couriersRes.data.couriers || []);
       setPromos(promosRes.data.promos || []);
-      setStats(statsRes.data.stats || stats);
+      setStats(statsRes.data.stats || {
+        totalOrders: 0,
+        totalRevenue: 0,
+        activeOrders: 0,
+        deliveredOrders: 0,
+        cancelledOrders: 0,
+        activeCouriers: 0,
+        activePromos: 0,
+      });
     } catch (error) {
       console.error('Failed to load admin data:', error);
       toast.push('Ошибка загрузки данных', 'error');

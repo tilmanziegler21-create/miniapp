@@ -6,9 +6,13 @@ function normalizeAssetBasePath(input) {
 }
 
 export function getBranding() {
-  const name = String(process.env.BRAND_NAME || 'YOUR BRAND').trim() || 'YOUR BRAND';
-  const subtitle = String(process.env.BRAND_SUBTITLE || 'mini app template').trim() || 'mini app template';
-  const assetBasePath = normalizeAssetBasePath(process.env.BRAND_ASSET_BASE_PATH || '/assets/brand');
+  const name =
+    String(process.env.BRAND_NAME || process.env.SHOP_NAME || process.env.APP_NAME || '').trim() || 'Mini App Shop';
+  const subtitle =
+    String(process.env.BRAND_SUBTITLE || process.env.SHOP_SUBTITLE || '').trim() || 'premium store';
+  const assetBasePath = normalizeAssetBasePath(
+    process.env.BRAND_ASSET_BASE_PATH || process.env.SHOP_ASSET_BASE_PATH || '/assets/brand'
+  );
   const supportLabel = String(process.env.SUPPORT_LABEL || 'Поддержка').trim() || 'Поддержка';
   const appTitle = String(process.env.APP_TITLE || `${name} mini app`).trim() || `${name} mini app`;
   const brandAvatarUrl = String(process.env.BRAND_AVATAR_URL || '').trim();

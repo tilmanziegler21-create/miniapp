@@ -11,11 +11,11 @@ import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import {
-  getProductPlaceholderDataUrl,
   getStableTasteProfile,
   getStableTrustData,
 } from '../lib/productPresentation';
 import { triggerCartFly } from '../lib/cartFeedback';
+import { normalizeTasteProfile, resolveProductImage } from '../lib/productMedia';
 
 type ProductEntity = {
   id: string;
@@ -50,42 +50,12 @@ type SimilarProduct = {
 
 const defaultFlavors = ['Cool Menthol', 'Sour Strawberry Dragonfruit', 'Berry Ice'];
 
-const assetUrl = (p: string) => {
-  const base = String(import.meta.env.BASE_URL || '/');
-  const prefix = base.endsWith('/') ? base.slice(0, -1) : base;
-  const path = p.startsWith('/') ? p : `/${p}`;
-  return `${prefix}${path}`;
-};
-
-const normalizeProvidedImage = (v: string) => {
-  const raw = String(v || '').trim();
-  if (!raw) return '';
-  const lower = raw.toLowerCase();
-  if (['-', '—', '–', 'null', 'undefined', '0', 'нет', 'no', 'n/a', 'na'].includes(lower)) return '';
-  if (lower.includes('via.placeholder.com')) return '';
-  if (lower.startsWith('data:image/')) return raw;
-  const base = lower.split('#')[0].split('?')[0];
-  const isImageUrl = /\.(png|jpe?g|webp|gif|svg)$/.test(base);
-  if (!isImageUrl) return '';
-  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-  if (raw.startsWith('/')) return assetUrl(raw);
-  if (raw.startsWith('images/')) return assetUrl(`/${raw}`);
-  return '';
-};
-
-const getBrandImage = (brand: string, productImage: string) => {
-    const normalized = normalizeProvidedImage(productImage);
-    if (normalized) return normalized;
-
-    return getProductPlaceholderDataUrl(brand || 'Product');
-  };
-
 const getBrandGradient = (brand: string) => {
   void brand;
   return 'linear-gradient(135deg, #10203b 0%, #17325f 52%, #0c1a31 100%)';
 };
 
-const FlavorRow = ({ flavor, onAdd }: { flavor: string, onAdd: (f: string) => Promise<void> }) => {
+const FlavorRow = ({ flavor, onAdd, disabled = false }: { flavor: string, onAdd: (f: string) => Promise<void>, disabled?: boolean }) => {
   const [added, setAdded] = React.useState(false);
 
   return (
@@ -104,7 +74,7 @@ const FlavorRow = ({ flavor, onAdd }: { flavor: string, onAdd: (f: string) => Pr
       </div>
       <button
         onClick={(e) => {
-          if (added) return;
+          if (added || disabled) return;
           const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
           try { WebApp.HapticFeedback.impactOccurred('medium'); } catch(e){}
           triggerCartFly({
@@ -116,17 +86,19 @@ const FlavorRow = ({ flavor, onAdd }: { flavor: string, onAdd: (f: string) => Pr
           setTimeout(() => setAdded(false), 2000);
           onAdd(flavor); // don't await, let network run in background
         }}
+        disabled={disabled}
         style={{
           width: 36, height: 36,
           borderRadius: '50%',
           border: 'none',
-          background: added ? theme.colors.dark.accentGreen : theme.gradients.primary,
+          background: disabled ? 'rgba(71,85,105,0.7)' : added ? theme.colors.dark.accentGreen : theme.gradients.primary,
           color: '#eff6ff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: added ? 'none' : '0 4px 12px rgba(96,165,250,0.3)'
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          boxShadow: added || disabled ? 'none' : '0 4px 12px rgba(96,165,250,0.3)',
+          opacity: disabled ? 0.55 : 1,
         }}
-        className={added ? "" : "sparkle-button"}
+        className={added || disabled ? "" : "sparkle-button"}
       >
         {added ? <span style={{ fontSize: '18px' }}>✓</span> : <Plus className="sparkle-icon" size={20} strokeWidth={2.5} />}
       </button>
@@ -137,8 +109,9 @@ const FlavorRow = ({ flavor, onAdd }: { flavor: string, onAdd: (f: string) => Pr
 const Product: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const toast = useToastStore();
-  const { addItemOptimistic, scheduleSync, setCart } = useCartStore();
+  const pushToast = useToastStore((state) => state.push);
+  const addItemOptimistic = useCartStore((state) => state.addItemOptimistic);
+  const scheduleSync = useCartStore((state) => state.scheduleSync);
   const { trackProductView, trackAddToCart } = useAnalytics();
   const [product, setProduct] = React.useState<ProductEntity | null>(null);
   const [social, setSocial] = React.useState<SocialProof | null>(null);
@@ -146,14 +119,16 @@ const Product: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const { city } = useCityStore();
   const favorites = useFavoritesStore();
+  const rollbackOptimisticAdd = useCartStore((state) => state.rollbackOptimisticAdd);
 
   const [addedToCart, setAddedToCart] = React.useState(false);
+  const canAddToCart = product ? Number(product.qtyAvailable || 0) > 0 : false;
 
   const load = async () => {
     try {
       setLoading(true);
       if (!city) {
-        toast.push('Выберите город', 'error');
+        pushToast('Выберите город', 'error');
         return;
       }
       const resp = await productAPI.getById(String(id || ''), city);
@@ -167,7 +142,7 @@ const Product: React.FC = () => {
       try {
         WebApp.showAlert('Ошибка загрузки товара');
       } catch {
-        toast.push('Ошибка загрузки товара', 'error');
+        pushToast('Ошибка загрузки товара', 'error');
       }
     } finally {
       setLoading(false);
@@ -183,7 +158,7 @@ const Product: React.FC = () => {
     const next = !Boolean(product.favorite);
     try {
       if (!city) {
-        toast.push('Выберите город', 'error');
+        pushToast('Выберите город', 'error');
         return;
       }
       await favorites.toggle({
@@ -199,20 +174,23 @@ const Product: React.FC = () => {
         enabled: next,
       });
       setProduct({ ...product, favorite: next });
-      toast.push(next ? 'Добавлено в избранное' : 'Удалено из избранного', 'success');
+      pushToast(next ? 'Добавлено в избранное' : 'Удалено из избранного', 'success');
     } catch {
-      toast.push('Ошибка избранного', 'error');
+      pushToast('Ошибка избранного', 'error');
     }
   };
 
   const addToCart = async (quantity: number, variant?: string) => {
     if (!product) return;
     if (!city) {
-      toast.push('Выберите город', 'error');
+      pushToast('Выберите город', 'error');
+      return;
+    }
+    if (Number(product.qtyAvailable || 0) <= 0) {
+      pushToast('Товар закончился', 'info');
       return;
     }
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
-    const previousCart = useCartStore.getState().cart;
     addItemOptimistic({
       city,
       quantity,
@@ -229,16 +207,17 @@ const Product: React.FC = () => {
     try {
       await cartAPI.addItem({ productId: product.id, quantity, city, variant: variant || defaultFlavors[0] });
       scheduleSync(city);
-      toast.push('Добавлено в корзину', 'success');
+      pushToast('Добавлено в корзину', 'success');
       trackAddToCart(product.id, product.name, product.price, quantity);
     } catch (e) {
       console.error('Add to cart failed:', e);
-      if (previousCart) {
-        setCart(previousCart);
-      } else {
-        setCart({ id: '', city, items: [], total: 0 });
-      }
-      toast.push('Ошибка добавления в корзину', 'error');
+      rollbackOptimisticAdd({
+        city,
+        quantity,
+        variant: variant || defaultFlavors[0],
+        productId: product.id,
+      });
+      scheduleSync(city, 0);
     }
   };
 
@@ -263,8 +242,9 @@ const Product: React.FC = () => {
   }
 
   const posterToken = product.brand || product.name;
-  const posterImage = getBrandImage(posterToken, product.image);
+  const posterImage = resolveProductImage(posterToken, product.image);
   const posterGradient = getBrandGradient(posterToken);
+  const normalizedTasteProfile = React.useMemo(() => normalizeTasteProfile(product.tasteProfile), [product.tasteProfile]);
 
   const styles = {
     pageTitle: {
@@ -447,7 +427,7 @@ const Product: React.FC = () => {
       <SectionDivider title="Добавление товара в корзину" />
 
       <div style={styles.poster}>
-        {posterImage ? <img src={posterImage} onError={(e) => { e.currentTarget.src = getProductPlaceholderDataUrl(product.name); }} alt="" style={styles.posterImg} /> : null}
+        {posterImage ? <img src={posterImage} loading="eager" decoding="async" alt="" style={styles.posterImg} /> : null}
         <div style={styles.posterScrim} />
       </div>
 
@@ -463,9 +443,9 @@ const Product: React.FC = () => {
         </div>
 
         {/* Taste Profile */}
-        {product.tasteProfile && (
+        {normalizedTasteProfile && (
           <div style={styles.tasteProfileSection}>
-            <TasteProfile {...product.tasteProfile as any} />
+            <TasteProfile {...normalizedTasteProfile} />
           </div>
         )}
 
@@ -477,7 +457,7 @@ const Product: React.FC = () => {
               reviewCount={social.reviewsCount}
               weeklyOrders={social.weeklyOrders}
               showReviewButton={true}
-              onReviewClick={() => toast.push('Функция оценки скоро будет доступна!', 'info')}
+              onReviewClick={() => pushToast('Функция оценки скоро будет доступна!', 'info')}
             />
           </div>
         )}
@@ -492,14 +472,14 @@ const Product: React.FC = () => {
             Доступные вкусы
           </div>
           {defaultFlavors.map((f) => (
-            <FlavorRow key={f} flavor={f} onAdd={(flv) => addToCart(1, flv)} />
+            <FlavorRow key={f} flavor={f} onAdd={(flv) => addToCart(1, flv)} disabled={!canAddToCart} />
           ))}
         </div>
 
         <button 
-          style={addedToCart ? { ...styles.primaryButton, background: theme.colors.dark.accentGreen } : styles.primaryButton} 
+          style={!canAddToCart ? styles.disabledCta : addedToCart ? { ...styles.primaryButton, background: theme.colors.dark.accentGreen } : styles.primaryButton} 
           onClick={(e) => {
-            if (addedToCart) return;
+            if (addedToCart || !canAddToCart) return;
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
             try { WebApp.HapticFeedback.impactOccurred('medium'); } catch(e){}
             triggerCartFly({
@@ -512,16 +492,11 @@ const Product: React.FC = () => {
             setTimeout(() => setAddedToCart(false), 2000);
             addToCart(1); // don't await
           }}
-          className={addedToCart ? "" : "sparkle-button"}
+          className={addedToCart || !canAddToCart ? "" : "sparkle-button"}
+          disabled={!canAddToCart}
         >
-          {addedToCart ? '✓ Добавлено' : 'Добавить заказ в корзину'}
+          {!canAddToCart ? 'Нет в наличии' : addedToCart ? '✓ Добавлено' : 'Добавить заказ в корзину'}
         </button>
-
-        {product.qtyAvailable === 0 && (
-          <button style={styles.disabledCta} disabled>
-            Нет в наличии
-          </button>
-        )}
 
       </GlassCard>
 
@@ -544,10 +519,9 @@ const Product: React.FC = () => {
                 onClick={(pid) => navigate(`/product/${pid}`)}
               onAddToCart={() => {
                 if (!city) {
-                  toast.push('Выберите город', 'error');
+                  pushToast('Выберите город', 'error');
                   return;
                 }
-                const previousCart = useCartStore.getState().cart;
                 addItemOptimistic({
                   city,
                   quantity: 1,
@@ -563,16 +537,16 @@ const Product: React.FC = () => {
                 cartAPI.addItem({ productId: p.id, quantity: 1, city, price: p.price })
                   .then(() => {
                     scheduleSync(city);
-                    toast.push('Добавлено в корзину', 'success');
+                    pushToast('Добавлено в корзину', 'success');
                     trackAddToCart(p.id, p.name, p.price, 1);
                   })
                   .catch(() => {
-                    if (previousCart) {
-                      setCart(previousCart);
-                    } else {
-                      setCart({ id: '', city, items: [], total: 0 });
-                    }
-                    toast.push('Ошибка добавления в корзину', 'error');
+                    rollbackOptimisticAdd({
+                      city,
+                      quantity: 1,
+                      productId: p.id,
+                    });
+                    scheduleSync(city, 0);
                   });
               }}
               />

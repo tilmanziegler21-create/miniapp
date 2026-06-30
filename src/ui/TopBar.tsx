@@ -47,7 +47,6 @@ export const TopBar: React.FC<TopBarProps> = ({
         height: '64px',
         padding: `0 ${theme.padding.screen}`,
         background: 'rgba(8, 10, 18, 0.92)',
-        backdropFilter: `blur(${theme.blur.glass})`,
         borderBottom: theme.border.glass,
         display: 'flex',
         alignItems: 'center',

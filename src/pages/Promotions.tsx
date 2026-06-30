@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme, SectionDivider, PrimaryButton } from '../ui';
 import { useConfigStore } from '../store/useConfigStore';
@@ -32,20 +32,11 @@ interface Contest {
 const Promotions: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToastStore();
-  const { config } = useConfigStore();
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [contests, setContests] = useState<Contest[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadPromotionsAndContests();
-  }, [config]);
-
-  const loadPromotionsAndContests = async () => {
-    try {
-      setLoading(true);
-      const promos = config?.promos || [];
-      const mappedPromos: Promotion[] = promos.map((p) => ({
+  const config = useConfigStore((state) => state.config);
+  const isLoading = useConfigStore((state) => state.isLoading);
+  const promotions = React.useMemo<Promotion[]>(
+    () =>
+      (config?.promos || []).map((p) => ({
         id: p.id,
         title: p.title,
         description: p.description,
@@ -57,10 +48,12 @@ const Promotions: React.FC = () => {
           p.startsAt ? `Старт ${new Date(p.startsAt).toLocaleDateString()}` : '',
         ].filter(Boolean),
         isActive: true,
-      }));
-
-      const contestsRaw = config?.contests || [];
-      const mappedContests: Contest[] = contestsRaw.map((c) => ({
+      })),
+    [config],
+  );
+  const contests = React.useMemo<Contest[]>(
+    () =>
+      (config?.contests || []).map((c) => ({
         id: c.id,
         title: c.title,
         description: c.description,
@@ -68,16 +61,9 @@ const Promotions: React.FC = () => {
         endDate: '',
         participants: 0,
         isActive: true,
-      }));
-
-      setPromotions(mappedPromos);
-      setContests(mappedContests);
-    } catch (error) {
-      toast.push('Ошибка загрузки акций', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+      })),
+    [config],
+  );
 
   const styles = {
     container: {
@@ -163,7 +149,7 @@ const Promotions: React.FC = () => {
     },
   };
 
-  if (loading) {
+  if (isLoading && !config) {
     return (
       <div style={styles.container}>
         <SectionDivider title="Акции и конкурсы" />
@@ -229,6 +215,9 @@ const Promotions: React.FC = () => {
             </div>
           </div>
         ))}
+        {!promotions.filter((p) => p.isActive).length ? (
+          <div style={styles.promotionCard}>Акции скоро появятся</div>
+        ) : null}
       </div>
 
       {/* Contests */}
@@ -258,13 +247,16 @@ const Promotions: React.FC = () => {
               onClick={() => {
                 const route = config?.contests?.find((x) => x.id === contest.id)?.route;
                 if (route) navigate(route);
-                else toast.push('Скоро', 'info');
+                else toast.push('Конкурс скоро появится', 'info');
               }}
             >
               Участвовать
             </PrimaryButton>
           </div>
         ))}
+        {!contests.filter((c) => c.isActive).length ? (
+          <div style={styles.contestCard}>Конкурсы скоро появятся</div>
+        ) : null}
       </div>
     </div>
   );

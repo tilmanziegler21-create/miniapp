@@ -25,8 +25,10 @@ interface UserStatus {
 
 const Bonuses: React.FC = () => {
   const navigate = useNavigate();
-  const toast = useToastStore();
-  const { user, token, setUser } = useAuthStore();
+  const pushToast = useToastStore((state) => state.push);
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
+  const setUser = useAuthStore((state) => state.setUser);
   const [transactions, setTransactions] = useState<BonusTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [referralCode, setReferralCode] = useState('');
@@ -63,7 +65,7 @@ const Bonuses: React.FC = () => {
   const copyText = async (value: string, successMessage: string) => {
     const text = String(value || '').trim();
     if (!text) {
-      toast.push('Нет данных для копирования', 'error');
+      pushToast('Нет данных для копирования', 'error');
       return;
     }
 
@@ -71,19 +73,13 @@ const Bonuses: React.FC = () => {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
       } else {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.setAttribute('readonly', 'true');
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
+        window.prompt('Скопируйте вручную:', text);
+        pushToast('Показываю текст для ручного копирования', 'info');
+        return;
       }
-      toast.push(successMessage, 'success');
+      pushToast(successMessage, 'success');
     } catch {
-      toast.push('Ошибка копирования', 'error');
+      pushToast('Ошибка копирования', 'error');
     }
   };
 
@@ -100,7 +96,7 @@ const Bonuses: React.FC = () => {
         const type: BonusTransaction['type'] =
           amount < 0 ? 'spent' : String(e?.type || '') === 'expire' ? 'expired' : 'earned';
         return {
-          id: String(e?.id || e?._id || e?.created_at || Math.random()),
+          id: String(e?.id || e?._id || `${e?.created_at || 'now'}_${amount}_${String(e?.type || 'event')}`),
           type,
           amount,
           description: String(e?.type || 'Операция'),
@@ -113,7 +109,7 @@ const Bonuses: React.FC = () => {
       setReferralCode(code);
       setReferralLink(`${window.location.origin}/home?ref=${encodeURIComponent(code)}`);
     } catch (error) {
-      toast.push('Ошибка загрузки данных', 'error');
+      pushToast('Ошибка загрузки данных', 'error');
     } finally {
       setLoading(false);
     }
@@ -274,7 +270,7 @@ const Bonuses: React.FC = () => {
           </PrimaryButton>
           <SecondaryButton
             size="sm"
-            onClick={() => toast.push('История транзакций', 'info')}
+            onClick={() => pushToast('История транзакций', 'info')}
           >
             История
           </SecondaryButton>

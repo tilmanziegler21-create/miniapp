@@ -30,7 +30,7 @@ type CourierOrder = {
 
 const Courier: React.FC = () => {
   const toast = useToastStore();
-  const { city } = useCityStore();
+  const city = useCityStore((state) => state.city);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<CourierOrder[]>([]);
   const [selectedDate, setSelectedDate] = useState<'today' | 'tomorrow' | 'day_after'>('today');
@@ -39,7 +39,6 @@ const Courier: React.FC = () => {
     try {
       setLoading(true);
       if (!city) {
-        toast.push('Выберите город', 'error');
         setOrders([]);
         return;
       }

@@ -151,6 +151,29 @@ export async function setDeliverySlot(order_id: number, interval: string, exact_
   db.prepare("UPDATE orders SET delivery_interval = ?, delivery_exact_time = ?, delivery_date = ? WHERE order_id = ?").run(interval, exact_time, date || new Date().toISOString().slice(0,10), order_id);
 }
 
+export async function setDeliverySlotIfAvailable(order_id: number, interval: string, exact_time: string, date?: string): Promise<boolean> {
+  const db = getDb();
+  const deliveryDate = String(date || new Date().toISOString().slice(0, 10));
+  const tx = db.transaction(() => {
+    const order = db.prepare("SELECT courier_id FROM orders WHERE order_id = ?").get(order_id) as any;
+    const courierId = Number(order?.courier_id || 0);
+    if (!courierId) return false;
+
+    const conflict = db.prepare(
+      "SELECT order_id FROM orders WHERE courier_id = ? AND delivery_date = ? AND delivery_exact_time = ? AND order_id != ? AND status NOT IN ('cancelled','delivered','expired','not_issued') LIMIT 1"
+    ).get(courierId, deliveryDate, exact_time, order_id) as any;
+    if (conflict?.order_id != null) return false;
+
+    const result = db
+      .prepare("UPDATE orders SET delivery_interval = ?, delivery_exact_time = ?, delivery_date = ? WHERE order_id = ?")
+      .run(interval, exact_time, deliveryDate, order_id);
+
+    return Number(result?.changes || 0) > 0;
+  });
+
+  return Boolean(tx());
+}
+
 export async function clearDeliverySlot(order_id: number): Promise<void> {
   const db = getDb();
   db.prepare("UPDATE orders SET delivery_exact_time = NULL, courier_id = NULL, status = 'pending' WHERE order_id = ?").run(order_id);

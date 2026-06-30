@@ -9,6 +9,12 @@ let bot: TelegramBot;
 
 export async function startBot() {
   bot = new TelegramBot(env.TELEGRAM_BOT_TOKEN, { polling: true });
+  bot.on("polling_error", (error) => {
+    logger.error("Bot polling error", { error: String(error) });
+  });
+  bot.on("webhook_error", (error) => {
+    logger.error("Bot webhook error", { error: String(error) });
+  });
   registerClientFlow(bot);
   registerCourierFlow(bot);
   registerAdminFlow(bot);

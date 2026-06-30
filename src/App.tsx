@@ -38,11 +38,11 @@ function App() {
   const mountTimeRef = React.useRef(Date.now());
   const fireflies = React.useMemo(
     () =>
-      Array.from({ length: 15 }, () => ({
+      Array.from({ length: 8 }, () => ({
         left: `${Math.random() * 100}%`,
         top: `${Math.random() * 100}%`,
         animationDelay: `${Math.random() * 5}s`,
-        animationDuration: `${5 + Math.random() * 5}s`,
+        animationDuration: `${6 + Math.random() * 4}s`,
       })),
     [],
   );
@@ -268,9 +268,9 @@ function App() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 0 40px rgba(96,165,250,0.3)',
+                boxShadow: '0 0 24px rgba(96,165,250,0.2)',
                 border: '1px solid rgba(96,165,250,0.3)',
-                animation: 'pulseGlow 2s infinite',
+                animation: 'pulseGlow 2.8s ease-in-out infinite',
                 overflow: 'hidden',
                 opacity: 1,
                 transition: 'opacity 0.25s ease-in'
@@ -297,7 +297,21 @@ function App() {
                 }}></div>
               ))}
             </div>
-            <Suspense fallback={null}>
+            <Suspense
+              fallback={
+                <div style={{ padding: '20px 16px 120px' }}>
+                  <div
+                    style={{
+                      height: 220,
+                      borderRadius: 26,
+                      border: '1px solid rgba(96,165,250,0.10)',
+                      background: 'rgba(16,15,18,0.78)',
+                    }}
+                    className="animate-pulse"
+                  />
+                </div>
+              }
+            >
               <Routes>
                 <Route path="/" element={<Navigate to="/home" replace />} />
                 <Route path="/home" element={<AppShell><Home /></AppShell>} />

@@ -7,7 +7,7 @@ import { useCartStore } from '../store/useCartStore';
 export const FooterBar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { cart } = useCartStore();
+  const cart = useCartStore((state) => state.cart);
   const cartCount = React.useMemo(
     () => (cart?.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
     [cart],
@@ -38,9 +38,8 @@ export const FooterBar: React.FC = () => {
         display: 'flex',
         justifyContent: 'center',
         background: 'rgba(8, 10, 18, 0.94)',
-        backdropFilter: `blur(${theme.blur.glass})`,
         borderTop: '1px solid rgba(96,165,250,0.12)',
-        boxShadow: '0 -14px 40px rgba(0,0,0,0.34)',
+        boxShadow: '0 -10px 24px rgba(0,0,0,0.24)',
       }}
     >
       <div
@@ -75,7 +74,7 @@ export const FooterBar: React.FC = () => {
                 transition: 'all 0.2s ease',
               }}
             >
-              <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <span style={{ position: 'relative', display: 'inline-flex' }} data-cart-anchor={item.key === 'cart' ? 'true' : undefined}>
                 <Icon size={20} color={active ? theme.colors.dark.primary : theme.colors.dark.textSecondary} />
                 {item.key === 'cart' && cartCount > 0 ? (
                   <span

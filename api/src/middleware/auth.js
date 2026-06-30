@@ -2,7 +2,10 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import db from '../services/database.js';
 
-const JWT_FALLBACK_SECRET = 'fallback-secret-for-dev-only';
+export function getJwtSecret() {
+  const secret = String(process.env.JWT_SECRET || '').trim();
+  return secret || null;
+}
 
 export const verifyTelegramAuth = (req, res, next) => {
   try {
@@ -69,8 +72,13 @@ export const requireAuth = (req, res, next) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    const secret = getJwtSecret();
+    if (!secret) {
+      console.error('CRITICAL: JWT_SECRET is not set in environment variables');
+      return res.status(500).json({ error: 'JWT secret is not configured' });
+    }
+
     const token = authHeader.slice('Bearer '.length);
-    const secret = process.env.JWT_SECRET || JWT_FALLBACK_SECRET;
     const payload = jwt.verify(token, secret);
 
     const user = db.prepare('SELECT * FROM users WHERE tg_id = ?').get(payload.tgId);
@@ -101,8 +109,13 @@ export const requireAuthAllowUnverified = (req, res, next) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    const secret = getJwtSecret();
+    if (!secret) {
+      console.error('CRITICAL: JWT_SECRET is not set in environment variables');
+      return res.status(500).json({ error: 'JWT secret is not configured' });
+    }
+
     const token = authHeader.slice('Bearer '.length);
-    const secret = process.env.JWT_SECRET || JWT_FALLBACK_SECRET;
     const payload = jwt.verify(token, secret);
 
     const user = db.prepare('SELECT * FROM users WHERE tg_id = ?').get(payload.tgId);

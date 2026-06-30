@@ -3,7 +3,7 @@ import { ensureUser } from "../../domain/users/UserService";
 import { getProducts, refreshProductsCache } from "../../infra/data";
 import { getUserSegment } from "../../domain/users/UserService";
 import { OrderItem, Product } from "../../core/types";
-import { createOrder, confirmOrder, setDeliverySlot, getOrderById, previewTotals, setOrderCourier, setCourierAssigned, setPaymentMethod } from "../../domain/orders/OrderService";
+import { createOrder, confirmOrder, setDeliverySlotIfAvailable, getOrderById, previewTotals, setOrderCourier, setCourierAssigned, setPaymentMethod } from "../../domain/orders/OrderService";
 import { finalDeduction } from "../../domain/inventory/InventoryService";
 import { getActiveCouriers } from "../../domain/couriers/CourierService";
 import { generateTimeSlots, validateSlot, getOccupiedSlots, isSlotAvailable } from "../../domain/delivery/DeliveryService";
@@ -25,6 +25,36 @@ const upsellShown: Map<number, Set<number>> = new Map();
 
 function fmtMoney(n: number) {
   return `${n.toFixed(2)} €`;
+}
+
+function normalizeTelegramUrl(value: string): string | null {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (raw.startsWith("https://") || raw.startsWith("http://") || raw.startsWith("tg://")) return raw;
+  if (raw.startsWith("t.me/")) return `https://${raw}`;
+  if (raw.startsWith("telegram.me/")) return `https://${raw}`;
+  if (raw.startsWith("@")) return `https://t.me/${raw.slice(1)}`;
+  if (/^[A-Za-z0-9_]{4,}$/.test(raw)) return `https://t.me/${raw}`;
+  return null;
+}
+
+function buildCommunityButton(label = "👥 Наш канал"): TelegramBot.InlineKeyboardButton {
+  const url = normalizeTelegramUrl(shopConfig.telegramGroupUrl || env.GROUP_URL || "");
+  if (url) return { text: label, url };
+  return { text: "📞 Поддержка", callback_data: encodeCb("how_to_order") };
+}
+
+function buildMainMenuRows(userId: number): TelegramBot.InlineKeyboardButton[][] {
+  const rows: TelegramBot.InlineKeyboardButton[][] = [
+    [{ text: "💧 Жидкости", callback_data: encodeCb("catalog_liquids") }],
+    [{ text: "⚡️ Одноразки", callback_data: encodeCb("catalog_electronics") }],
+    [{ text: "🛒 Моя корзина", callback_data: encodeCb("view_cart") }],
+    [{ text: "❓ Как заказать?", callback_data: encodeCb("how_to_order") }],
+    [buildCommunityButton()],
+  ];
+  const admins = (env.TELEGRAM_ADMIN_IDS || "").split(",").map((s) => Number(s.trim())).filter((x) => x);
+  if (admins.includes(userId)) rows.push([{ text: "Админ", callback_data: "admin_open" }]);
+  return rows;
 }
 
 function addToCart(user_id: number, p: Product, isUpsell: boolean, priceOverride?: number) {
@@ -76,56 +106,51 @@ async function recalcLiquidPrices(user_id: number) {
 export function registerClientFlow(bot: TelegramBot) {
   bot.onText(/\/start/, async (msg) => {
     const user_id = msg.from?.id || 0;
-    const username = msg.from?.username || "";
-    await ensureUser(user_id, username);
-    const rows: TelegramBot.InlineKeyboardButton[][] = [
-      [{ text: "💧 Жидкости", callback_data: encodeCb("catalog_liquids") }],
-      [{ text: "⚡️ Одноразки", callback_data: encodeCb("catalog_electronics") }],
-      [{ text: "🛒 Моя корзина", callback_data: encodeCb("view_cart") }],
-      [{ text: "❓ Как заказать?", callback_data: "how_to_order" }],
-      [{ text: "👥 Наш канал", url: shopConfig.telegramGroupUrl }]
-    ];
-    const admins = (env.TELEGRAM_ADMIN_IDS || "").split(",").map((s) => Number(s.trim())).filter((x) => x);
-    if (admins.includes(user_id)) rows.push([{ text: "Админ", callback_data: "admin_open" }]);
-    const prev = lastMainMsg.get(user_id);
-    if (prev) { try { await bot.deleteMessage(msg.chat.id, prev); } catch {} }
-    const sent = await bot.sendMessage(
-      msg.chat.id,
-      shopConfig.welcomeMessage,
-      { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" }
-    );
-    lastMainMsg.set(user_id, sent.message_id);
+    try {
+      const username = msg.from?.username || "";
+      await ensureUser(user_id, username);
+      const rows = buildMainMenuRows(user_id);
+      const prev = lastMainMsg.get(user_id);
+      if (prev) { try { await bot.deleteMessage(msg.chat.id, prev); } catch {} }
+      const sent = await bot.sendMessage(
+        msg.chat.id,
+        shopConfig.welcomeMessage,
+        { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" }
+      );
+      lastMainMsg.set(user_id, sent.message_id);
+    } catch (error) {
+      logger.error("Client start handler failed", { error: String(error), user_id });
+      try {
+        await bot.sendMessage(msg.chat.id, "Меню временно недоступно. Нажмите /start ещё раз через пару секунд.");
+      } catch {}
+    }
   });
 
   bot.on("callback_query", async (q: CallbackQuery) => {
-    try { await bot.answerCallbackQuery(q.id); } catch {}
-    let data = q.data || "";
-    data = decodeCb(data);
-    try { logger.info("CLIENT_CLICK", { data }); } catch {}
-    if (data === "__expired__") {
-      const chatId = q.message?.chat.id || 0;
-      await bot.sendMessage(chatId, "Кнопка устарела. Нажмите /start, чтобы обновить меню.");
-      return;
-    }
-    const chatId = q.message?.chat.id || 0;
-    const messageId = q.message?.message_id as number;
-    const user_id = q.from.id;
-    if (data === "back:main" || data === "start") {
-      const rows = [
-        [{ text: "💧 Жидкости", callback_data: encodeCb("catalog_liquids") }],
-        [{ text: "⚡️ Одноразки", callback_data: encodeCb("catalog_electronics") }],
-        [{ text: "🛒 Моя корзина", callback_data: encodeCb("view_cart") }],
-        [{ text: "❓ Как заказать?", callback_data: "how_to_order" }],
-        [{ text: "👥 Наш канал", url: shopConfig.telegramGroupUrl }]
-      ];
-      try {
-      try { await bot.deleteMessage(chatId, messageId); } catch {}
-      await bot.sendMessage(chatId, shopConfig.welcomeMessage, { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" });
-      } catch {
-        await bot.sendMessage(chatId, shopConfig.welcomeMessage, { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" });
+    const fallbackChatId = q.message?.chat.id || 0;
+    try {
+      try { await bot.answerCallbackQuery(q.id); } catch {}
+      let data = q.data || "";
+      data = decodeCb(data);
+      try { logger.info("CLIENT_CLICK", { data }); } catch {}
+      if (data === "__expired__") {
+        const chatId = q.message?.chat.id || 0;
+        await bot.sendMessage(chatId, "Кнопка устарела. Нажмите /start, чтобы обновить меню.");
+        return;
       }
-      return;
-    }
+      const chatId = q.message?.chat.id || 0;
+      const messageId = q.message?.message_id as number;
+      const user_id = q.from.id;
+      if (data === "back:main" || data === "start") {
+        const rows = buildMainMenuRows(user_id);
+        try {
+        try { await bot.deleteMessage(chatId, messageId); } catch {}
+        await bot.sendMessage(chatId, shopConfig.welcomeMessage, { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" });
+        } catch {
+          await bot.sendMessage(chatId, shopConfig.welcomeMessage, { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" });
+        }
+        return;
+      }
     if (data === "menu_catalog" || data === "catalog") {
       const rows = [
         [{ text: "💧 Жидкости", callback_data: encodeCb("catalog_liquids") }],
@@ -598,7 +623,23 @@ export function registerClientFlow(bot: TelegramBot) {
         await bot.editMessageText(`<b>Слот занят</b>`, { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: keyboard2.concat(backRow2) }, parse_mode: "HTML" });
         return;
       }
-      await setDeliverySlot(order_id, interval, time, dateStr);
+      const slotSaved = await setDeliverySlotIfAvailable(order_id, interval, time, dateStr);
+      if (!slotSaved) {
+        const occ = chosen ? getOccupiedSlots(chosen.tg_id, dateStr) : new Set<string>();
+        const slots2 = generateTimeSlots(interval);
+        const keyboard2: TelegramBot.InlineKeyboardButton[][] = [];
+        for (let i = 0; i < Math.min(slots2.length, 21); i += 3) {
+          const row: TelegramBot.InlineKeyboardButton[] = [];
+          for (let j = i; j < Math.min(i + 3, slots2.length); j++) {
+            const mark = occ.has(slots2[j]) ? "🔴" : "🟢";
+            row.push({ text: `${mark} ${slots2[j]}`, callback_data: encodeCb(`select_slot:${order_id}|${slots2[j]}|${dateStr}`) });
+          }
+          keyboard2.push(row);
+        }
+        const backRow2: TelegramBot.InlineKeyboardButton[][] = [[{ text: "⬅️ Назад", callback_data: encodeCb(`select_date:${order_id}|${dateStr}`) }], [{ text: "🏠 Главное меню", callback_data: encodeCb("back:main") }]];
+        await bot.editMessageText(`<b>Слот уже занял другой клиент</b>`, { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: keyboard2.concat(backRow2) }, parse_mode: "HTML" });
+        return;
+      }
       const st2 = userStates.get(user_id) || { state: "selecting_payment", data: {}, lastActivity: Date.now() };
       st2.data = { ...(st2.data || {}), delivery_time: time };
       st2.state = "selecting_payment";
@@ -783,6 +824,18 @@ export function registerClientFlow(bot: TelegramBot) {
       const price = Number(priceStr);
       await showUpsellCatalog(bot, chatId, messageId, user_id, category as "liquids" | "electronics", price);
     }
+    } catch (error) {
+      logger.error("Client callback handler failed", {
+        error: String(error),
+        data: String(q.data || ""),
+        user_id: q.from?.id || 0,
+      });
+      if (fallbackChatId) {
+        try {
+          await bot.sendMessage(fallbackChatId, "Произошла ошибка. Нажмите /start, чтобы открыть меню заново.");
+        } catch {}
+      }
+    }
   });
 }
 function couriersByTgId(ids: number[], list: { tg_id: number }[]) {
@@ -845,7 +898,9 @@ async function showCart(bot: TelegramBot, chatId: number, user_id: number, messa
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
     const pick = pool.slice(0, 2);
     const unitNext = await getLiquidUnitPrice(liquCount + 1, shopConfig.cityCode);
-    kb.unshift(pick.map((p) => ({ text: `🔥 ${p.title}${p.qty_available>0&&p.qty_available<=3?` (только ${p.qty_available}❗️)`:''} — ${unitNext.toFixed(2)} €`, callback_data: encodeCb(`add_upsell:${p.product_id}`) })));
+    if (pick.length > 0) {
+      kb.unshift(pick.map((p) => ({ text: `🔥 ${p.title}${p.qty_available>0&&p.qty_available<=3?` (только ${p.qty_available}❗️)`:''} — ${unitNext.toFixed(2)} €`, callback_data: encodeCb(`add_upsell:${p.product_id}`) })));
+    }
   } catch {}
   kb.push([{ text: `✅ Оформить заказ · ${totals.total_with_discount.toFixed(2)} €`, callback_data: encodeCb("confirm_order_start") }]);
   kb.push([{ text: "⬅️ Назад", callback_data: encodeCb("back:main") }]);

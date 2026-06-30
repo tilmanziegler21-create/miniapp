@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Star, Gift, Clock, Package, ChevronRight, Heart } from 'lucide-react';
+import { User, Star, Gift, Package, ChevronRight, Heart } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { bonusesAPI, favoritesAPI, orderAPI } from '../services/api';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { formatCurrency } from '../lib/currency';
-import WebApp from '@twa-dev/sdk';
 import { useCityStore } from '../store/useCityStore';
+import { useToastStore } from '../store/useToastStore';
+import { resolveProductImage } from '../lib/productMedia';
 
 interface Order {
   id: string;
@@ -28,25 +29,37 @@ type FavoriteItem = {
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const pushToast = useToastStore((state) => state.push);
   const { trackEvent } = useAnalytics();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'orders' | 'bonuses' | 'favorites'>('orders');
   const [bonusBalance, setBonusBalance] = useState(0);
   const [bonusHistory, setBonusHistory] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
-  const { city } = useCityStore();
+  const city = useCityStore((state) => state.city);
 
   useEffect(() => {
-    loadOrderHistory();
-    loadBonuses();
     trackEvent('view_profile', { user_id: user?.tgId });
-  }, [city]);
+  }, [city, user?.tgId]);
+
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      loadOrderHistory();
+      return;
+    }
+    if (activeTab === 'bonuses') {
+      loadBonuses();
+      return;
+    }
+    if (activeTab === 'favorites') loadFavorites();
+  }, [activeTab, city]);
 
   const loadOrderHistory = async () => {
     try {
-      setLoading(true);
+      setOrdersLoading(true);
       if (!city) {
         setOrders([]);
         return;
@@ -55,9 +68,9 @@ const Profile: React.FC = () => {
       setOrders(response.data.orders);
     } catch (error) {
       console.error('Failed to load order history:', error);
-      WebApp.showAlert('Ошибка загрузки истории заказов');
+      setOrders([]);
     } finally {
-      setLoading(false);
+      setOrdersLoading(false);
     }
   };
 
@@ -75,6 +88,7 @@ const Profile: React.FC = () => {
 
   const loadFavorites = async () => {
     try {
+      setFavoritesLoading(true);
       if (!city) {
         setFavorites([]);
         return;
@@ -84,6 +98,8 @@ const Profile: React.FC = () => {
     } catch (e) {
       console.error('Failed to load favorites:', e);
       setFavorites([]);
+    } finally {
+      setFavoritesLoading(false);
     }
   };
 
@@ -224,7 +240,6 @@ const Profile: React.FC = () => {
           <button
             onClick={() => {
               setActiveTab('favorites');
-              loadFavorites();
               trackEvent('profile_tab_click', { tab: 'favorites' });
             }}
             className={`flex-1 rounded-[18px] py-3 px-3 text-sm font-medium transition-colors ${
@@ -244,7 +259,7 @@ const Profile: React.FC = () => {
       <div className="pb-4">
         {activeTab === 'orders' && (
           <div>
-            {loading ? (
+            {ordersLoading ? (
               <div className="flex justify-center py-8">
                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-sky-300"></div>
               </div>
@@ -302,8 +317,7 @@ const Profile: React.FC = () => {
                       </button>
                       <button
                         onClick={() => {
-                          // Repeat order logic would go here
-                          WebApp.showAlert('Функция повторения заказа в разработке');
+                          pushToast('Повтор заказа добавлю следующим проходом', 'info');
                         }}
                         className="flex-1 rounded-2xl border border-sky-400/15 bg-sky-400/8 py-2 px-3 text-sm text-slate-200 transition-colors hover:bg-sky-400/12"
                       >
@@ -319,39 +333,6 @@ const Profile: React.FC = () => {
 
         {activeTab === 'bonuses' && (
           <div className="space-y-4">
-            <div className="rounded-[24px] border border-sky-400/15 bg-[#100f12]/90 p-4 shadow-[0_18px_44px_rgba(0,0,0,0.48)]">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">История бонусов</h3>
-                <Clock className="w-5 h-5 text-slate-400" />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <div>
-                    <div className="font-medium">Заказ #ORD-ABC123</div>
-                    <div className="text-sm text-slate-400">15.01.2024</div>
-                  </div>
-                  <div className="font-semibold text-sky-300">+50</div>
-                </div>
-
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <div>
-                    <div className="font-medium">Списание бонусов</div>
-                    <div className="text-sm text-slate-400">10.01.2024</div>
-                  </div>
-                  <div className="font-semibold text-blue-300">-30</div>
-                </div>
-
-                <div className="flex justify-between items-center py-2">
-                  <div>
-                    <div className="font-medium">Приветственный бонус</div>
-                    <div className="text-sm text-slate-400">01.01.2024</div>
-                  </div>
-                  <div className="font-semibold text-sky-300">+100</div>
-                </div>
-              </div>
-            </div>
-
             <div className="rounded-[24px] bg-gradient-to-r from-blue-600 to-sky-500 p-4 text-white shadow-[0_18px_44px_rgba(0,0,0,0.32)]">
               <div className="flex items-center space-x-2 mb-2">
                 <Gift className="w-5 h-5" />
@@ -383,8 +364,13 @@ const Profile: React.FC = () => {
                 <div className="space-y-2">
                   {bonusHistory.slice(0, 20).map((x) => (
                     <div key={x.id} className="flex items-center justify-between text-sm">
-                      <div className="text-slate-300">{x.type}</div>
-                      <div className={`${Number(x.amount) < 0 ? 'text-blue-300' : 'text-sky-300'} font-semibold`}>{Number(x.amount)}</div>
+                      <div>
+                        <div className="text-slate-300">{x.description || x.type}</div>
+                        <div className="text-xs text-slate-500">{x.created_at ? new Date(x.created_at).toLocaleDateString('ru-RU') : ''}</div>
+                      </div>
+                      <div className={`${Number(x.amount) < 0 ? 'text-blue-300' : 'text-sky-300'} font-semibold`}>
+                        {Number(x.amount) > 0 ? '+' : ''}{Number(x.amount)}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -395,7 +381,11 @@ const Profile: React.FC = () => {
 
         {activeTab === 'favorites' && (
           <div>
-            {favorites.length === 0 ? (
+            {favoritesLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-sky-300"></div>
+              </div>
+            ) : favorites.length === 0 ? (
               <div className="text-center py-8">
                 <Heart className="mx-auto mb-3 h-12 w-12 text-slate-500" />
                 <p className="text-slate-400">Пока нет избранных товаров</p>
@@ -415,9 +405,7 @@ const Profile: React.FC = () => {
                     className="flex w-full items-center space-x-3 rounded-[24px] border border-sky-400/15 bg-[#100f12]/90 p-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.48)]"
                   >
                     <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-900">
-                      {p.image ? (
-                        <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                      ) : null}
+                      <img src={resolveProductImage(p.brand || p.name, p.image)} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1">
                       <div className="font-semibold text-white">{p.name}</div>

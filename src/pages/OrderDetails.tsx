@@ -1,12 +1,11 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import WebApp from '@twa-dev/sdk';
 import { ArrowLeft } from 'lucide-react';
 import { orderAPI } from '../services/api';
 import { GlassCard, SectionDivider, IconButton, theme } from '../ui';
-import { useToastStore } from '../store/useToastStore';
 import { useCityStore } from '../store/useCityStore';
 import { formatCurrency } from '../lib/currency';
+import { resolveProductImage } from '../lib/productMedia';
 
 type OrderDetailsResponse = {
   order: {
@@ -40,39 +39,38 @@ type OrderDetailsResponse = {
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const toast = useToastStore();
-  const { city } = useCityStore();
+  const city = useCityStore((state) => state.city);
   const [loading, setLoading] = React.useState(true);
   const [data, setData] = React.useState<OrderDetailsResponse | null>(null);
 
   React.useEffect(() => {
-    (async () => {
+    let cancelled = false;
+    const load = async () => {
       try {
         setLoading(true);
         if (!city) {
-          toast.push('Выберите город', 'error');
-          setData(null);
+          if (!cancelled) setData(null);
           return;
         }
         if (!id) {
-          toast.push('Заказ не найден', 'error');
-          setData(null);
+          if (!cancelled) setData(null);
           return;
         }
         const resp = await orderAPI.getById(id, city);
-        setData(resp.data);
+        if (!cancelled) setData(resp.data);
       } catch (e) {
         console.error('Order details load error:', e);
-        try {
-          WebApp.showAlert('Ошибка загрузки заказа');
-        } catch {
-          toast.push('Ошибка загрузки заказа', 'error');
-        }
+        if (!cancelled) setData(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    })();
-  }, [city, id, toast]);
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [city, id]);
 
   if (loading) {
     return (
@@ -159,7 +157,7 @@ const OrderDetails: React.FC = () => {
                   height: 56,
                   borderRadius: 14,
                   border: '1px solid rgba(96,165,250,0.12)',
-                  background: `linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.65) 100%), url(${it.image || ''}) center/cover`,
+                  background: `linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.65) 100%), url(${resolveProductImage(it.brand || it.name, it.image || '')}) center/cover`,
                   flexShrink: 0,
                 }}
               />

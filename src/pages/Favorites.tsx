@@ -20,7 +20,9 @@ type FavItem = {
 const Favorites: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToastStore();
-  const { addItemOptimistic, scheduleSync, setCart } = useCartStore();
+  const addItemOptimistic = useCartStore((state) => state.addItemOptimistic);
+  const rollbackOptimisticAdd = useCartStore((state) => state.rollbackOptimisticAdd);
+  const scheduleSync = useCartStore((state) => state.scheduleSync);
   const { city } = useCityStore();
   const favorites = useFavoritesStore();
 
@@ -64,7 +66,6 @@ const Favorites: React.FC = () => {
   };
 
   const addToCart = async (item: FavItem) => {
-    const previousCart = useCartStore.getState().cart;
     try {
       if (!city) {
         toast.push('Выберите город', 'error');
@@ -86,12 +87,14 @@ const Favorites: React.FC = () => {
       scheduleSync(city);
       toast.push('Товар сразу добавлен в корзину', 'success');
     } catch {
-      if (previousCart) {
-        setCart(previousCart);
-      } else {
-        setCart({ id: '', city: city || '', items: [], total: 0 });
+      if (city) {
+        rollbackOptimisticAdd({
+          city,
+          productId: item.id,
+          quantity: 1,
+        });
+        scheduleSync(city, 0);
       }
-      toast.push('Ошибка добавления в корзину', 'error');
     }
   };
 

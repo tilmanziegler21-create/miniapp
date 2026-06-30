@@ -205,6 +205,11 @@ router.post('/add', requireAuth, async (req, res) => {
         String(item.variant || '') === normalizedVariant,
     );
 
+    const existingQty = Number(existingItem?.quantity || 0);
+    if (existingQty + qty > available) {
+      return res.status(409).json({ error: 'Insufficient stock' });
+    }
+
     let itemId = '';
     if (existingItem) {
       existingItem.quantity = Number(existingItem.quantity || 0) + qty;

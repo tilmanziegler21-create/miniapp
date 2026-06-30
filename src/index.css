@@ -29,15 +29,8 @@
     radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
     radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.1) 0%, transparent 60%),
     linear-gradient(-45deg, #08070a, #0f172a, #081121, #1e3a8a, #0f172a);
-  background-size: 200% 200%, 200% 200%, 200% 200%, 400% 400%;
-  animation: bgAnimation 20s ease-in-out infinite alternate;
+  background-size: 140% 140%, 140% 140%, 160% 160%, cover;
   z-index: -1;
-}
-
-@keyframes bgAnimation {
-  0% { background-position: 0% 0%, 100% 100%, 50% 0%, 0% 50%; }
-  50% { background-position: 100% 100%, 0% 0%, 50% 100%, 100% 50%; }
-  100% { background-position: 0% 100%, 100% 0%, 0% 50%, 0% 50%; }
 }
 
 .glass {
@@ -211,9 +204,9 @@ a {
 }
 
 @keyframes pulseGlow {
-  0% { box-shadow: 0 0 20px rgba(96,165,250,0.2); }
-  50% { box-shadow: 0 0 50px rgba(96,165,250,0.6); }
-  100% { box-shadow: 0 0 20px rgba(96,165,250,0.2); }
+  0% { box-shadow: 0 0 16px rgba(96,165,250,0.16); transform: scale(1); }
+  50% { box-shadow: 0 0 26px rgba(96,165,250,0.28); transform: scale(1.02); }
+  100% { box-shadow: 0 0 16px rgba(96,165,250,0.16); transform: scale(1); }
 }
 
 .fireflies-container {
@@ -236,22 +229,23 @@ a {
   height: 4px;
   background: #60a5fa;
   border-radius: 50%;
-  box-shadow: 0 0 10px 2px #60a5fa, 0 0 20px 4px #93c5fd;
+  box-shadow: 0 0 6px 1px #60a5fa, 0 0 10px 2px rgba(147,197,253,0.7);
   opacity: 0;
   animation: floatFirefly linear infinite;
+  will-change: transform, opacity;
 }
 
 @keyframes floatFirefly {
   0% { transform: translateY(0) translateX(0) scale(0); opacity: 0; }
-  10% { opacity: 1; scale: 1; }
-  90% { opacity: 1; scale: 1; }
+  12% { transform: translateY(-8px) translateX(4px) scale(1); opacity: 0.85; }
+  88% { transform: translateY(-88px) translateX(38px) scale(1); opacity: 0.85; }
   100% { transform: translateY(-100px) translateX(50px) scale(0); opacity: 0; }
 }
 
 @keyframes buttonSparkle {
-  0% { transform: scale(1); filter: brightness(1); }
-  50% { transform: scale(1.1); filter: brightness(1.3) drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
-  100% { transform: scale(1); filter: brightness(1); }
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.92; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes cartIconPulse {
@@ -285,6 +279,14 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .bg-app::before,
+  .firefly,
+  .sparkle-button::after,
+  .sparkle-button,
+  .page-transition {
+    animation: none !important;
+    transition: none !important;
+  }
   .sparkle-icon {
     animation: none;
   }

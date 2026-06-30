@@ -3,7 +3,8 @@ import { theme } from './theme';
 import { useToastStore } from '../store/useToastStore';
 
 export const ToastHost: React.FC = () => {
-  const { toasts, remove } = useToastStore();
+  const toasts = useToastStore((state) => state.toasts);
+  const remove = useToastStore((state) => state.remove);
 
   if (!toasts.length) return null;
 
@@ -37,8 +38,7 @@ export const ToastHost: React.FC = () => {
             borderRadius: theme.radius.lg,
             border: '1px solid rgba(96,165,250,0.12)',
             background: 'rgba(16,15,18,0.88)',
-            backdropFilter: `blur(${theme.blur.glass})`,
-            boxShadow: theme.shadow.card,
+            boxShadow: '0 10px 24px rgba(0,0,0,0.28)',
             padding: `${theme.spacing.md} ${theme.spacing.lg}`,
             color: theme.colors.dark.text,
             textAlign: 'left',

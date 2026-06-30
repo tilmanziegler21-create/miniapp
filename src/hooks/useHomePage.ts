@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import WebApp from '@twa-dev/sdk';
 import { catalogAPI, cartAPI } from '../services/api';
 import { useCityStore } from '../store/useCityStore';
@@ -20,11 +20,14 @@ interface Product {
 }
 
 export function useHomePage() {
-  const toast = useToastStore();
-  const { addItemOptimistic, scheduleSync, setCart } = useCartStore();
+  const pushToast = useToastStore((state) => state.push);
+  const addItemOptimistic = useCartStore((state) => state.addItemOptimistic);
+  const rollbackOptimisticAdd = useCartStore((state) => state.rollbackOptimisticAdd);
+  const scheduleSync = useCartStore((state) => state.scheduleSync);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const requestRef = useRef(0);
   const { city } = useCityStore();
   const favorites = useFavoritesStore();
   const { config } = useConfigStore();
@@ -43,11 +46,12 @@ export function useHomePage() {
   }, [city]);
 
   const loadProducts = async () => {
+    const requestId = ++requestRef.current;
     try {
       setLoading(true);
       setLoadError(null);
       if (!city) {
-        setLoadError('Выберите город');
+        if (requestId === requestRef.current) setLoadError('Выберите город');
         return;
       }
       const response = await catalogAPI.getProducts({ city });
@@ -61,10 +65,13 @@ export function useHomePage() {
         isNew: Boolean(p.isNew),
         qtyAvailable: Number(p.qtyAvailable || 0),
       }));
-      setProducts(featured);
+      if (requestId === requestRef.current && useCityStore.getState().city === city) {
+        setProducts(featured);
+      }
     } catch (error) {
       console.error('Failed to load products:', error);
       const status = (error as any)?.response?.status;
+      if (requestId !== requestRef.current) return;
       if (status === 503) {
         const missing = (error as any)?.response?.data?.missing || [];
         setLoadError(`Sheets не настроен. Добавь env: ${missing.join(', ')}`);
@@ -72,18 +79,19 @@ export function useHomePage() {
         setLoadError('Не удалось загрузить каталог');
       }
     } finally {
-      setLoading(false);
-      setReady(true);
+      if (requestId === requestRef.current) {
+        setLoading(false);
+        setReady(true);
+      }
     }
   };
 
   const addToCart = async (product: Product) => {
     if (!city) {
-      toast.push('Выберите город', 'error');
+      pushToast('Выберите город', 'error');
       return;
     }
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
-    const previousCart = useCartStore.getState().cart;
     addItemOptimistic({
       city,
       quantity: 1,
@@ -99,20 +107,20 @@ export function useHomePage() {
     try {
       await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price });
       scheduleSync(city);
-      toast.push('Добавлено в корзину', 'success');
+      pushToast('Добавлено в корзину', 'success');
     } catch {
-      if (previousCart) {
-        setCart(previousCart);
-      } else {
-        setCart({ id: '', city, items: [], total: 0 });
-      }
-      toast.push('Ошибка добавления в корзину', 'error');
+      rollbackOptimisticAdd({
+        city,
+        productId: product.id,
+        quantity: 1,
+      });
+      scheduleSync(city, 0);
     }
   };
 
   const toggleFavorite = async (product: Product) => {
     if (!city) {
-      toast.push('Выберите город', 'error');
+      pushToast('Выберите город', 'error');
       return;
     }
     const enabled = !favorites.isFavorite(product.id);
@@ -129,9 +137,9 @@ export function useHomePage() {
         },
         enabled,
       });
-      toast.push(enabled ? 'Добавлено в избранное' : 'Удалено из избранного', 'success');
+      pushToast(enabled ? 'Добавлено в избранное' : 'Удалено из избранного', 'success');
     } catch {
-      toast.push('Ошибка избранного', 'error');
+      pushToast('Ошибка избранного', 'error');
     }
   };
 

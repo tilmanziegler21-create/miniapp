@@ -18,7 +18,9 @@ interface WheelPrize {
 const FortuneWheel: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToastStore();
-  const { user, token, setUser } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
+  const setUser = useAuthStore((state) => state.setUser);
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [selectedPrize, setSelectedPrize] = useState<WheelPrize | null>(null);

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { cartAPI } from '../services/api';
+import { useCityStore } from './useCityStore';
 
 export interface CartItem {
   id: string;
@@ -45,6 +46,13 @@ type OptimisticAddPayload = {
   variant?: string;
 };
 
+type OptimisticRollbackPayload = {
+  city: string;
+  productId: string;
+  quantity?: number;
+  variant?: string;
+};
+
 const scheduledSyncs = new Map<string, number>();
 const inFlightSyncs = new Map<string, Promise<void>>();
 
@@ -77,6 +85,7 @@ interface CartState {
   setCart: (cart: Cart) => void;
   setLoading: (loading: boolean) => void;
   addItemOptimistic: (payload: OptimisticAddPayload) => void;
+  rollbackOptimisticAdd: (payload: OptimisticRollbackPayload) => void;
   updateQuantityOptimistic: (itemId: string, quantity: number) => void;
   removeItemOptimistic: (itemId: string) => void;
   syncCart: (city: string) => Promise<void>;
@@ -138,6 +147,31 @@ export const useCartStore = create<CartState>((set) => ({
         }),
       };
     }),
+  rollbackOptimisticAdd: ({ city, productId, quantity = 1, variant = '' }) =>
+    set((state) => {
+      if (!state.cart || state.cart.city !== city) return state;
+
+      const normalizedVariant = String(variant || '');
+      const target = state.cart.items.find(
+        (item) => String(item.productId) === String(productId) && String(item.variant || '') === normalizedVariant,
+      );
+      if (!target) return state;
+
+      const remainingQuantity = Number(target.quantity || 0) - Number(quantity || 1);
+      const nextItems =
+        remainingQuantity > 0
+          ? state.cart.items.map((item) =>
+              item.id === target.id ? { ...item, quantity: remainingQuantity } : item,
+            )
+          : state.cart.items.filter((item) => item.id !== target.id);
+
+      return {
+        cart: recalculateCart({
+          ...state.cart,
+          items: nextItems,
+        }),
+      };
+    }),
   updateQuantityOptimistic: (itemId, quantity) =>
     set((state) => {
       if (!state.cart) return state;
@@ -175,7 +209,9 @@ export const useCartStore = create<CartState>((set) => ({
       set({ isLoading: true });
       try {
         const resp = await cartAPI.getCart(normalizedCity);
-        set({ cart: resp.data.cart, isLoading: false });
+        if (useCityStore.getState().city === normalizedCity) {
+          set({ cart: resp.data.cart, isLoading: false });
+        }
       } finally {
         inFlightSyncs.delete(normalizedCity);
         set({ isLoading: false });

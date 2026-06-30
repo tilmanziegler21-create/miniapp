@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { favoritesAPI } from '../services/api';
 
+let favoritesLoadRequestId = 0;
+
 export type FavoriteItem = {
   id: string;
   name: string;
@@ -28,16 +30,21 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
   isLoading: false,
   error: null,
   load: async (city) => {
+    const requestId = ++favoritesLoadRequestId;
     set({ isLoading: true, error: null, city });
     try {
       const resp = await favoritesAPI.list(city);
       const items: FavoriteItem[] = resp.data.favorites || resp.data.items || [];
       const ids: Record<string, true> = {};
       for (const it of items) ids[String(it.id)] = true;
-      set({ items, ids, isLoading: false, error: null, city });
+      if (requestId === favoritesLoadRequestId && get().city === city) {
+        set({ items, ids, isLoading: false, error: null, city });
+      }
     } catch (e) {
       console.error('Failed to load favorites:', e);
-      set({ isLoading: false, error: 'FAVORITES_LOAD_FAILED' });
+      if (requestId === favoritesLoadRequestId && get().city === city) {
+        set({ isLoading: false, error: 'FAVORITES_LOAD_FAILED' });
+      }
     }
   },
   isFavorite: (productId) => Boolean(get().ids[String(productId)]),

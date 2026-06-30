@@ -23,14 +23,19 @@ type Props = {
 export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const toast = useToastStore();
-  const { cart, setCart, syncCart } = useCartStore();
-  const { user } = useAuthStore();
+  const pushToast = useToastStore((state) => state.push);
+  const cart = useCartStore((state) => state.cart);
+  const setCart = useCartStore((state) => state.setCart);
+  const syncCart = useCartStore((state) => state.syncCart);
+  const user = useAuthStore((state) => state.user);
   const branding = useBranding();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const { config, load } = useConfigStore();
-  const { city, setCity, ensureCity } = useCityStore();
-  const { setReady } = useSplashStore();
+  const config = useConfigStore((state) => state.config);
+  const load = useConfigStore((state) => state.load);
+  const city = useCityStore((state) => state.city);
+  const setCity = useCityStore((state) => state.setCity);
+  const ensureCity = useCityStore((state) => state.ensureCity);
+  const setReady = useSplashStore((state) => state.setReady);
   const [cityModalOpen, setCityModalOpen] = React.useState(false);
   const [cartPulseKey, setCartPulseKey] = React.useState(0);
   const [flyItems, setFlyItems] = React.useState<
@@ -58,14 +63,14 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
       const cities = cfg?.cities || [];
       const codes = cities.map((c) => String(c.code || '')).filter(Boolean);
       if (!codes.length) {
-        toast.push('Города не настроены', 'error');
+        pushToast('Города не настроены', 'error');
         setReady(true);
         return;
       }
       ensureCity(codes);
       setReady(true);
     })();
-  }, [ensureCity, load, toast, setReady]);
+  }, [ensureCity, load, pushToast, setReady]);
 
   React.useEffect(() => {
     if (!city || !user?.tgId) return;
@@ -96,7 +101,8 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
       const detail = (event as CustomEvent<CartFlyDetail>).detail;
       if (!detail) return;
 
-      const target = document.querySelector('[data-cart-anchor="true"]');
+      const targets = Array.from(document.querySelectorAll('[data-cart-anchor="true"]'));
+      const target = targets[targets.length - 1];
       const targetRect = target?.getBoundingClientRect();
       if (!targetRect) {
         setCartPulseKey((prev) => prev + 1);
@@ -157,7 +163,7 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
       <DrawerMenu
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        cartItemsCount={cart?.items?.length || 0}
+        cartItemsCount={cartCount}
         userBalance={user?.bonusBalance || 0}
         userStatus={user?.status}
         city={city}
@@ -201,14 +207,19 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
         open={cityModalOpen}
         cities={(config?.cities || []).map((c) => ({ code: c.code, title: c.title || c.code }))}
         selectedCity={city}
-        onSelect={(next) => {
+        onSelect={async (next) => {
           const prevCity = city;
           if (prevCity && prevCity !== next) {
-            if (cart?.city && cart.city !== next) {
-              setCart({ id: String(cart.id || ''), city: next, items: [], total: 0 });
+            const currentCart = useCartStore.getState().cart;
+            if (currentCart?.city && currentCart.city !== next) {
+              setCart({ id: String(currentCart.id || ''), city: next, items: [], total: 0 });
             }
-            cartAPI.clear(prevCity).catch(() => {});
-            toast.push('Город изменён, корзина очищена', 'info');
+            try {
+              await cartAPI.clear(prevCity);
+            } catch {
+              pushToast('Не удалось очистить корзину прошлого города', 'error');
+            }
+            pushToast('Город изменён, корзина очищена', 'info');
           }
           setCity(next);
           setCityModalOpen(false);

@@ -11,6 +11,7 @@ import { useCityStore } from '../store/useCityStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { resolveBrandAssetUrl, useBranding } from '../hooks/useBranding';
 import { getStableTrustData } from '../lib/productPresentation';
+import { normalizeTasteProfile } from '../lib/productMedia';
 
 interface Product {
   id: string;
@@ -32,7 +33,9 @@ interface Product {
 const Catalog: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToastStore();
-  const { addItemOptimistic, scheduleSync, setCart } = useCartStore();
+  const addItemOptimistic = useCartStore((state) => state.addItemOptimistic);
+  const rollbackOptimisticAdd = useCartStore((state) => state.rollbackOptimisticAdd);
+  const scheduleSync = useCartStore((state) => state.scheduleSync);
   const { trackAddToCart, trackFilterUse, trackCategoryView } = useAnalytics();
   const { city } = useCityStore();
   const branding = useBranding();
@@ -44,6 +47,7 @@ const Catalog: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [query, setQuery] = useState('');
+  const catalogRequestRef = React.useRef(0);
   const [filters, setFilters] = useState({
     category: '',
     brand: '',
@@ -66,7 +70,6 @@ const Catalog: React.FC = () => {
 
   useEffect(() => {
     if (!city) return;
-    loadCatalog(city);
     loadFilters(city);
     favorites.load(city);
   }, [city]);
@@ -82,9 +85,10 @@ const Catalog: React.FC = () => {
     if (filters.price_min || filters.price_max) {
       trackFilterUse('price_range', `${filters.price_min || 0}-${filters.price_max || '∞'}`);
     }
-  }, [city, filters]);
+  }, [city, filters.category, filters.brand, filters.price_min, filters.price_max, filters.discount, filters.new]);
 
   const loadCatalog = async (selectedCity: string) => {
+    const requestId = ++catalogRequestRef.current;
     try {
       setLoading(true);
       const response = await catalogAPI.getProducts({
@@ -96,7 +100,9 @@ const Catalog: React.FC = () => {
         discount: filters.discount,
         new: filters.new
       });
-      setProducts(response.data.products);
+      if (requestId === catalogRequestRef.current) {
+        setProducts(response.data.products);
+      }
     } catch (error) {
       console.error('Failed to load catalog:', error);
       try {
@@ -105,7 +111,9 @@ const Catalog: React.FC = () => {
         toast.push('Ошибка загрузки каталога', 'error');
       }
     } finally {
-      setLoading(false);
+      if (requestId === catalogRequestRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -139,7 +147,6 @@ const Catalog: React.FC = () => {
       return;
     }
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
-    const previousCart = useCartStore.getState().cart;
     addItemOptimistic({
       city,
       quantity: 1,
@@ -164,12 +171,12 @@ const Catalog: React.FC = () => {
       trackAddToCart(product.id, product.name, product.price, 1);
     } catch (error) {
       console.error('Add to cart failed:', error);
-      if (previousCart) {
-        setCart(previousCart);
-      } else {
-        setCart({ id: '', city, items: [], total: 0 });
-      }
-      toast.push('Ошибка добавления в корзину', 'error');
+      rollbackOptimisticAdd({
+        city,
+        productId: product.id,
+        quantity: 1,
+      });
+      scheduleSync(city, 0);
     }
   };
 
@@ -478,7 +485,7 @@ const Catalog: React.FC = () => {
               brand={p.brand}
               isNew={Boolean((p as any).isNew)}
               stock={(p as any).qtyAvailable || 0}
-              tasteProfile={p.tasteProfile}
+              tasteProfile={normalizeTasteProfile(p.tasteProfile)}
               trustData={getStableTrustData(`${p.id}:${p.name}:${p.brand}`)}
               showTasteProfile={true}
               showTrustIndicators={true}

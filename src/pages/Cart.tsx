@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
-import { Minus, Plus, Trash2, Truck, Store } from 'lucide-react';
-import { bonusesAPI, cartAPI, couriersAPI, orderAPI } from '../services/api';
+import { Minus, Plus, Trash2, Store } from 'lucide-react';
+import { bonusesAPI, cartAPI, orderAPI } from '../services/api';
 
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
@@ -19,9 +19,13 @@ type PaymentMethod = 'cash' | 'card';
 
 const Cart: React.FC = () => {
   const navigate = useNavigate();
-  const toast = useToastStore();
+  const pushToast = useToastStore((state) => state.push);
   const { user } = useAuthStore();
-  const { cart, setCart, updateQuantityOptimistic, removeItemOptimistic, scheduleSync, syncCart } = useCartStore();
+  const cart = useCartStore((state) => state.cart);
+  const updateQuantityOptimistic = useCartStore((state) => state.updateQuantityOptimistic);
+  const removeItemOptimistic = useCartStore((state) => state.removeItemOptimistic);
+  const scheduleSync = useCartStore((state) => state.scheduleSync);
+  const syncCart = useCartStore((state) => state.syncCart);
   const { trackRemoveFromCart, trackCheckout, trackOrderComplete } = useAnalytics();
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
@@ -30,17 +34,12 @@ const Cart: React.FC = () => {
   const branding = useBranding();
   const pickupPoints = (config?.pickupPoints || []).map((p) => p.address);
   const [promoCode] = React.useState('');
-  const [fulfillment, setFulfillment] = React.useState<Fulfillment>('pickup');
+  const fulfillment: Fulfillment = 'pickup';
   const [pickup, setPickup] = React.useState('');
 
   const idempotencyKeyRef = React.useRef<string>('');
   const [comment] = React.useState('');
   const [paymentMethod] = React.useState<PaymentMethod>('cash');
-  const [address, setAddress] = React.useState('');
-  const [couriers, setCouriers] = React.useState<Array<{ courier_id: string; name: string; tg_id: string; time_from?: string; time_to?: string; address?: string }>>([]);
-  const [courierId] = React.useState('');
-  const [deliveryDate] = React.useState('');
-  const [deliveryTime] = React.useState('');
   const [bonusBalance, setBonusBalance] = React.useState(0);
   const [bonusWant] = React.useState<string>('');
 
@@ -69,11 +68,11 @@ const Cart: React.FC = () => {
         try {
           WebApp.showAlert('Ошибка загрузки корзины');
         } catch {
-          toast.push('Ошибка загрузки корзины', 'error');
+          pushToast('Ошибка загрузки корзины', 'error');
         }
       })
       .finally(() => setLoading(false));
-  }, [city, syncCart, toast]);
+  }, [city, pushToast, syncCart]);
 
   React.useEffect(() => {
     (async () => {
@@ -86,35 +85,16 @@ const Cart: React.FC = () => {
     })();
   }, []);
 
-  React.useEffect(() => {
-    (async () => {
-      try {
-        if (!city) return;
-        const resp = await couriersAPI.list(city);
-        setCouriers(resp.data.couriers || []);
-      } catch {
-        setCouriers([]);
-      }
-    })();
-  }, [city]);
-
-  React.useEffect(() => {
-    if (fulfillment !== 'delivery') return;
-    const selectedCourier = couriers.find((x) => x.courier_id === courierId);
-    const courierAddress = String(selectedCourier?.address || '').trim();
-    if (courierAddress) {
-      setAddress(courierAddress);
-    } else if (courierId) {
-      setAddress('');
-    }
-  }, [courierId, couriers, fulfillment]);
-
   const setQty = async (itemId: string, nextQty: number) => {
     if (nextQty <= 0) return;
-    const previousCart = useCartStore.getState().cart;
     try {
       if (!city) {
-        toast.push('Выберите город', 'error');
+        pushToast('Выберите город', 'error');
+        return;
+      }
+      if (itemId.startsWith('tmp_')) {
+        scheduleSync(city, 0);
+        pushToast('Секунду, корзина синхронизируется', 'info');
         return;
       }
       updateQuantityOptimistic(itemId, nextQty);
@@ -122,18 +102,19 @@ const Cart: React.FC = () => {
       scheduleSync(city);
     } catch (e) {
       console.error('Failed to update qty:', e);
-      if (previousCart) setCart(previousCart);
-      const status = (e as any)?.response?.status;
-      if (status === 409) toast.push('Недостаточно товара на складе', 'error');
-      else toast.push('Ошибка изменения количества', 'error');
+      scheduleSync(city, 0);
     }
   };
 
   const removeItem = async (itemId: string) => {
-    const previousCart = useCartStore.getState().cart;
     try {
       if (!city) {
-        toast.push('Выберите город', 'error');
+        pushToast('Выберите город', 'error');
+        return;
+      }
+      if (itemId.startsWith('tmp_')) {
+        scheduleSync(city, 0);
+        pushToast('Секунду, корзина синхронизируется', 'info');
         return;
       }
       const item = cart?.items.find((i) => i.id === itemId);
@@ -141,27 +122,21 @@ const Cart: React.FC = () => {
       removeItemOptimistic(itemId);
       await cartAPI.removeItem(itemId);
       scheduleSync(city);
-      toast.push('Товар удалён', 'success');
+      pushToast('Товар удалён', 'success');
     } catch (e) {
       console.error('Failed to remove item:', e);
-      if (previousCart) setCart(previousCart);
-      toast.push('Ошибка удаления товара', 'error');
+      scheduleSync(city, 0);
     }
   };
 
   const createOrder = async () => {
     if (!cart?.items?.length) {
-      toast.push('Корзина пуста', 'error');
+      pushToast('Корзина пуста', 'error');
       return;
     }
 
     const errors: string[] = [];
-    if (fulfillment === 'delivery') {
-      if (!address.trim()) errors.push('Для курьера не указан адрес в таблице');
-      if (!courierId) errors.push('Выбери курьера');
-      if (!deliveryDate) errors.push('Выбери дату');
-      if (!deliveryTime) errors.push('Выбери время');
-    } else if (!pickup.trim()) {
+    if (!pickup.trim()) {
       errors.push('Выбери точку самовывоза');
     }
 
@@ -176,7 +151,7 @@ const Cart: React.FC = () => {
     }
 
     if (errors.length) {
-      toast.push(errors.join(' • '), 'error');
+      pushToast(errors.join(' • '), 'error');
       return;
     }
 
@@ -206,19 +181,19 @@ const Cart: React.FC = () => {
         }
       } catch (e) {
         console.error('Bonuses apply failed:', e);
-        toast.push('Не удалось применить бонусы', 'error');
+        pushToast('Не удалось применить бонусы', 'error');
       }
 
       await orderAPI.confirmOrder({
         orderId,
-        deliveryMethod: fulfillment === 'delivery' ? 'courier' : 'pickup',
+        deliveryMethod: 'pickup',
         city,
         promoCode,
-        courier_id: fulfillment === 'delivery' ? courierId : '',
-        delivery_date: fulfillment === 'delivery' ? deliveryDate : '',
-        delivery_time: fulfillment === 'delivery' ? deliveryTime : '',
+        courier_id: '',
+        delivery_date: '',
+        delivery_time: '',
         courierData: {
-          address: fulfillment === 'delivery' ? address : pickup,
+          address: pickup,
           comment: String(comment || '').slice(0, 500),
           user: {
             tgId: user?.tgId || '',
@@ -228,12 +203,11 @@ const Cart: React.FC = () => {
       });
 
       await orderAPI.processPayment({ orderId, paymentMethod, city, bonusApplied: applied });
-      cartAPI.clear(city).catch(() => {});
-      
-      setCart({ id: String(cart.id || ''), city, items: [], total: 0 });
+      syncCart(city).catch(() => {});
+
       trackOrderComplete(orderId, Number(totalAmount || cart.total), cart.items);
 
-      toast.push(`Заказ ${orderId} оформлен`, 'success');
+      pushToast(`Заказ ${orderId} оформлен`, 'success');
 
       navigate('/orders');
     } catch (e) {
@@ -241,7 +215,7 @@ const Cart: React.FC = () => {
       try {
         WebApp.showAlert('Ошибка создания заказа');
       } catch {
-        toast.push('Ошибка создания заказа', 'error');
+        pushToast('Ошибка создания заказа', 'error');
       }
     } finally {
       setBusy(false);
@@ -549,19 +523,22 @@ const Cart: React.FC = () => {
             <div style={styles.itemInfo}>
               <div style={styles.name}>{item.name}</div>
               {item.variant && <div style={styles.flavor}>{item.variant}</div>}
+              {item.id.startsWith('tmp_') ? (
+                <div style={{ ...styles.flavor, color: theme.colors.dark.primary }}>Синхронизация...</div>
+              ) : null}
             </div>
             <div style={styles.controlsRight}>
               <div style={styles.qtyWrap}>
-                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity - 1)}>
+                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity - 1)} disabled={item.id.startsWith('tmp_')}>
                   <Minus size={14} />
                 </button>
                 <div style={{ width: 14, textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }}>{item.quantity}</div>
-                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity + 1)}>
+                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity + 1)} disabled={item.id.startsWith('tmp_')}>
                   <Plus size={14} />
                 </button>
               </div>
-              <div style={styles.itemPrice}>{formatCurrency(item.price * item.quantity)}</div>
-              <button type="button" style={styles.removeButton} onClick={() => removeItem(item.id)} aria-label={`Удалить ${item.name} из корзины`}>
+              <div style={styles.itemPrice}>{formatCurrency(item.total ?? (item.effectivePrice ?? item.price) * item.quantity)}</div>
+              <button type="button" style={styles.removeButton} onClick={() => removeItem(item.id)} aria-label={`Удалить ${item.name} из корзины`} disabled={item.id.startsWith('tmp_')}>
                 <Trash2 size={14} />
               </button>
             </div>
@@ -570,7 +547,7 @@ const Cart: React.FC = () => {
       </div>
 
       <div style={styles.sectionTitle}>Способ получения</div>
-      <div style={styles.radioCard(fulfillment === 'pickup')} onClick={() => setFulfillment('pickup')}>
+      <div style={styles.radioCard(true)}>
         <div style={styles.radioCircle(fulfillment === 'pickup')}>
           <div style={styles.radioInner(fulfillment === 'pickup')} />
         </div>
@@ -578,16 +555,6 @@ const Cart: React.FC = () => {
         <div style={styles.radioTextWrap}>
           <div style={styles.radioTitle}>Самовывоз — Кассель</div>
           <div style={styles.radioDesc}>Заберите в нашем магазине, адрес сообщим в личку</div>
-        </div>
-      </div>
-      <div style={styles.radioCard(fulfillment === 'delivery')} onClick={() => setFulfillment('delivery')}>
-        <div style={styles.radioCircle(fulfillment === 'delivery')}>
-          <div style={styles.radioInner(fulfillment === 'delivery')} />
-        </div>
-        <Truck size={20} color={fulfillment === 'delivery' ? theme.colors.dark.primary : theme.colors.dark.textSecondary} />
-        <div style={styles.radioTextWrap}>
-          <div style={styles.radioTitle}>Доставка DHL</div>
-          <div style={styles.radioDesc}>Доставим по Германии</div>
         </div>
       </div>
 

@@ -1,7 +1,6 @@
 import express from 'express';
 import db from '../services/database.js';
 import { buildBrandAssetUrl, getBranding } from '../branding.js';
-import { getLiquidPrices } from '../services/sheets.js';
 
 const router = express.Router();
 
@@ -28,16 +27,9 @@ router.get('/', async (req, res) => {
   const promos = db.getPromos().filter((p) => Boolean(p.active));
   const branding = getBranding();
   
-  // Try to fetch dynamic liquid prices for the first city (as a fallback/default for config)
-  // Usually the client passes city via another endpoint, but we can embed default here or let client fetch it
-  let dynamicLiquidPrices = null;
-  if (codes.length > 0) {
-    dynamicLiquidPrices = await getLiquidPrices(codes[0]);
-  }
-
   res.json({
     branding,
-    liquidPrices: dynamicLiquidPrices,
+    liquidPrices: null,
     cities: codes.map((code) => ({
       code,
       title: code,

@@ -7,7 +7,7 @@ import { referralAPI } from '../services/api';
 import { useBranding } from '../hooks/useBranding';
 
 const Referral: React.FC = () => {
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const toast = useToastStore();
   const branding = useBranding();
   const [loading, setLoading] = React.useState(true);
@@ -33,6 +33,15 @@ const Referral: React.FC = () => {
 
   const share = async () => {
     const text = `${branding.referralShareText} ${link}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: branding.name, text, url: link });
+        return;
+      } catch {
+        // fallback to Telegram/copy
+      }
+    }
+
     try {
       if (WebApp.openTelegramLink) {
         WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);

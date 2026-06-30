@@ -1,6 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { requireAuthAllowUnverified, verifyTelegramAuth } from '../middleware/auth.js';
+import { getJwtSecret, requireAuthAllowUnverified, verifyTelegramAuth } from '../middleware/auth.js';
 import db from '../services/database.js';
 import { getCouriers } from '../services/sheets.js';
 
@@ -49,15 +49,12 @@ router.post('/verify', verifyTelegramAuth, async (req, res) => {
     `);
     
     stmt.run(tgId, username, firstName, lastName, ageVerified, status);
-    
-    if (!process.env.JWT_SECRET) {
-      console.error('CRITICAL: JWT_SECRET is not set in environment variables');
-      if (process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET is required');
-    }
+    const secret = getJwtSecret();
+    if (!secret) throw new Error('JWT_SECRET is required');
 
     const token = jwt.sign(
       { tgId, username },
-      process.env.JWT_SECRET || 'fallback-secret-for-dev-only',
+      secret,
       { expiresIn: '7d' }
     );
     
@@ -101,14 +98,14 @@ router.post('/dev', async (_req, res) => {
     `);
 
     stmt.run(tgId, username, firstName, lastName, true, status);
-
-    if (!process.env.JWT_SECRET) {
-      console.error('CRITICAL: JWT_SECRET is not set in environment variables');
+    const secret = getJwtSecret();
+    if (!secret) {
+      return res.status(500).json({ error: 'JWT secret is not configured' });
     }
 
     const token = jwt.sign(
       { tgId, username },
-      process.env.JWT_SECRET || 'fallback-secret-for-dev-only',
+      secret,
       { expiresIn: '7d' }
     );
 

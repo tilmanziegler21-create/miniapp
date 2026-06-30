@@ -10,7 +10,7 @@ import { resolveBrandAssetUrl, useBranding } from '../hooks/useBranding';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { config } = useConfigStore();
+  const config = useConfigStore((state) => state.config);
   const branding = useBranding();
   const {
     products,

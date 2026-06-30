@@ -2,10 +2,11 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GlassCard, theme } from '../ui';
 import { useConfigStore } from '../store/useConfigStore';
+import { assetUrl } from '../lib/productMedia';
 
 const Categories: React.FC = () => {
   const navigate = useNavigate();
-  const { config } = useConfigStore();
+  const config = useConfigStore((state) => state.config);
   const tiles = config?.categoryTiles || [];
 
   return (
@@ -43,13 +44,26 @@ const Categories: React.FC = () => {
               height: 140,
               borderRadius: theme.radius.lg,
               overflow: 'hidden',
-              background: `url(${t.imageUrl}) center/contain no-repeat`,
               cursor: 'pointer',
               position: 'relative',
               border: '1px solid rgba(96,165,250,0.18)',
             }}
             onClick={() => navigate(`/catalog?category=${encodeURIComponent(t.slug)}`)}
           >
+            <img
+              src={assetUrl(t.imageUrl)}
+              alt={t.title}
+              loading="lazy"
+              decoding="async"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                padding: theme.spacing.md,
+              }}
+            />
             {t.badgeText ? (
               <div
                 style={{

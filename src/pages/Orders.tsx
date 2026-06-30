@@ -1,9 +1,7 @@
 import React from 'react';
-import WebApp from '@twa-dev/sdk';
 import { useNavigate } from 'react-router-dom';
 import { orderAPI } from '../services/api';
 import { GlassCard, SectionDivider, theme } from '../ui';
-import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
 
@@ -26,34 +24,34 @@ const statusStyles: Record<string, { bg: string; text: string }> = {
 };
 
 const Orders: React.FC = () => {
-  const toast = useToastStore();
   const navigate = useNavigate();
-  const { city } = useCityStore();
+  const city = useCityStore((state) => state.city);
   const [loading, setLoading] = React.useState(true);
   const [orders, setOrders] = React.useState<OrderItem[]>([]);
 
   React.useEffect(() => {
-    (async () => {
+    let cancelled = false;
+    const load = async () => {
       try {
         setLoading(true);
         if (!city) {
-          toast.push('Выберите город', 'error');
-          setOrders([]);
+          if (!cancelled) setOrders([]);
           return;
         }
         const resp = await orderAPI.getHistory(city);
-        setOrders(resp.data.orders || []);
+        if (!cancelled) setOrders(resp.data.orders || []);
       } catch (e) {
         console.error('Orders load error:', e);
-        try {
-          WebApp.showAlert('Ошибка загрузки истории');
-        } catch {
-          toast.push('Ошибка загрузки истории', 'error');
-        }
+        if (!cancelled) setOrders([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    })();
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [city]);
 
   const styles = {
