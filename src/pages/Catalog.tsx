@@ -2,33 +2,17 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
-import { catalogAPI, cartAPI } from '../services/api';
+import { cartAPI } from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { ProductCard, GlassCard, SecondaryButton, theme } from '../ui';
+import { ProductCard, GlassCard, SecondaryButton, ProductCardSkeleton, theme } from '../ui';
+import { useCatalogStore, type CatalogProduct } from '../store/useCatalogStore';
 import { useToastStore } from '../store/useToastStore';
 import { useCityStore } from '../store/useCityStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { resolveBrandAssetUrl, useBranding } from '../hooks/useBranding';
 import { getStableTrustData } from '../lib/productPresentation';
 import { normalizeTasteProfile } from '../lib/productMedia';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  brand: string;
-  price: number;
-  qtyAvailable: number;
-  description: string;
-  image: string;
-  tasteProfile?: {
-    sweetness: number;
-    coolness: number;
-    fruitiness: number;
-    strength: number;
-  };
-}
 
 const Catalog: React.FC = () => {
   const navigate = useNavigate();
@@ -41,11 +25,12 @@ const Catalog: React.FC = () => {
   const branding = useBranding();
   const favorites = useFavoritesStore();
   const [searchParams] = useSearchParams();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [brands, setBrands] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const catalogByCity = useCatalogStore((state) => state.byCity);
+  const prefetchCatalog = useCatalogStore((state) => state.prefetch);
+  const catalogEntry = city ? catalogByCity[city] : undefined;
+  const products: CatalogProduct[] = catalogEntry?.products || [];
   const [loadError, setLoadError] = useState<string | null>(null);
+  const loading = Boolean(city) && !catalogEntry && !loadError;
   const [showFilters, setShowFilters] = useState(false);
   const [query, setQuery] = useState('');
   const catalogRequestRef = React.useRef(0);
@@ -71,14 +56,11 @@ const Catalog: React.FC = () => {
 
   useEffect(() => {
     if (!city) return;
-    loadFilters(city);
     favorites.load(city);
+    loadCatalog(city);
   }, [city]);
 
   useEffect(() => {
-    if (!city) return;
-    loadCatalog(city);
-    // Track filter usage
     if (filters.category) trackCategoryView(filters.category);
     if (filters.brand) trackFilterUse('brand', filters.brand);
     if (filters.discount) trackFilterUse('discount', 'true');
@@ -86,49 +68,30 @@ const Catalog: React.FC = () => {
     if (filters.price_min || filters.price_max) {
       trackFilterUse('price_range', `${filters.price_min || 0}-${filters.price_max || '∞'}`);
     }
-  }, [city, filters.category, filters.brand, filters.price_min, filters.price_max, filters.discount, filters.new]);
+  }, [filters.category, filters.brand, filters.price_min, filters.price_max, filters.discount, filters.new, trackCategoryView, trackFilterUse]);
 
   const loadCatalog = async (selectedCity: string) => {
     const requestId = ++catalogRequestRef.current;
     try {
-      setLoading(true);
       setLoadError(null);
-      const response = await catalogAPI.getProducts({
-        city: selectedCity,
-        category: filters.category,
-        brand: filters.brand,
-        price_min: filters.price_min,
-        price_max: filters.price_max,
-        discount: filters.discount,
-        new: filters.new
-      });
-      if (requestId === catalogRequestRef.current) {
-        setProducts(response.data.products);
-      }
+      await prefetchCatalog(selectedCity);
     } catch (error) {
       console.error('Failed to load catalog:', error);
       if (requestId === catalogRequestRef.current) {
         setLoadError('Не удалось загрузить каталог');
       }
-    } finally {
-      if (requestId === catalogRequestRef.current) {
-        setLoading(false);
-      }
     }
   };
 
-  const loadFilters = async (selectedCity: string) => {
-    try {
-      const [categoriesRes, brandsRes] = await Promise.all([
-        catalogAPI.getCategories(selectedCity),
-        catalogAPI.getBrands(selectedCity)
-      ]);
-      setCategories(categoriesRes.data.categories);
-      setBrands(brandsRes.data.brands);
-    } catch (error) {
-      console.error('Failed to load filters:', error);
-    }
-  };
+  const categories = useMemo(
+    () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))).sort(),
+    [products],
+  );
+
+  const brands = useMemo(
+    () => Array.from(new Set(products.map((p) => p.brand).filter(Boolean))).sort(),
+    [products],
+  );
 
   const getCategoryName = (slug: string) => {
     const map: Record<string, string> = {
@@ -141,7 +104,7 @@ const Catalog: React.FC = () => {
     return map[slug] || slug;
   };
 
-  const addToCart = async (product: Product) => {
+  const addToCart = async (product: CatalogProduct) => {
     if (!city) {
       toast.push('Выберите город', 'error');
       return;
@@ -203,6 +166,13 @@ const Catalog: React.FC = () => {
     const minFruitiness = Number(filters.taste_fruitiness_min || 0);
 
     return products.filter((p) => {
+      if (filters.category && p.category !== filters.category) return false;
+      if (filters.brand && p.brand !== filters.brand) return false;
+      if (filters.price_min && p.price < parseFloat(filters.price_min)) return false;
+      if (filters.price_max && p.price > parseFloat(filters.price_max)) return false;
+      if (filters.discount && Number(p.discount || 0) <= 0) return false;
+      if (filters.new && !p.isNew) return false;
+
       const matchesQuery = !q || [p.name, p.brand, p.category].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
       if (!matchesQuery) return false;
 
@@ -214,7 +184,7 @@ const Catalog: React.FC = () => {
 
       return true;
     });
-  }, [products, query, filters.taste_sweetness_min, filters.taste_sweetness_max, filters.taste_coolness_min, filters.taste_fruitiness_min]);
+  }, [products, query, filters.category, filters.brand, filters.price_min, filters.price_max, filters.discount, filters.new, filters.taste_sweetness_min, filters.taste_sweetness_max, filters.taste_coolness_min, filters.taste_fruitiness_min]);
 
   const bannerUrl = resolveBrandAssetUrl('banners/banner-1.jpg', branding.assetBasePath);
 
@@ -474,16 +444,7 @@ const Catalog: React.FC = () => {
       {loading ? (
         <div style={styles.grid}>
           {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              style={{
-                height: 320,
-                borderRadius: theme.radius.lg,
-                border: '1px solid rgba(96,165,250,0.10)',
-                background: 'rgba(16,15,18,0.82)',
-                animation: 'pulse 1.5s ease-in-out infinite',
-              }}
-            />
+            <ProductCardSkeleton key={i} />
           ))}
         </div>
       ) : (

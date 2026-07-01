@@ -1,38 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import WebApp from '@twa-dev/sdk';
-import { catalogAPI, cartAPI } from '../services/api';
+import { cartAPI } from '../services/api';
 import { useCityStore } from '../store/useCityStore';
 import { useCartStore } from '../store/useCartStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useConfigStore } from '../store/useConfigStore';
 import { useToastStore } from '../store/useToastStore';
-import { useSplashStore } from '../store/useSplashStore';
-import { withRetry } from '../lib/withRetry';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  brand: string;
-  price: number;
-  image: string;
-  isNew?: boolean;
-  qtyAvailable?: number;
-}
+import { useCatalogStore, type CatalogProduct } from '../store/useCatalogStore';
 
 export function useHomePage() {
   const pushToast = useToastStore((state) => state.push);
   const addItemOptimistic = useCartStore((state) => state.addItemOptimistic);
   const rollbackOptimisticAdd = useCartStore((state) => state.rollbackOptimisticAdd);
   const scheduleSync = useCartStore((state) => state.scheduleSync);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const requestRef = useRef(0);
+  const catalogProducts = useCatalogStore((state) => (city ? state.byCity[city] : undefined));
+  const prefetchCatalog = useCatalogStore((state) => state.prefetch);
   const { city } = useCityStore();
   const favorites = useFavoritesStore();
   const { config } = useConfigStore();
-  const { setReady } = useSplashStore();
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const requestRef = useRef(0);
 
   const categories = (config?.categoryTiles || []).map((t) => ({
     slug: t.slug,
@@ -41,58 +29,51 @@ export function useHomePage() {
     badgeText: t.badgeText || '',
   }));
 
-  useEffect(() => {
-    loadProducts();
-    if (city) favorites.load(city);
-  }, [city]);
+  const entry = catalogProducts;
+  const products: CatalogProduct[] = entry ? entry.products.slice(0, 4) : [];
+  const loading = Boolean(city) && !entry && !loadError;
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async (force = false) => {
     const requestId = ++requestRef.current;
+    if (!city) {
+      setLoadError('Выберите город');
+      return;
+    }
     try {
-      setLoading(true);
+      setRefreshing(true);
       setLoadError(null);
-      if (!city) {
-        if (requestId === requestRef.current) setLoadError('Выберите город');
-        return;
-      }
-      const response = await withRetry(() => catalogAPI.getProducts({ city }), { retries: 2 });
-      const featured: Product[] = response.data.products.slice(0, 4).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        brand: p.brand,
-        price: p.price,
-        image: p.image || '',
-        isNew: Boolean(p.isNew),
-        qtyAvailable: Number(p.qtyAvailable || 0),
-      }));
-      if (requestId === requestRef.current && useCityStore.getState().city === city) {
-        setProducts(featured);
-      }
+      await prefetchCatalog(city, force);
     } catch (error) {
       console.error('Failed to load products:', error);
-      const status = (error as any)?.response?.status;
       if (requestId !== requestRef.current) return;
+      const status = (error as { response?: { status?: number; data?: { missing?: string[] } } })?.response?.status;
       if (status === 503) {
-        const missing = (error as any)?.response?.data?.missing || [];
+        const missing = (error as { response?: { data?: { missing?: string[] } } })?.response?.data?.missing || [];
         setLoadError(`Sheets не настроен. Добавь env: ${missing.join(', ')}`);
       } else {
         setLoadError('Не удалось загрузить каталог');
       }
     } finally {
       if (requestId === requestRef.current) {
-        setLoading(false);
-        setReady(true);
+        setRefreshing(false);
       }
     }
-  };
+  }, [city, prefetchCatalog]);
 
-  const addToCart = async (product: Product) => {
+  useEffect(() => {
+    if (!city) return;
+    favorites.load(city);
+    if (!useCatalogStore.getState().byCity[city]) {
+      loadProducts(false);
+    }
+  }, [city, favorites, loadProducts]);
+
+  const addToCart = async (product: CatalogProduct) => {
     if (!city) {
       pushToast('Выберите город', 'error');
       return;
     }
-    try { WebApp.HapticFeedback.impactOccurred('medium'); } catch (err) { /* ignore */ }
+    try { WebApp.HapticFeedback.impactOccurred('medium'); } catch { /* ignore */ }
     addItemOptimistic({
       city,
       quantity: 1,
@@ -110,16 +91,12 @@ export function useHomePage() {
       scheduleSync(city);
       pushToast('Добавлено в корзину', 'success');
     } catch {
-      rollbackOptimisticAdd({
-        city,
-        productId: product.id,
-        quantity: 1,
-      });
+      rollbackOptimisticAdd({ city, productId: product.id, quantity: 1 });
       scheduleSync(city, 0);
     }
   };
 
-  const toggleFavorite = async (product: Product) => {
+  const toggleFavorite = async (product: CatalogProduct) => {
     if (!city) {
       pushToast('Выберите город', 'error');
       return;
@@ -146,13 +123,13 @@ export function useHomePage() {
 
   return {
     products,
-    loading,
+    loading: loading || refreshing,
     loadError,
     categories,
     city,
     favorites,
     addToCart,
     toggleFavorite,
-    reload: loadProducts,
+    reload: () => loadProducts(true),
   };
 }

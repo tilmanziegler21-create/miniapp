@@ -73,4 +73,16 @@ export const theme = {
     header: 100,
     content: 1,
   },
+  motion: {
+    duration: {
+      fast: '140ms',
+      normal: '220ms',
+      slow: '380ms',
+    },
+    easing: {
+      out: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      inOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
+    },
+    staggerStep: '60ms',
+  },
 } as const;

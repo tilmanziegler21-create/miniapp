@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { theme, GlassCard, PrimaryButton, ProductCard, SectionDivider } from '../ui';
+import { theme, GlassCard, PrimaryButton, ProductCard, ProductCardSkeleton, SectionDivider } from '../ui';
 import { Search } from 'lucide-react';
 import { formatCurrency } from '../lib/currency';
 import { useHomePage } from '../hooks/useHomePage';
@@ -151,18 +151,11 @@ const Home: React.FC = () => {
       gap: theme.spacing.md,
       marginBottom: theme.spacing.xl,
     },
-    skeleton: {
-      background: 'rgba(96,165,250,0.08)',
-      borderRadius: theme.radius.lg,
-      height: 320,
-      animation: 'pulse 1.5s ease-in-out infinite',
-      border: '1px solid rgba(96,165,250,0.10)',
-    },
   };
 
   return (
     <div style={styles.container} className="gold-glow">
-      <div style={styles.hero}>
+      <div className="stagger-item" style={{ ...styles.hero, ['--stagger-i' as string]: 0 }}>
         <div style={styles.heroCard}>
           <div style={styles.heroOverlay}>
             <div style={styles.heroEyebrow}>Премиум качество</div>
@@ -175,7 +168,7 @@ const Home: React.FC = () => {
       </div>
 
       {/* Search Section */}
-      <div style={styles.searchSection}>
+      <div className="stagger-item" style={{ ...styles.searchSection, ['--stagger-i' as string]: 1 }}>
         <div
           style={styles.searchButton}
           onClick={() => navigate('/catalog')}
@@ -186,9 +179,11 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      <SectionDivider title="Категории" />
+      <div className="stagger-item" style={{ ['--stagger-i' as string]: 2 }}>
+        <SectionDivider title="Категории" />
+      </div>
 
-      <div style={styles.categoryScrollerWrap}>
+      <div className="stagger-item" style={{ ...styles.categoryScrollerWrap, ['--stagger-i' as string]: 3 }}>
         <div style={styles.categoryScroller}>
           {categories.map((category) => (
             <div
@@ -205,7 +200,9 @@ const Home: React.FC = () => {
 
       <div style={styles.categoryHint}>Листай категории влево и вправо</div>
 
-      <SectionDivider title="Наш каталог" />
+      <div className="stagger-item" style={{ ['--stagger-i' as string]: 4 }}>
+        <SectionDivider title="Наш каталог" />
+      </div>
 
       {loadError ? (
         <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.lg }}>
@@ -219,14 +216,16 @@ const Home: React.FC = () => {
       {loading ? (
         <div style={styles.productGrid}>
           {[...Array(4)].map((_, i) => (
-            <div key={i} style={styles.skeleton} />
+            <div key={i} className="stagger-item" style={{ ['--stagger-i' as string]: 5 + i }}>
+              <ProductCardSkeleton />
+            </div>
           ))}
         </div>
       ) : (
         <div style={styles.productGrid}>
-          {products.map((product) => (
+          {products.map((product, index) => (
+            <div key={product.id} className="stagger-item" style={{ ['--stagger-i' as string]: 5 + index }}>
             <ProductCard
-              key={product.id}
               {...product}
               stock={product.qtyAvailable}
               onClick={(id) => navigate(`/product/${id}`)}
@@ -234,7 +233,9 @@ const Home: React.FC = () => {
               isFavorite={favorites.isFavorite(product.id)}
               onToggleFavorite={() => toggleFavorite(product)}
             />
+            </div>
           ))}
+          <div className="stagger-item" style={{ ['--stagger-i' as string]: 9 }}>
           <GlassCard
             padding="lg"
             variant="elevated"
@@ -269,10 +270,11 @@ const Home: React.FC = () => {
               Далее по {formatCurrency(liquidPrices['extra'] || 14)}
             </div>
           </GlassCard>
+          </div>
         </div>
       )}
 
-      <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.xl }}>
+      <div className="stagger-item" style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.xl, ['--stagger-i' as string]: 10 }}>
         <PrimaryButton fullWidth onClick={() => navigate('/referral')}>
           Пригласить друга
         </PrimaryButton>

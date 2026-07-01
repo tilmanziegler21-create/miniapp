@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from './theme';
+import { FadeImage } from './FadeImage';
 import { IconButton } from './IconButton';
 import { Heart, Plus, ShoppingCart, Star } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
@@ -217,7 +218,7 @@ export const ProductCard = React.memo<ProductCardProps>(({
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
       >
-        {resolvedImage ? <img src={resolvedImage} loading="lazy" decoding="async" alt="" style={styles.bgImage} /> : null}
+        {resolvedImage ? <FadeImage src={resolvedImage} alt="" style={styles.bgImage} /> : null}
         <div style={styles.scrim} />
         <div style={styles.favoriteButton}>
           <IconButton

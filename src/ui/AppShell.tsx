@@ -4,6 +4,7 @@ import { TopBar } from './TopBar';
 import { DrawerMenu } from './DrawerMenu';
 import { FooterBar } from './FooterBar';
 import { ToastHost } from './ToastHost';
+import { PageTransition } from './PageTransition';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useConfigStore } from '../store/useConfigStore';
@@ -12,7 +13,6 @@ import { CityPickerModal } from './CityPickerModal';
 import { useToastStore } from '../store/useToastStore';
 import { cartAPI, referralAPI } from '../services/api';
 import { useBranding } from '../hooks/useBranding';
-import { useSplashStore } from '../store/useSplashStore';
 import { CART_FLY_EVENT, type CartFlyDetail } from '../lib/cartFeedback';
 
 type Props = {
@@ -35,7 +35,6 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
   const city = useCityStore((state) => state.city);
   const setCity = useCityStore((state) => state.setCity);
   const ensureCity = useCityStore((state) => state.ensureCity);
-  const setReady = useSplashStore((state) => state.setReady);
   const [cityModalOpen, setCityModalOpen] = React.useState(false);
   const [cartPulseKey, setCartPulseKey] = React.useState(0);
   const [flyItems, setFlyItems] = React.useState<
@@ -64,13 +63,10 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
       const codes = cities.map((c) => String(c.code || '')).filter(Boolean);
       if (!codes.length) {
         pushToast('Города не настроены', 'error');
-        setReady(true);
-        return;
       }
       ensureCity(codes);
-      setReady(true);
     })();
-  }, [ensureCity, load, pushToast, setReady]);
+  }, [ensureCity, load, pushToast]);
 
   React.useEffect(() => {
     if (!city || !user?.tgId) return;
@@ -173,7 +169,7 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
         }}
       />
       <div style={{ paddingBottom: '104px' }}>
-        <div className="page-transition">{children}</div>
+        <PageTransition>{children}</PageTransition>
       </div>
       {flyItems.map((item) => (
         <div

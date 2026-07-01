@@ -3,10 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import WebApp from '@twa-dev/sdk';
 import { useAuthStore } from './store/useAuthStore';
 import { authAPI } from './services/api';
-import { SafeAreaProvider, AppShell } from './ui';
-import { useBranding } from './hooks/useBranding';
-import { useSplashStore } from './store/useSplashStore';
+import { SafeAreaProvider, AppShell, SplashScreen } from './ui';
+import { useBootStore } from './store/useBootStore';
 import { useConfigStore } from './store/useConfigStore';
+import { runBootPipeline } from './lib/boot';
 
 const Home = React.lazy(() => import('./pages/Home'));
 const Catalog = React.lazy(() => import('./pages/Catalog'));
@@ -27,11 +27,11 @@ const FortuneWheel = React.lazy(() => import('./pages/FortuneWheel'));
 const CourierRegistration = React.lazy(() => import('./pages/CourierRegistration'));
 
 function App() {
-  const branding = useBranding();
   const { load: loadConfig } = useConfigStore();
   const { user, setUser, setLoading } = useAuthStore();
-  const { isReady: isAppReady } = useSplashStore();
+  const { isReady: isBootReady } = useBootStore();
   const authStartedRef = React.useRef(false);
+  const bootStartedRef = React.useRef(false);
   const [authFinished, setAuthFinished] = React.useState(false);
   const [showSplash, setShowSplash] = React.useState(true);
   const [isFadingOut, setIsFadingOut] = React.useState(false);
@@ -52,10 +52,9 @@ function App() {
     let hideSplashTimer: number | undefined;
 
     if (user) {
-      if (isAppReady) {
-        // Keep the splash short enough to feel premium while content loads underneath
+      if (isBootReady) {
         const elapsed = Date.now() - mountTimeRef.current;
-        const delay = Math.max(0, 450 - elapsed);
+        const delay = Math.max(0, 520 - elapsed);
 
         const t1 = window.setTimeout(() => {
           setIsFadingOut(true);
@@ -70,7 +69,7 @@ function App() {
         const fallback = window.setTimeout(() => {
           setIsFadingOut(true);
           hideSplashTimer = window.setTimeout(() => setShowSplash(false), 380);
-        }, 1600);
+        }, 3000);
         return () => {
           window.clearTimeout(fallback);
           if (hideSplashTimer) window.clearTimeout(hideSplashTimer);
@@ -80,7 +79,13 @@ function App() {
       // If auth failed, hide splash immediately
       setShowSplash(false);
     }
-  }, [authFinished, user, isAppReady]);
+  }, [authFinished, user, isBootReady]);
+
+  useEffect(() => {
+    if (!user?.tgId || bootStartedRef.current) return;
+    bootStartedRef.current = true;
+    runBootPipeline(user.tgId);
+  }, [user?.tgId]);
 
   useEffect(() => {
     try {
@@ -223,25 +228,7 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      {showSplash && (
-        <div className={`splash-screen${isFadingOut ? ' splash-screen--fade' : ''}`}>
-          <div className="splash-content">
-            <div className="splash-logo">
-              <img
-                src={branding.brandAvatarUrl || '/favicon.svg'}
-                alt="logo"
-                style={{
-                  width: branding.brandAvatarUrl ? '100%' : '52px',
-                  height: branding.brandAvatarUrl ? '100%' : '52px',
-                  objectFit: 'cover',
-                }}
-              />
-            </div>
-            <h1 className="splash-title">{branding.name}</h1>
-            <p className="splash-subtitle">{branding.subtitle}</p>
-          </div>
-        </div>
-      )}
+      {showSplash && <SplashScreen fadingOut={isFadingOut} />}
 
       {user && (
         <Router>
