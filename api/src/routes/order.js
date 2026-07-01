@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import db from '../services/database.js';
 import { getProducts, updateProductStockBatch, appendOrderRow, updateOrderRowByOrderId, getOrders } from '../services/sheets.js';
 import { normalizeOrderStatus } from '../domain/orderStatus.js';
+import { notifyCouriersAboutNewOrder } from '../services/telegramNotify.js';
 
 const router = express.Router();
 const stockCommitting = new Set();
@@ -551,7 +552,7 @@ router.post('/payment', requireAuth, async (req, res) => {
             status: normalizeOrderStatus(nextStatus),
             payment_method: paymentMethod || '',
             bonus_applied: bonusUsed ? String(bonusUsed) : '',
-            final_amount: bonusUsed ? String(paidAmount) : '',
+            final_amount: String(paidAmount),
           });
         }
       } catch (e) {
@@ -559,6 +560,28 @@ router.post('/payment', requireAuth, async (req, res) => {
       }
 
       db.persistState();
+    }
+
+    try {
+      const freshOrder = db.orders.get(orderId);
+      const notifyItems = [];
+      for (const oi of db.orderItems.values()) {
+        if (String(oi.order_id) !== String(orderId)) continue;
+        notifyItems.push({
+          name: oi.name || oi.product_id,
+          product_id: oi.product_id,
+          quantity: oi.quantity,
+          price: oi.price,
+        });
+      }
+      if (freshOrder && cityStr) {
+        freshOrder.user_name = String(req.user?.username || req.user?.firstName || req.user?.tgId || freshOrder.user_id || '');
+        notifyCouriersAboutNewOrder({ city: cityStr, order: freshOrder, items: notifyItems }).catch((e) => {
+          console.error('Courier notify failed:', e);
+        });
+      }
+    } catch (e) {
+      console.error('Courier notify setup failed:', e);
     }
 
     const payload = buildPaymentPayload(db.orders.get(orderId));

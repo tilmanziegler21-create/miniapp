@@ -3,25 +3,32 @@ import { useNavigate } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
 import { Minus, Plus, Trash2, Store } from 'lucide-react';
 import { bonusesAPI, cartAPI, orderAPI } from '../services/api';
-
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { GlassCard, PrimaryButton, theme } from '../ui';
+import { GlassCard, PrimaryButton, theme, CartLiquidUpsell } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
 import { useConfigStore } from '../store/useConfigStore';
-import { useBranding, resolveBrandAssetUrl } from '../hooks/useBranding';
+import { useCatalogStore } from '../store/useCatalogStore';
+import { countLiquidItems, nextLiquidBundlePrice, pickLiquidUpsellProducts } from '../lib/liquidUpsell';
+import type { CatalogProduct } from '../store/useCatalogStore';
 
-type Fulfillment = 'delivery' | 'pickup';
-type PaymentMethod = 'cash' | 'card';
+type PaymentMethod = 'cash' | 'card' | 'crypto';
+
+const PAYMENT_OPTIONS: Array<{ id: PaymentMethod; title: string; desc: string; icon: string }> = [
+  { id: 'cash', title: 'Наличные', desc: 'Оплата при получении', icon: '💵' },
+  { id: 'card', title: 'Картой', desc: 'Перевод или терминал', icon: '💳' },
+  { id: 'crypto', title: 'Криптовалюта', desc: 'USDT / BTC по договорённости', icon: '₿' },
+];
 
 const Cart: React.FC = () => {
   const navigate = useNavigate();
   const pushToast = useToastStore((state) => state.push);
   const { user } = useAuthStore();
   const cart = useCartStore((state) => state.cart);
+  const addItemOptimistic = useCartStore((state) => state.addItemOptimistic);
   const updateQuantityOptimistic = useCartStore((state) => state.updateQuantityOptimistic);
   const removeItemOptimistic = useCartStore((state) => state.removeItemOptimistic);
   const scheduleSync = useCartStore((state) => state.scheduleSync);
@@ -29,23 +36,32 @@ const Cart: React.FC = () => {
   const { trackRemoveFromCart, trackCheckout, trackOrderComplete } = useAnalytics();
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
+  const [upsellBusyId, setUpsellBusyId] = React.useState<string | null>(null);
   const { city } = useCityStore();
   const { config } = useConfigStore();
-  const branding = useBranding();
-  const pickupPoints = (config?.pickupPoints || []).map((p) => p.address);
+  const catalogEntry = useCatalogStore((state) => (city ? state.byCity[city] : undefined));
   const [promoCode] = React.useState('');
-  const fulfillment: Fulfillment = 'pickup';
-  const [pickup, setPickup] = React.useState('');
-
-  const idempotencyKeyRef = React.useRef<string>('');
   const [comment] = React.useState('');
-  const [paymentMethod] = React.useState<PaymentMethod>('cash');
+  const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>('cash');
   const [bonusBalance, setBonusBalance] = React.useState(0);
   const [bonusWant] = React.useState<string>('');
 
-  React.useEffect(() => {
-    if (!pickup && pickupPoints.length) setPickup(pickupPoints[0]);
-  }, [pickup, pickupPoints.join('|')]);
+  const idempotencyKeyRef = React.useRef<string>('');
+
+  const cityTitle =
+    config?.cities?.find((entry) => String(entry.code) === String(city || ''))?.title || city || 'Ваш город';
+
+  const liquidPrices = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
+
+  const upsellProducts = React.useMemo(
+    () => pickLiquidUpsellProducts(cart?.items || [], catalogEntry?.products || []),
+    [cart?.items, catalogEntry?.products],
+  );
+
+  const bundleHint = React.useMemo(() => {
+    const next = nextLiquidBundlePrice(countLiquidItems(cart?.items || []), liquidPrices);
+    return next != null ? formatCurrency(next) : null;
+  }, [cart?.items, liquidPrices]);
 
   React.useEffect(() => {
     if (!city) {
@@ -122,12 +138,59 @@ const Cart: React.FC = () => {
       removeItemOptimistic(itemId);
       await cartAPI.removeItem(itemId);
       scheduleSync(city);
-      pushToast('Товар удалён', 'success');
     } catch (e) {
       console.error('Failed to remove item:', e);
       scheduleSync(city, 0);
     }
   };
+
+  const addUpsellProduct = async (product: CatalogProduct) => {
+    if (!city) {
+      pushToast('Выберите город', 'error');
+      return;
+    }
+    setUpsellBusyId(product.id);
+    try {
+      try { WebApp.HapticFeedback.impactOccurred('light'); } catch { /* ignore */ }
+      addItemOptimistic({
+        city,
+        quantity: 1,
+        product: {
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          brand: product.brand,
+          price: product.price,
+          image: product.image,
+        },
+      });
+      await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price });
+      scheduleSync(city);
+    } catch {
+      scheduleSync(city, 0);
+      pushToast('Не удалось добавить товар', 'error');
+    } finally {
+      setUpsellBusyId(null);
+    }
+  };
+
+  const calculatePricing = () => {
+    if (!cart) return { subtotal: 0, discount: 0, total: 0, quantityDiscount: 0 };
+    const serverPricing = (cart as { pricing?: { subtotal?: number; discount?: number; total?: number } }).pricing;
+    if (serverPricing && typeof serverPricing.total === 'number') {
+      return {
+        subtotal: Number(serverPricing.subtotal || 0),
+        discount: Number(serverPricing.discount || 0),
+        total: Number(serverPricing.total || 0),
+        quantityDiscount: Number(serverPricing.discount || 0),
+      };
+    }
+
+    const subtotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return { subtotal, discount: 0, total: subtotal, quantityDiscount: 0 };
+  };
+
+  const pricing = calculatePricing();
 
   const createOrder = async () => {
     if (!cart?.items?.length) {
@@ -136,20 +199,11 @@ const Cart: React.FC = () => {
     }
 
     const errors: string[] = [];
-    if (!pickup.trim()) {
-      errors.push('Выбери точку самовывоза');
-    }
-
     const bonusInputValue = Number(String(bonusWant || '').replace(',', '.')) || 0;
     const bonusApplyLimit = Math.max(0, Math.min(bonusBalance, pricing.total * 0.5));
 
-    if (bonusInputValue > bonusBalance) {
-      errors.push('Бонусов больше, чем на балансе');
-    }
-    if (bonusInputValue > bonusApplyLimit) {
-      errors.push('Бонусами можно оплатить до 50% заказа');
-    }
-
+    if (bonusInputValue > bonusBalance) errors.push('Бонусов больше, чем на балансе');
+    if (bonusInputValue > bonusApplyLimit) errors.push('Бонусами можно оплатить до 50% заказа');
     if (errors.length) {
       pushToast(errors.join(' • '), 'error');
       return;
@@ -165,7 +219,11 @@ const Cart: React.FC = () => {
 
       const orderData = {
         city,
-        items: cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity, variant: item.variant || '' })),
+        items: cart.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          variant: item.variant || '',
+        })),
         promoCode,
       };
 
@@ -193,7 +251,7 @@ const Cart: React.FC = () => {
         delivery_date: '',
         delivery_time: '',
         courierData: {
-          address: pickup,
+          address: `Самовывоз · ${cityTitle}`,
           comment: String(comment || '').slice(0, 500),
           user: {
             tgId: user?.tgId || '',
@@ -206,9 +264,7 @@ const Cart: React.FC = () => {
       syncCart(city).catch(() => {});
 
       trackOrderComplete(orderId, Number(totalAmount || cart.total), cart.items);
-
       pushToast(`Заказ ${orderId} оформлен`, 'success');
-
       navigate('/orders');
     } catch (e) {
       console.error('Failed to create order:', e);
@@ -221,272 +277,6 @@ const Cart: React.FC = () => {
       setBusy(false);
       idempotencyKeyRef.current = '';
     }
-  };
-
-  // Calculate pricing with quantity discounts
-  const calculatePricing = () => {
-    if (!cart) return { subtotal: 0, discount: 0, total: 0, quantityDiscount: 0 };
-    const serverPricing = (cart as any).pricing;
-    if (serverPricing && typeof serverPricing.total === 'number') {
-      return {
-        subtotal: Number(serverPricing.subtotal || 0),
-        discount: Number(serverPricing.discount || 0),
-        total: Number(serverPricing.total || 0),
-        quantityDiscount: Number(serverPricing.discount || 0),
-      };
-    }
-    
-    const subtotal = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    return { subtotal, discount: 0, total: subtotal, quantityDiscount: 0 };
-  };
-
-  const pricing = calculatePricing();
-
-  const styles = {
-    title: {
-      textAlign: 'center' as const,
-      padding: `0 ${theme.padding.screen}`,
-      marginTop: theme.spacing.md,
-      marginBottom: theme.spacing.md,
-      fontSize: theme.typography.fontSize['2xl'],
-      fontWeight: theme.typography.fontWeight.bold,
-      letterSpacing: '0.06em',
-      textTransform: 'uppercase' as const,
-    },
-    list: {
-      padding: `0 ${theme.padding.screen}`,
-      display: 'grid',
-      gap: theme.spacing.md,
-      marginBottom: theme.spacing.lg,
-    },
-    itemCard: {
-      borderRadius: theme.radius.lg,
-      border: '1px solid rgba(96,165,250,0.14)',
-      background: 'rgba(16,15,18,0.84)',
-      backdropFilter: `blur(${theme.blur.glass})`,
-      boxShadow: theme.shadow.card,
-      padding: theme.spacing.md,
-      position: 'relative' as const,
-      display: 'flex',
-      alignItems: 'center',
-      gap: theme.spacing.md,
-    },
-    avatar: (img: string) => ({
-      width: 50,
-      height: 50,
-      borderRadius: theme.radius.md,
-      border: '1px solid rgba(96,165,250,0.14)',
-      background: `linear-gradient(135deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.65) 100%), url(${img}) center/cover`,
-      flex: '0 0 auto',
-      boxShadow: '0 4px 10px rgba(0,0,0,0.35)',
-    }),
-    itemInfo: {
-      flex: 1,
-      minWidth: 0,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      justifyContent: 'center',
-    },
-    name: {
-      fontSize: '15px',
-      fontWeight: theme.typography.fontWeight.bold,
-      color: theme.colors.dark.text,
-      whiteSpace: 'nowrap' as const,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-    },
-    flavor: {
-      fontSize: '12px',
-      color: theme.colors.dark.textSecondary,
-      marginTop: 2,
-    },
-    controlsRight: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: theme.spacing.md,
-    },
-    qtyWrap: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: theme.spacing.sm,
-    },
-    qtyBtn: {
-      width: 24,
-      height: 24,
-      borderRadius: 999,
-      background: 'transparent',
-      border: '1px solid rgba(96,165,250,0.3)',
-      color: theme.colors.dark.text,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      cursor: 'pointer',
-    },
-    itemPrice: {
-      fontSize: '15px',
-      fontWeight: theme.typography.fontWeight.bold,
-      color: theme.colors.dark.primary,
-      whiteSpace: 'nowrap' as const,
-    },
-    removeButton: {
-      width: 28,
-      height: 28,
-      borderRadius: 999,
-      border: '1px solid rgba(248,113,113,0.24)',
-      background: 'rgba(127,29,29,0.22)',
-      color: '#fecaca',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      cursor: 'pointer',
-    },
-    sectionTitle: {
-      fontSize: '12px',
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase' as const,
-      color: theme.colors.dark.textSecondary,
-      padding: `0 ${theme.padding.screen}`,
-      marginTop: theme.spacing.xl,
-      marginBottom: theme.spacing.sm,
-    },
-    radioCard: (active: boolean) => ({
-      margin: `0 ${theme.padding.screen} ${theme.spacing.sm}`,
-      padding: theme.spacing.md,
-      borderRadius: theme.radius.md,
-      border: `1px solid ${active ? 'rgba(96,165,250,0.6)' : 'rgba(96,165,250,0.14)'}`,
-      background: 'rgba(16,15,18,0.84)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: theme.spacing.md,
-      cursor: 'pointer',
-    }),
-    radioCircle: (active: boolean) => ({
-      width: 20,
-      height: 20,
-      borderRadius: '50%',
-      border: `2px solid ${active ? theme.colors.dark.primary : 'rgba(255,255,255,0.3)'}`,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flex: '0 0 auto',
-    }),
-    radioInner: (active: boolean) => ({
-      width: 10,
-      height: 10,
-      borderRadius: '50%',
-      background: active ? theme.colors.dark.primary : 'transparent',
-    }),
-    radioTextWrap: {
-      flex: 1,
-    },
-    radioTitle: {
-      fontSize: '15px',
-      fontWeight: theme.typography.fontWeight.bold,
-      color: theme.colors.dark.text,
-      marginBottom: 2,
-    },
-    radioDesc: {
-      fontSize: '12px',
-      color: theme.colors.dark.textSecondary,
-    },
-    summaryRowPhoto: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      padding: `0 ${theme.padding.screen}`,
-      marginBottom: theme.spacing.sm,
-      fontSize: '14px',
-      color: theme.colors.dark.textSecondary,
-    },
-    totalRowPhoto: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: `0 ${theme.padding.screen}`,
-      marginBottom: theme.spacing.xl,
-      fontSize: '18px',
-      fontWeight: theme.typography.fontWeight.bold,
-    },
-    totalPricePill: {
-      background: 'rgba(16,15,18,0.84)',
-      border: '1px solid rgba(96,165,250,0.3)',
-      padding: '8px 16px',
-      borderRadius: 999,
-      color: theme.colors.dark.primary,
-    },
-    edit: {
-      padding: `0 ${theme.padding.screen}`,
-      marginBottom: theme.spacing.md,
-    },
-    toggles: {
-      padding: `0 ${theme.padding.screen}`,
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: theme.spacing.md,
-      marginBottom: theme.spacing.md,
-    },
-    promoRow: {
-      padding: `0 ${theme.padding.screen}`,
-      marginBottom: theme.spacing.md,
-    },
-    promoBox: {
-      borderRadius: theme.radius.lg,
-      border: '1px solid rgba(96,165,250,0.14)',
-      background: 'rgba(16,15,18,0.84)',
-      backdropFilter: `blur(${theme.blur.glass})`,
-      boxShadow: theme.shadow.card,
-      padding: theme.spacing.md,
-      display: 'grid',
-      gap: theme.spacing.sm,
-    },
-    promoLabel: {
-      fontSize: theme.typography.fontSize.xs,
-      letterSpacing: '0.14em',
-      textTransform: 'uppercase' as const,
-      color: theme.colors.dark.textSecondary,
-    },
-    promoInput: {
-      width: '100%',
-      borderRadius: 999,
-      border: '1px solid rgba(96,165,250,0.14)',
-      background: 'rgba(0,0,0,0.25)',
-      color: theme.colors.dark.text,
-      padding: '10px 14px',
-      outline: 'none',
-    },
-    pickupCard: {
-      margin: `0 ${theme.padding.screen} ${theme.spacing.md}`,
-      borderRadius: theme.radius.lg,
-      overflow: 'hidden',
-      border: '1px solid rgba(255,255,255,0.14)',
-      background: `linear-gradient(135deg, rgba(96,165,250,0.14) 0%, rgba(30,64,175,0.18) 100%), url(${resolveBrandAssetUrl('banners/banner-1.jpg', branding.assetBasePath)}) center/cover`,
-      boxShadow: theme.shadow.card,
-    },
-    pickupInner: {
-      padding: theme.spacing.lg,
-      background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.70) 100%)',
-      backdropFilter: `blur(${theme.blur.glass})`,
-    },
-    pickupTitle: {
-      fontSize: theme.typography.fontSize.xl,
-      fontWeight: theme.typography.fontWeight.bold,
-      letterSpacing: '0.12em',
-      textTransform: 'uppercase' as const,
-      marginBottom: theme.spacing.sm,
-    },
-    pickupSelect: {
-      width: '100%',
-      borderRadius: theme.radius.md,
-      border: '1px solid rgba(96,165,250,0.14)',
-      background: 'rgba(16,15,18,0.84)',
-      color: theme.colors.dark.text,
-      padding: '10px 12px',
-      outline: 'none',
-      marginBottom: theme.spacing.md,
-    },
-    checkout: {
-      padding: `0 ${theme.padding.screen}`,
-      marginBottom: theme.spacing.xl,
-    },
   };
 
   if (loading) {
@@ -503,7 +293,9 @@ const Cart: React.FC = () => {
     return (
       <div style={{ padding: theme.padding.screen }}>
         <GlassCard padding="lg" variant="elevated">
-          <div style={{ textAlign: 'center', color: theme.colors.dark.textSecondary, marginBottom: theme.spacing.md }}>Корзина пуста</div>
+          <div style={{ textAlign: 'center', color: theme.colors.dark.textSecondary, marginBottom: theme.spacing.md }}>
+            Корзина пуста
+          </div>
           <PrimaryButton fullWidth onClick={() => navigate('/catalog')}>
             Перейти в каталог
           </PrimaryButton>
@@ -513,32 +305,78 @@ const Cart: React.FC = () => {
   }
 
   return (
-    <div className="gold-glow">
-      <div style={styles.title}>Корзина</div>
+    <div className="gold-glow cart-page">
+      <div
+        style={{
+          textAlign: 'center',
+          padding: `0 ${theme.padding.screen}`,
+          marginTop: theme.spacing.md,
+          marginBottom: theme.spacing.md,
+          fontSize: theme.typography.fontSize['2xl'],
+          fontWeight: theme.typography.fontWeight.bold,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Корзина
+      </div>
 
-      <div style={styles.list}>
+      <div style={{ padding: `0 ${theme.padding.screen}`, display: 'grid', gap: theme.spacing.md, marginBottom: theme.spacing.lg }}>
         {cart.items.map((item) => (
-          <div key={item.id} style={styles.itemCard}>
-            <div style={styles.avatar(item.image)} />
-            <div style={styles.itemInfo}>
-              <div style={styles.name}>{item.name}</div>
-              {item.variant && <div style={styles.flavor}>{item.variant}</div>}
-              {item.id.startsWith('tmp_') ? (
-                <div style={{ ...styles.flavor, color: theme.colors.dark.primary }}>Синхронизация...</div>
-              ) : null}
+          <div key={item.id} className="cart-item">
+            <div className="cart-item-top">
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: theme.radius.md,
+                  border: '1px solid rgba(96,165,250,0.14)',
+                  background: item.image
+                    ? `url(${item.image}) center/cover`
+                    : 'linear-gradient(135deg, #10203b 0%, #17325f 52%, #0c1a31 100%)',
+                }}
+              />
+              <div style={{ minWidth: 0 }}>
+                <div className="cart-item-name">{item.name}</div>
+                {item.variant ? <div className="cart-item-meta">{item.variant}</div> : null}
+                {item.id.startsWith('tmp_') ? (
+                  <div className="cart-item-meta" style={{ color: theme.colors.dark.primary }}>Синхронизация...</div>
+                ) : null}
+              </div>
+              <div className="cart-item-price">
+                {formatCurrency(item.total ?? (item.effectivePrice ?? item.price) * item.quantity)}
+              </div>
             </div>
-            <div style={styles.controlsRight}>
-              <div style={styles.qtyWrap}>
-                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity - 1)} disabled={item.id.startsWith('tmp_')}>
+
+            <div className="cart-item-controls">
+              <div className="cart-qty-wrap">
+                <button
+                  type="button"
+                  className="cart-qty-btn"
+                  onClick={() => setQty(item.id, item.quantity - 1)}
+                  disabled={item.id.startsWith('tmp_') || item.quantity <= 1}
+                  aria-label="Уменьшить количество"
+                >
                   <Minus size={14} />
                 </button>
-                <div style={{ width: 14, textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }}>{item.quantity}</div>
-                <button style={styles.qtyBtn} onClick={() => setQty(item.id, item.quantity + 1)} disabled={item.id.startsWith('tmp_')}>
+                <div style={{ minWidth: 18, textAlign: 'center', fontSize: 14, fontWeight: 700 }}>{item.quantity}</div>
+                <button
+                  type="button"
+                  className="cart-qty-btn"
+                  onClick={() => setQty(item.id, item.quantity + 1)}
+                  disabled={item.id.startsWith('tmp_')}
+                  aria-label="Увеличить количество"
+                >
                   <Plus size={14} />
                 </button>
               </div>
-              <div style={styles.itemPrice}>{formatCurrency(item.total ?? (item.effectivePrice ?? item.price) * item.quantity)}</div>
-              <button type="button" style={styles.removeButton} onClick={() => removeItem(item.id)} aria-label={`Удалить ${item.name} из корзины`} disabled={item.id.startsWith('tmp_')}>
+              <button
+                type="button"
+                className="cart-remove-btn"
+                onClick={() => removeItem(item.id)}
+                aria-label={`Удалить ${item.name}`}
+                disabled={item.id.startsWith('tmp_')}
+              >
                 <Trash2 size={14} />
               </button>
             </div>
@@ -546,44 +384,136 @@ const Cart: React.FC = () => {
         ))}
       </div>
 
-      <div style={styles.sectionTitle}>Способ получения</div>
-      <div style={styles.radioCard(true)}>
-        <div style={styles.radioCircle(fulfillment === 'pickup')}>
-          <div style={styles.radioInner(fulfillment === 'pickup')} />
-        </div>
-        <Store size={20} color={fulfillment === 'pickup' ? theme.colors.dark.primary : theme.colors.dark.textSecondary} />
-        <div style={styles.radioTextWrap}>
-          <div style={styles.radioTitle}>Самовывоз — Кассель</div>
-          <div style={styles.radioDesc}>Заберите в нашем магазине, адрес сообщим в личку</div>
+      <CartLiquidUpsell
+        products={upsellProducts}
+        bundleHint={bundleHint}
+        busyId={upsellBusyId}
+        onAdd={addUpsellProduct}
+      />
+
+      <div
+        style={{
+          fontSize: 12,
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+          color: theme.colors.dark.textSecondary,
+          padding: `0 ${theme.padding.screen}`,
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        Получение
+      </div>
+      <div
+        style={{
+          margin: `0 ${theme.padding.screen} ${theme.spacing.md}`,
+          padding: theme.spacing.md,
+          borderRadius: theme.radius.md,
+          border: '1px solid rgba(96,165,250,0.35)',
+          background: 'rgba(16,15,18,0.84)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing.md,
+        }}
+      >
+        <Store size={20} color={theme.colors.dark.primary} />
+        <div>
+          <div style={{ fontSize: 15, fontWeight: theme.typography.fontWeight.bold }}>Самовывоз</div>
+          <div style={{ fontSize: 12, color: theme.colors.dark.textSecondary, marginTop: 2 }}>
+            Город: {cityTitle}. Адрес и детали пришлём в личные сообщения.
+          </div>
         </div>
       </div>
 
-      <div style={styles.sectionTitle}>Способ оплаты</div>
-      <div style={styles.radioCard(true)}>
-        <div style={styles.radioCircle(true)}>
-          <div style={styles.radioInner(true)} />
-        </div>
-        <span style={{ fontSize: '20px' }}>💵</span>
-        <div style={styles.radioTextWrap}>
-          <div style={styles.radioTitle}>Наличные</div>
-          <div style={styles.radioDesc}>Оплата при получении</div>
-        </div>
+      <div
+        style={{
+          fontSize: 12,
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+          color: theme.colors.dark.textSecondary,
+          padding: `0 ${theme.padding.screen}`,
+          marginBottom: theme.spacing.sm,
+        }}
+      >
+        Способ оплаты
+      </div>
+      <div className="cart-payment-grid">
+        {PAYMENT_OPTIONS.map((option) => {
+          const active = paymentMethod === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              className={`cart-payment-option${active ? ' cart-payment-option--active' : ''}`}
+              onClick={() => setPaymentMethod(option.id)}
+            >
+              <span style={{ fontSize: 20 }}>{option.icon}</span>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: theme.typography.fontWeight.bold, color: theme.colors.dark.text }}>
+                  {option.title}
+                </div>
+                <div style={{ fontSize: 12, color: theme.colors.dark.textSecondary, marginTop: 2 }}>{option.desc}</div>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      <div style={{ marginTop: theme.spacing.xl }} />
-
-      <div style={styles.summaryRowPhoto}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          padding: `0 ${theme.padding.screen}`,
+          marginBottom: theme.spacing.sm,
+          fontSize: 14,
+          color: theme.colors.dark.textSecondary,
+        }}
+      >
         <span>Сумма</span>
         <span>{formatCurrency(pricing.subtotal)}</span>
       </div>
-      <div style={styles.totalRowPhoto}>
+      {pricing.discount > 0 ? (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            padding: `0 ${theme.padding.screen}`,
+            marginBottom: theme.spacing.sm,
+            fontSize: 14,
+            color: theme.colors.dark.primary,
+          }}
+        >
+          <span>Скидка</span>
+          <span>-{formatCurrency(pricing.discount)}</span>
+        </div>
+      ) : null}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: `0 ${theme.padding.screen}`,
+          marginBottom: theme.spacing.xl,
+          fontSize: 18,
+          fontWeight: theme.typography.fontWeight.bold,
+        }}
+      >
         <span>Итого</span>
-        <div style={styles.totalPricePill}>{formatCurrency(pricing.total)}</div>
+        <div
+          style={{
+            background: 'rgba(16,15,18,0.84)',
+            border: '1px solid rgba(96,165,250,0.3)',
+            padding: '8px 16px',
+            borderRadius: 999,
+            color: theme.colors.dark.primary,
+          }}
+        >
+          {formatCurrency(pricing.total)}
+        </div>
       </div>
 
-      <div style={styles.checkout}>
+      <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.xl }}>
         <PrimaryButton fullWidth onClick={createOrder} disabled={busy}>
-          {busy ? 'Оформление...' : 'ОФОРМИТЬ ЗАКАЗ'}
+          {busy ? 'Оформление...' : 'Оформить заказ'}
         </PrimaryButton>
       </div>
     </div>

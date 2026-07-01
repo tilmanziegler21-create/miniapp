@@ -207,7 +207,6 @@ const Product: React.FC = () => {
     try {
       await cartAPI.addItem({ productId: product.id, quantity, city, variant: variant || defaultFlavors[0] });
       scheduleSync(city);
-      pushToast('Добавлено в корзину', 'success');
       trackAddToCart(product.id, product.name, product.price, quantity);
     } catch (e) {
       console.error('Add to cart failed:', e);
@@ -537,7 +536,6 @@ const Product: React.FC = () => {
                 cartAPI.addItem({ productId: p.id, quantity: 1, city, price: p.price })
                   .then(() => {
                     scheduleSync(city);
-                    pushToast('Добавлено в корзину', 'success');
                     trackAddToCart(p.id, p.name, p.price, 1);
                   })
                   .catch(() => {

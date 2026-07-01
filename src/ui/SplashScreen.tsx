@@ -1,6 +1,7 @@
 import React from 'react';
 import { useBranding } from '../hooks/useBranding';
 import { useBootStore } from '../store/useBootStore';
+import startLogo from './startlogo.png';
 
 type Props = {
   fadingOut: boolean;
@@ -10,17 +11,18 @@ export const SplashScreen: React.FC<Props> = ({ fadingOut }) => {
   const branding = useBranding();
   const progress = useBootStore((s) => s.progress);
   const statusText = useBootStore((s) => s.statusText);
+  const logoSrc = startLogo || branding.brandAvatarUrl || '/favicon.svg';
 
   return (
     <div className={`splash-screen${fadingOut ? ' splash-screen--fade' : ''}`}>
       <div className="splash-content">
         <div className="splash-logo">
           <img
-            src={branding.brandAvatarUrl || '/favicon.svg'}
+            src={logoSrc}
             alt="logo"
             style={{
-              width: branding.brandAvatarUrl ? '100%' : '52px',
-              height: branding.brandAvatarUrl ? '100%' : '52px',
+              width: '100%',
+              height: '100%',
               objectFit: 'cover',
             }}
           />

@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../services/database.js';
 import { buildBrandAssetUrl, getBranding } from '../branding.js';
+import { getLiquidPrices } from '../services/sheets.js';
 
 const router = express.Router();
 
@@ -23,13 +24,20 @@ function currencySymbol() {
 
 router.get('/', async (req, res) => {
   const codes = listCities();
+  const defaultCity = codes[0] || '';
   const supportUrl = process.env.GROUP_URL || '';
   const promos = db.getPromos().filter((p) => Boolean(p.active));
   const branding = getBranding();
+  let liquidPrices = null;
+  try {
+    if (defaultCity) liquidPrices = await getLiquidPrices(defaultCity);
+  } catch {
+    liquidPrices = null;
+  }
   
   res.json({
     branding,
-    liquidPrices: null,
+    liquidPrices: liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 },
     cities: codes.map((code) => ({
       code,
       title: code,

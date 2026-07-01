@@ -235,41 +235,34 @@ const Home: React.FC = () => {
             />
             </div>
           ))}
-          <div className="stagger-item" style={{ ['--stagger-i' as string]: 9 }}>
-          <GlassCard
-            padding="lg"
-            variant="elevated"
-            style={{
-              height: 320,
-              borderRadius: theme.radius.lg,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              background: 'linear-gradient(135deg, rgba(96,165,250,0.18) 0%, rgba(56,189,248,0.10) 100%)',
-              border: '1px solid rgba(96,165,250,0.18)',
-            }}
-          >
-            <div style={{ fontSize: 44, lineHeight: 1, marginBottom: theme.spacing.sm, opacity: 0.9 }}>i</div>
-            <div style={{ textAlign: 'center', fontSize: theme.typography.fontSize.sm, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.9, marginBottom: theme.spacing.md }}>
-              Супер цена на жидкости:
+          <div className="stagger-item liquid-deal-card" style={{ ['--stagger-i' as string]: 9, padding: theme.spacing.lg, minHeight: 320, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div className="liquid-deal-badge">Premium offer</div>
+              <div style={{ marginTop: theme.spacing.md, fontSize: theme.typography.fontSize.xl, fontWeight: theme.typography.fontWeight.bold, lineHeight: 1.15 }}>
+                Супер цена на жидкости
+              </div>
+              <div style={{ marginTop: theme.spacing.sm, color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm, lineHeight: 1.45 }}>
+                Чем больше берёте — тем выгоднее по таблице цен
+              </div>
             </div>
-            <div style={{
-              background: 'rgba(255,255,255,0.92)',
-              color: '#000',
-              borderRadius: theme.radius.md,
-              padding: '12px 16px',
-              fontWeight: theme.typography.fontWeight.bold,
-              boxShadow: '0 14px 30px rgba(0,0,0,0.35)',
-              textAlign: 'center',
-              lineHeight: 1.4
-            }}>
-              1 шт - {formatCurrency(liquidPrices['1'] || 18)}<br/>
-              2 шт - {formatCurrency(liquidPrices['2'] || 32)}<br/>
-              3 шт - {formatCurrency(liquidPrices['3'] || 45)}<br/>
-              Далее по {formatCurrency(liquidPrices['extra'] || 14)}
+            <div className="liquid-deal-grid" style={{ marginTop: theme.spacing.lg }}>
+              <div className="liquid-deal-tier">
+                <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>1 шт</span>
+                <strong>{formatCurrency(liquidPrices['1'] || 18)}</strong>
+              </div>
+              <div className="liquid-deal-tier">
+                <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>2 шт</span>
+                <strong>{formatCurrency(liquidPrices['2'] || 32)}</strong>
+              </div>
+              <div className="liquid-deal-tier">
+                <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>3 шт</span>
+                <strong>{formatCurrency(liquidPrices['3'] || 45)}</strong>
+              </div>
+              <div className="liquid-deal-tier">
+                <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>Далее</span>
+                <strong>{formatCurrency(liquidPrices['extra'] || 14)}</strong>
+              </div>
             </div>
-          </GlassCard>
           </div>
         </div>
       )}

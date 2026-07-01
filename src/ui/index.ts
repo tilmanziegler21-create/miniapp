@@ -1,5 +1,5 @@
 export { AppShell } from './AppShell';
-export { CarouselDots } from './CarouselDots';
+export { CartLiquidUpsell } from './CartLiquidUpsell';
 export { ChipBadge } from './ChipBadge';
 export { CityPickerModal } from './CityPickerModal';
 export { DrawerMenu } from './DrawerMenu';

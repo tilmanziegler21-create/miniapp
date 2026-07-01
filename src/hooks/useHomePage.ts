@@ -89,7 +89,6 @@ export function useHomePage() {
     try {
       await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price });
       scheduleSync(city);
-      pushToast('Добавлено в корзину', 'success');
     } catch {
       rollbackOptimisticAdd({ city, productId: product.id, quantity: 1 });
       scheduleSync(city, 0);

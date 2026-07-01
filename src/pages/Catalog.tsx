@@ -130,7 +130,6 @@ const Catalog: React.FC = () => {
         price: product.price,
       });
       scheduleSync(city);
-      toast.push('Добавлено в корзину', 'success');
       trackAddToCart(product.id, product.name, product.price, 1);
     } catch (error) {
       console.error('Add to cart failed:', error);
