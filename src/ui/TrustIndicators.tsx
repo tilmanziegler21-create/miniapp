@@ -20,6 +20,9 @@ export const TrustIndicators: React.FC<TrustIndicatorsProps> = ({
   size = 'md',
 }) => {
   const isSmall = size === 'sm';
+  const safeRating = Number.isFinite(Number(rating)) ? Number(rating) : 0;
+  const safeReviewCount = Number.isFinite(Number(reviewCount)) ? Number(reviewCount) : 0;
+  const safeWeeklyOrders = Number.isFinite(Number(weeklyOrders)) ? Number(weeklyOrders) : 0;
   
   const styles = {
     container: {
@@ -89,9 +92,9 @@ export const TrustIndicators: React.FC<TrustIndicatorsProps> = ({
             size={isSmall ? 12 : 14}
             style={{
               ...styles.star,
-              ...(i >= Math.floor(rating) ? styles.starEmpty : {}),
+              ...(i >= Math.floor(safeRating) ? styles.starEmpty : {}),
             }}
-            fill={i < Math.floor(rating) ? theme.colors.dark.primary : 'none'}
+            fill={i < Math.floor(safeRating) ? theme.colors.dark.primary : 'none'}
           />
         ))}
       </div>
@@ -104,9 +107,9 @@ export const TrustIndicators: React.FC<TrustIndicatorsProps> = ({
       <div style={styles.row}>
         <div style={styles.indicator}>
           {renderStars()}
-          <span style={styles.ratingText}>{rating.toFixed(1)}</span>
+          <span style={styles.ratingText}>{safeRating.toFixed(1)}</span>
         </div>
-        <span style={styles.text}>({reviewCount} оценок)</span>
+        <span style={styles.text}>({safeReviewCount} оценок)</span>
       </div>
 
       {/* Weekly Orders */}
@@ -115,7 +118,7 @@ export const TrustIndicators: React.FC<TrustIndicatorsProps> = ({
           <TrendingUp size={isSmall ? 14 : 16} style={styles.icon} />
           <span style={styles.text}>Заказов за неделю</span>
         </div>
-        <span style={styles.text}>{weeklyOrders}</span>
+        <span style={styles.text}>{safeWeeklyOrders}</span>
       </div>
 
       {/* Review Button */}

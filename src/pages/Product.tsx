@@ -123,34 +123,52 @@ const Product: React.FC = () => {
 
   const [addedToCart, setAddedToCart] = React.useState(false);
   const canAddToCart = product ? Number(product.qtyAvailable || 0) > 0 : false;
+  const normalizedTasteProfile = React.useMemo(
+    () => (product ? normalizeTasteProfile(product.tasteProfile) : null),
+    [product],
+  );
+
+  const requestRef = React.useRef(0);
 
   const load = async () => {
+    const requestId = ++requestRef.current;
     try {
       setLoading(true);
+      setProduct(null);
+      setSocial(null);
+      setSimilar([]);
       if (!city) {
         pushToast('Выберите город', 'error');
         return;
       }
       const resp = await productAPI.getById(String(id || ''), city);
-      const p: ProductEntity = resp.data.product;
+      if (requestId !== requestRef.current) return;
+      const p: ProductEntity | undefined = resp.data?.product;
+      if (!p || !p.id) {
+        setProduct(null);
+        return;
+      }
       setProduct(p);
-      setSocial(resp.data.social || null);
-      setSimilar(resp.data.similar || []);
+      setSocial(resp.data?.social || null);
+      setSimilar(Array.isArray(resp.data?.similar) ? resp.data.similar : []);
       trackProductView(p.id, p.name, p.category);
     } catch (e) {
       console.error('Failed to load product:', e);
+      if (requestId !== requestRef.current) return;
+      setProduct(null);
       try {
         WebApp.showAlert('Ошибка загрузки товара');
       } catch {
         pushToast('Ошибка загрузки товара', 'error');
       }
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current) setLoading(false);
     }
   };
 
   React.useEffect(() => {
     load();
+     
   }, [id, city]);
 
   const toggleFavorite = async () => {
@@ -243,7 +261,6 @@ const Product: React.FC = () => {
   const posterToken = product.brand || product.name;
   const posterImage = resolveProductImage(posterToken, product.image);
   const posterGradient = getBrandGradient(posterToken);
-  const normalizedTasteProfile = React.useMemo(() => normalizeTasteProfile(product.tasteProfile), [product.tasteProfile]);
 
   const styles = {
     pageTitle: {

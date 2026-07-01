@@ -214,7 +214,11 @@ export const useCartStore = create<CartState>((set) => ({
       try {
         const resp = await cartAPI.getCart(normalizedCity);
         if (useCityStore.getState().city === normalizedCity) {
-          set({ cart: resp.data.cart, isLoading: false });
+          const rawCart = resp.data?.cart;
+          const safeCart = rawCart
+            ? { ...rawCart, items: Array.isArray(rawCart.items) ? rawCart.items : [] }
+            : rawCart;
+          set({ cart: safeCart, isLoading: false });
         }
       } finally {
         inFlightSyncs.delete(normalizedCity);

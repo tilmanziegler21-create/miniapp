@@ -187,7 +187,7 @@ const Cart: React.FC = () => {
       };
     }
 
-    const subtotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const subtotal = (cart.items || []).reduce((sum, item) => sum + item.price * item.quantity, 0);
     return { subtotal, discount: 0, total: subtotal, quantityDiscount: 0 };
   };
 
@@ -196,6 +196,10 @@ const Cart: React.FC = () => {
   const createOrder = async () => {
     if (!cart?.items?.length) {
       pushToast('Корзина пуста', 'error');
+      return;
+    }
+    if (!city) {
+      pushToast('Выберите город', 'error');
       return;
     }
 
@@ -216,7 +220,7 @@ const Cart: React.FC = () => {
         idempotencyKeyRef.current = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
       }
 
-      trackCheckout(cart.items, cart.total);
+      trackCheckout(cart.items, pricing.total);
 
       const orderData = {
         city,
@@ -291,7 +295,7 @@ const Cart: React.FC = () => {
     );
   }
 
-  if (!cart || cart.items.length === 0) {
+  if (!cart || !cart.items?.length) {
     return (
       <div style={{ padding: theme.padding.screen }}>
         <GlassCard padding="lg" variant="elevated">
@@ -324,7 +328,7 @@ const Cart: React.FC = () => {
       </div>
 
       <div style={{ padding: `0 ${theme.padding.screen}`, display: 'grid', gap: theme.spacing.md, marginBottom: theme.spacing.lg }}>
-        {cart.items.map((item) => (
+        {(cart.items || []).map((item) => (
           <div key={item.id} className="cart-item">
             <div className="cart-item-top">
               <div

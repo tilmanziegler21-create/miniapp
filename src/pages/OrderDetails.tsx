@@ -92,7 +92,17 @@ const OrderDetails: React.FC = () => {
     );
   }
 
-  const { order, items } = data;
+  const order = data.order;
+  const items = Array.isArray(data.items) ? data.items : [];
+  if (!order) {
+    return (
+      <div style={{ padding: theme.padding.screen }}>
+        <GlassCard padding="lg" variant="elevated">
+          <div style={{ textAlign: 'center', color: theme.colors.dark.textSecondary }}>Заказ не найден</div>
+        </GlassCard>
+      </div>
+    );
+  }
   const subtotal = items.reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0);
   const bonusApplied = Number(order.bonusApplied || 0);
   const finalAmount = Number(order.finalAmount || 0) || Math.max(0, Number(order.totalAmount || 0) - bonusApplied);
@@ -148,8 +158,8 @@ const OrderDetails: React.FC = () => {
 
       <SectionDivider title="Состав заказа" />
       <div style={{ padding: `0 ${theme.padding.screen}`, display: 'grid', gap: theme.spacing.md, marginBottom: theme.spacing.lg }}>
-        {items.map((it) => (
-          <GlassCard key={`${it.productId}_${it.variant || ''}`} padding="md" variant="elevated">
+        {items.map((it, index) => (
+          <GlassCard key={`${it.productId}_${it.variant || ''}_${index}`} padding="md" variant="elevated">
             <div style={{ display: 'flex', gap: theme.spacing.md }}>
               <div
                 style={{

@@ -55,18 +55,20 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
   });
 
   const minimalItemStyle = {
+    position: 'relative' as const,
     width: '100%',
     display: 'flex',
+    flexDirection: 'column' as const,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.md,
-    padding: `${theme.spacing.md} ${theme.spacing.sm}`,
+    justifyContent: 'center',
+    gap: 4,
+    padding: `${theme.spacing.md} ${theme.spacing.lg}`,
     borderRadius: theme.radius.md,
     border: '1px solid rgba(96,165,250,0.14)',
     background: 'rgba(16,15,18,0.82)',
     color: theme.colors.dark.text,
     cursor: 'pointer',
-    textAlign: 'left' as const,
+    textAlign: 'center' as const,
     transition: 'all 0.2s ease',
   };
 
@@ -76,64 +78,50 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
       style={minimalItemStyle}
       onClick={() => handleTileClick(tile)}
     >
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.semibold,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: theme.colors.dark.text,
-          }}
-        >
-          {tile.title}
-        </div>
-        {tile.subtitle ? (
-          <div
-            style={{
-              marginTop: 4,
-              fontSize: theme.typography.fontSize.xs,
-              color: theme.colors.dark.textSecondary,
-              letterSpacing: '0.04em',
-            }}
-          >
-            {tile.subtitle}
-          </div>
-        ) : null}
-      </div>
       <div
         style={{
-          flex: '0 0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
+          fontSize: theme.typography.fontSize.base,
+          fontWeight: theme.typography.fontWeight.bold,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: theme.colors.dark.text,
+          textAlign: 'center',
         }}
       >
-        {tile.badgeText ? (
-          <span
-            style={{
-              minWidth: 22,
-              padding: '2px 8px',
-              borderRadius: 999,
-              background: 'rgba(96,165,250,0.16)',
-              color: theme.colors.dark.primary,
-              fontSize: theme.typography.fontSize.xs,
-              fontWeight: theme.typography.fontWeight.bold,
-              textAlign: 'center',
-            }}
-          >
-            {tile.badgeText}
-          </span>
-        ) : null}
-        <span
+        {tile.title}
+      </div>
+      {tile.subtitle ? (
+        <div
           style={{
-            fontSize: theme.typography.fontSize.base,
+            fontSize: theme.typography.fontSize.xs,
             color: theme.colors.dark.textSecondary,
+            letterSpacing: '0.04em',
+            textAlign: 'center',
           }}
         >
-          →
+          {tile.subtitle}
+        </div>
+      ) : null}
+      {tile.badgeText ? (
+        <span
+          style={{
+            position: 'absolute',
+            top: '50%',
+            right: theme.spacing.md,
+            transform: 'translateY(-50%)',
+            minWidth: 22,
+            padding: '2px 8px',
+            borderRadius: 999,
+            background: 'rgba(96,165,250,0.16)',
+            color: theme.colors.dark.primary,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.bold,
+            textAlign: 'center',
+          }}
+        >
+          {tile.badgeText}
         </span>
-      </div>
+      ) : null}
     </button>
   );
 

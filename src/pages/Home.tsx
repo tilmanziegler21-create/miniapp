@@ -185,9 +185,9 @@ const Home: React.FC = () => {
 
       <div className="stagger-item" style={{ ...styles.categoryScrollerWrap, ['--stagger-i' as string]: 3 }}>
         <div style={styles.categoryScroller}>
-          {categories.map((category) => (
+          {categories.map((category, index) => (
             <div
-              key={category.name}
+              key={category.slug || `cat_${index}`}
               style={styles.categoryCard}
               onClick={() => navigate(`/catalog?category=${encodeURIComponent(category.slug)}`)}
               role="button"

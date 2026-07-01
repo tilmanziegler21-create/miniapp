@@ -58,6 +58,7 @@ export const ProductCard = React.memo<ProductCardProps>(({
     return 'linear-gradient(135deg, #10203b 0%, #17325f 52%, #0c1a31 100%)';
   };
 
+  const [added, setAdded] = React.useState(false);
   const token = brand || name;
   const resolvedImage = resolveProductImage(token, image);
   const resolvedGradient = getBrandGradient(token);
@@ -191,8 +192,6 @@ export const ProductCard = React.memo<ProductCardProps>(({
       minWidth: 'unset',
     },
   };
-
-  const [added, setAdded] = React.useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();

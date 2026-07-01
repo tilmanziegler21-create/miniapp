@@ -65,7 +65,7 @@ const Profile: React.FC = () => {
         return;
       }
       const response = await orderAPI.getHistory(city);
-      setOrders(response.data.orders);
+      setOrders(Array.isArray(response.data?.orders) ? response.data.orders : []);
     } catch (error) {
       console.error('Failed to load order history:', error);
       setOrders([]);

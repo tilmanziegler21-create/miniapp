@@ -15,7 +15,6 @@
 .bg-app {
   color: #f4f1ea;
   position: relative;
-  isolation: isolate;
 }
 
 .bg-app::before {
@@ -24,40 +23,42 @@
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(ellipse 90% 70% at 18% 18%, rgba(56, 189, 248, 0.11) 0%, transparent 55%),
-    radial-gradient(ellipse 80% 60% at 82% 78%, rgba(37, 99, 235, 0.09) 0%, transparent 52%),
+    radial-gradient(ellipse 90% 70% at 18% 16%, rgba(56, 189, 248, 0.16) 0%, transparent 56%),
+    radial-gradient(ellipse 82% 62% at 84% 80%, rgba(37, 99, 235, 0.14) 0%, transparent 54%),
     linear-gradient(180deg, #08070a 0%, #0f172a 55%, #081121 100%);
-  animation: ambientShift 32s ease-in-out infinite alternate;
+  will-change: transform;
+  animation: ambientShift 30s ease-in-out infinite alternate;
 }
 
 .bg-app::after {
   content: '';
   position: fixed;
-  inset: 0;
+  inset: -20%;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.42;
   background:
-    radial-gradient(circle at 30% 40%, rgba(125, 211, 252, 0.07) 0%, transparent 28%),
-    radial-gradient(circle at 70% 60%, rgba(59, 130, 246, 0.06) 0%, transparent 32%),
-    linear-gradient(115deg, rgba(96,165,250,0.03) 0%, rgba(125,211,252,0.06) 45%, rgba(37,99,235,0.03) 100%);
-  background-size: 140% 140%, 140% 140%, 220% 220%;
-  animation: ambientDrift 40s ease-in-out infinite alternate-reverse, ambientShimmer 24s ease-in-out infinite alternate;
+    radial-gradient(circle at 28% 38%, rgba(125, 211, 252, 0.12) 0%, transparent 30%),
+    radial-gradient(circle at 72% 62%, rgba(59, 130, 246, 0.11) 0%, transparent 34%),
+    linear-gradient(115deg, rgba(96,165,250,0.05) 0%, rgba(125,211,252,0.1) 45%, rgba(37,99,235,0.05) 100%);
+  background-size: 160% 160%, 160% 160%, 240% 240%;
+  will-change: background-position, transform, opacity;
+  animation: ambientDrift 34s ease-in-out infinite alternate-reverse, ambientShimmer 20s ease-in-out infinite alternate;
 }
 
 @keyframes ambientShift {
   0% { transform: scale(1) translate3d(0, 0, 0); }
-  100% { transform: scale(1.04) translate3d(0, -1.5%, 0); }
+  100% { transform: scale(1.05) translate3d(0, -1.5%, 0); }
 }
 
 @keyframes ambientDrift {
-  0% { transform: translate3d(-1%, 0, 0); opacity: 0.35; }
-  100% { transform: translate3d(1%, 1%, 0); opacity: 0.5; }
+  0% { transform: translate3d(-1.5%, 0, 0); }
+  100% { transform: translate3d(1.5%, 1.5%, 0); }
 }
 
 @keyframes ambientShimmer {
-  0% { background-position: 0% 50%, 100% 0%, 0% 50%; opacity: 0.38; }
-  100% { background-position: 100% 50%, 0% 100%, 100% 50%; opacity: 0.52; }
+  0% { background-position: 0% 50%, 100% 0%, 0% 50%; opacity: 0.55; }
+  50% { opacity: 0.8; }
+  100% { background-position: 100% 50%, 0% 100%, 100% 50%; opacity: 0.6; }
 }
 
 .glass {
