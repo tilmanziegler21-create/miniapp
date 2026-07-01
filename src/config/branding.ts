@@ -9,7 +9,7 @@ const env = import.meta.env;
 
 const brandName =
   String(env.VITE_BRAND_NAME || env.VITE_SHOP_NAME || env.VITE_APP_NAME || '').trim() || 'Mini App Shop';
-const brandSubtitle = String(env.VITE_BRAND_SUBTITLE || env.VITE_SHOP_SUBTITLE || '').trim() || 'premium store';
+const brandSubtitle = String(env.VITE_BRAND_SUBTITLE || env.VITE_SHOP_SUBTITLE || '').trim();
 const appTitle = String(env.VITE_APP_TITLE || `${brandName} mini app`).trim() || `${brandName} mini app`;
 const supportLabel = String(env.VITE_SUPPORT_LABEL || 'Поддержка').trim() || 'Поддержка';
 const referralShareText =

@@ -163,8 +163,9 @@ const Cart: React.FC = () => {
           price: product.price,
           image: product.image,
         },
+        source: 'upsell',
       });
-      await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price });
+      await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price, source: 'upsell' });
       scheduleSync(city);
     } catch {
       scheduleSync(city, 0);
@@ -223,6 +224,7 @@ const Cart: React.FC = () => {
           productId: item.productId,
           quantity: item.quantity,
           variant: item.variant || '',
+          source: item.source || 'self',
         })),
         promoCode,
       };

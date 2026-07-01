@@ -11,6 +11,8 @@ function sleep(ms: number) {
 
 export async function runBootPipeline(tgId?: string) {
   const boot = useBootStore.getState();
+  const startedAt = Date.now();
+  const minSplashMs = 1800;
   boot.reset();
   boot.setProgress(12, 'Подключаемся…');
 
@@ -44,10 +46,14 @@ export async function runBootPipeline(tgId?: string) {
       }
     }
 
+    const remainingMs = minSplashMs - (Date.now() - startedAt);
+    if (remainingMs > 0) await sleep(remainingMs);
     boot.setProgress(100, 'Готово');
     boot.setReady(true);
   } catch (e) {
     console.error('Boot pipeline warning:', e);
+    const remainingMs = minSplashMs - (Date.now() - startedAt);
+    if (remainingMs > 0) await sleep(remainingMs);
     boot.setProgress(100, 'Готово');
     boot.setReady(true);
   }

@@ -1,9 +1,10 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import db from '../services/database.js';
-import { getProducts, updateProductStockBatch, appendOrderRow, updateOrderRowByOrderId, getOrders } from '../services/sheets.js';
+import { getCouriers, getLiquidPrices, getProducts, updateProductStockBatch, appendOrderRow, updateOrderRowByOrderId, getOrders } from '../services/sheets.js';
 import { normalizeOrderStatus } from '../domain/orderStatus.js';
 import { notifyCouriersAboutNewOrder } from '../services/telegramNotify.js';
+import { calculateOrderPricing } from '../services/liquidPricing.js';
 
 const router = express.Router();
 const stockCommitting = new Set();
@@ -46,6 +47,36 @@ function safeJson(raw, fallback) {
     return JSON.parse(String(raw || ''));
   } catch {
     return fallback;
+  }
+}
+
+function todayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function courierInterval(courier) {
+  const from = String(courier?.time_from || '').trim();
+  const to = String(courier?.time_to || '').trim();
+  return from && to ? `${from}-${to}` : from || to || '';
+}
+
+async function resolveCourierAssignment(city, requestedCourierId = '') {
+  const wanted = String(requestedCourierId || '').trim();
+  try {
+    const couriers = await getCouriers(city);
+    const active = couriers.filter((c) => Boolean(c?.active));
+    const selected =
+      active.find((c) => String(c.courier_id || '') === wanted) ||
+      active.find((c) => String(c.tg_id || '') === wanted) ||
+      active[0] ||
+      null;
+    if (!selected) return { courierId: wanted, deliveryTime: '' };
+    return {
+      courierId: String(selected.courier_id || wanted || selected.tg_id || '').trim(),
+      deliveryTime: courierInterval(selected),
+    };
+  } catch {
+    return { courierId: wanted, deliveryTime: '' };
   }
 }
 
@@ -146,6 +177,9 @@ async function ensureLocalOrderFromSheets(city, orderId, tgId) {
         quantity: Number(it.quantity || 0),
         price: Number(it.price || 0),
         name: String(it.name || ''),
+        brand: String(it.brand || ''),
+        category: String(it.category || ''),
+        source: String(it.source || 'self'),
       });
     }
     db.persistState();
@@ -204,19 +238,18 @@ router.post('/create', requireAuth, async (req, res) => {
         quantity: qty,
         price: Number(p.price),
         name: String(p.name || ''),
+        brand: String(p.brand || ''),
+        category: String(p.category || ''),
         variant: it.variant ? String(it.variant) : '',
+        source: String(it.source || '') === 'upsell' ? 'upsell' : 'self',
       });
     }
 
     const orderId = generateOrderId();
-    const subtotalAmount = normalizedItems.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
-    let discountAmount = 0;
-
-    for (const it of normalizedItems) {
-      const qty = Number(it.quantity || 0);
-      const price = Number(it.price || 0);
-      if (qty >= 3 && price > 40) discountAmount += (price - 40) * qty;
-    }
+    const liquidPrices = await getLiquidPrices(cityStr);
+    const pricing = calculateOrderPricing(normalizedItems, liquidPrices);
+    const subtotalAmount = pricing.subtotal;
+    let discountAmount = pricing.discount;
 
     const promo = String(promoCode || '').trim();
     const promoObj = promo ? db.getPromoById(promo) : null;
@@ -262,7 +295,10 @@ router.post('/create', requireAuth, async (req, res) => {
         variant: item.variant ? String(item.variant) : '',
         quantity: Number(item.quantity),
         price: Number(item.price),
-        name: String(item.name || '')
+        name: String(item.name || ''),
+        brand: String(item.brand || ''),
+        category: String(item.category || ''),
+        source: String(item.source || 'self'),
       };
       db.orderItems.set(itemId, orderItem);
       db.addReservation(orderId, String(item.productId), Number(item.quantity), reservationTtlMs);
@@ -329,12 +365,16 @@ router.post('/confirm', requireAuth, async (req, res) => {
     if (!order) order = await ensureLocalOrderFromSheets(cityStr, orderId, req.user.tgId);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     if (String(order.user_id) !== String(req.user.tgId)) return res.status(403).json({ error: 'Forbidden' });
+    const assignment = await resolveCourierAssignment(cityStr, courier_id);
+    const assignedCourierId = String(assignment.courierId || courier_id || '').trim();
+    const assignedDeliveryDate = String(delivery_date || todayDateString()).trim();
+    const assignedDeliveryTime = String(delivery_time || assignment.deliveryTime || '').trim();
     order.status = 'pending';
     order.delivery_method = deliveryMethod;
     order.courier_data = JSON.stringify(courierData || {});
-    order.courier_id = String(courier_id || '');
-    order.delivery_date = String(delivery_date || '');
-    order.delivery_time = String(delivery_time || '');
+    order.courier_id = assignedCourierId;
+    order.delivery_date = assignedDeliveryDate;
+    order.delivery_time = assignedDeliveryTime;
     db.persistState();
 
     try {
@@ -346,16 +386,19 @@ router.post('/confirm', requireAuth, async (req, res) => {
             quantity: oi.quantity,
             price: oi.price,
             name: String(oi.name || ''),
+            brand: String(oi.brand || ''),
+            category: String(oi.category || ''),
             variant: oi.variant ? String(oi.variant) : '',
+            source: String(oi.source || 'self'),
           });
         }
       }
 
       const patch = {
         status: 'pending',
-        courier_id: courier_id || '',
-        delivery_date: delivery_date || '',
-        delivery_time: delivery_time || '',
+        courier_id: assignedCourierId,
+        delivery_date: assignedDeliveryDate,
+        delivery_time: assignedDeliveryTime,
         delivery_method: deliveryMethod || '',
         item_count: String(countPositions(items)),
         items_json: JSON.stringify(items),
@@ -385,9 +428,9 @@ router.post('/confirm', requireAuth, async (req, res) => {
           subtotal_amount: order?.subtotal_amount || '',
           discount_amount: order?.discount_amount || '',
           promo_code: String(promoCode || order?.promo_code || '').trim(),
-          courier_id: courier_id || '',
-          delivery_date: delivery_date || '',
-          delivery_time: delivery_time || '',
+          courier_id: assignedCourierId,
+          delivery_date: assignedDeliveryDate,
+          delivery_time: assignedDeliveryTime,
           payment_method: '',
           delivery_method: deliveryMethod || '',
           created_at: order?.created_at || new Date().toISOString(),
@@ -570,6 +613,9 @@ router.post('/payment', requireAuth, async (req, res) => {
         notifyItems.push({
           name: oi.name || oi.product_id,
           product_id: oi.product_id,
+          brand: oi.brand || '',
+          variant: oi.variant || '',
+          source: oi.source || 'self',
           quantity: oi.quantity,
           price: oi.price,
         });

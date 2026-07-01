@@ -2,6 +2,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import db from '../services/database.js';
 import { getProducts, getLiquidPrices } from '../services/sheets.js';
+import { calculateLiquidBundleTotal, isLiquidCategory } from '../services/liquidPricing.js';
 
 const router = express.Router();
 
@@ -57,7 +58,7 @@ router.get('/', requireAuth, async (req, res) => {
     let totalLiquidsBasePrice = 0;
     
     items.forEach(item => {
-      const isLiquid = item.category === 'liquids' || item.category === 'Жидкости';
+      const isLiquid = isLiquidCategory(item.category);
       if (isLiquid) {
         totalLiquidsQty += Number(item.quantity || 0);
         totalLiquidsBasePrice += Number(item.quantity || 0) * Number(item.product_price || item.price || 0);
@@ -67,26 +68,7 @@ router.get('/', requireAuth, async (req, res) => {
     let liquidsFinalPrice = 0;
     const dynamicLiquidPrices = await getLiquidPrices(String(city));
     
-    if (dynamicLiquidPrices && totalLiquidsQty > 0) {
-      if (dynamicLiquidPrices[totalLiquidsQty]) {
-        liquidsFinalPrice = dynamicLiquidPrices[totalLiquidsQty];
-      } else {
-        const maxQty = Math.max(...Object.keys(dynamicLiquidPrices).map(Number));
-        if (totalLiquidsQty > maxQty) {
-          const extraPrice = dynamicLiquidPrices['extra'] || 14; // fallback to 14
-          liquidsFinalPrice = dynamicLiquidPrices[maxQty] + (totalLiquidsQty - maxQty) * extraPrice;
-        } else {
-          // fallback to base price if no matching tier and not exceeding max
-          liquidsFinalPrice = totalLiquidsBasePrice;
-        }
-      }
-    } else {
-      // Fallback logic if liquidprices table is missing
-      if (totalLiquidsQty === 1) liquidsFinalPrice = 18;
-      else if (totalLiquidsQty === 2) liquidsFinalPrice = 32;
-      else if (totalLiquidsQty === 3) liquidsFinalPrice = 45;
-      else if (totalLiquidsQty > 3) liquidsFinalPrice = 45 + (totalLiquidsQty - 3) * 14;
-    }
+    liquidsFinalPrice = calculateLiquidBundleTotal(totalLiquidsQty, dynamicLiquidPrices, totalLiquidsBasePrice);
 
     const totalLiquidsDiscount = totalLiquidsQty > 0 ? Math.max(0, totalLiquidsBasePrice - liquidsFinalPrice) : 0;
     let appliedLiquidsDiscount = 0;
@@ -94,7 +76,7 @@ router.get('/', requireAuth, async (req, res) => {
     const mappedItems = items.map(item => {
       const qty = Number(item.quantity || 0);
       const price = Number(item.product_price || item.price || 0);
-      const isLiquid = item.category === 'liquids' || item.category === 'Жидкости';
+      const isLiquid = isLiquidCategory(item.category);
       
       let effectivePrice = price;
       let lineSubtotal = price * qty;
@@ -124,6 +106,7 @@ router.get('/', requireAuth, async (req, res) => {
         category: item.category,
         brand: item.brand,
         price,
+        source: item.source || 'self',
         effectivePrice,
         quantity: qty,
         image: item.image,
@@ -158,7 +141,7 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/add', requireAuth, async (req, res) => {
   try {
     const { tgId } = req.user;
-    const { productId, quantity = 1, city, variant } = req.body;
+    const { productId, quantity = 1, city, variant, source } = req.body;
     
     if (!productId || !city) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -198,6 +181,7 @@ router.post('/add', requireAuth, async (req, res) => {
     }
 
     const normalizedVariant = variant ? String(variant) : '';
+    const normalizedSource = String(source || 'self').trim() === 'upsell' ? 'upsell' : 'self';
     const existingItem = Array.from(db.cartItems.values()).find(
       (item) =>
         String(item.cart_id) === String(cart.id) &&
@@ -214,6 +198,7 @@ router.post('/add', requireAuth, async (req, res) => {
     if (existingItem) {
       existingItem.quantity = Number(existingItem.quantity || 0) + qty;
       existingItem.price = Number(p.price);
+      if (normalizedSource === 'upsell') existingItem.source = 'upsell';
       db.cartItems.set(existingItem.id, existingItem);
       itemId = String(existingItem.id);
     } else {
@@ -223,6 +208,7 @@ router.post('/add', requireAuth, async (req, res) => {
         cart_id: cart.id,
         product_id: productId,
         variant: normalizedVariant,
+        source: normalizedSource,
         quantity: qty,
         price: Number(p.price)
       };

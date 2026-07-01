@@ -9,7 +9,7 @@ export function getBranding() {
   const name =
     String(process.env.BRAND_NAME || process.env.SHOP_NAME || process.env.APP_NAME || '').trim() || 'Mini App Shop';
   const subtitle =
-    String(process.env.BRAND_SUBTITLE || process.env.SHOP_SUBTITLE || '').trim() || 'premium store';
+    String(process.env.BRAND_SUBTITLE || process.env.SHOP_SUBTITLE || '').trim();
   const assetBasePath = normalizeAssetBasePath(
     process.env.BRAND_ASSET_BASE_PATH || process.env.SHOP_ASSET_BASE_PATH || '/assets/brand'
   );

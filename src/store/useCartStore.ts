@@ -14,6 +14,7 @@ export interface CartItem {
   image: string;
   total?: number;
   effectivePrice?: number;
+  source?: 'self' | 'upsell';
 }
 
 export interface CartPricing {
@@ -44,6 +45,7 @@ type OptimisticAddPayload = {
   product: OptimisticCartProduct;
   quantity?: number;
   variant?: string;
+  source?: 'self' | 'upsell';
 };
 
 type OptimisticRollbackPayload = {
@@ -97,7 +99,7 @@ export const useCartStore = create<CartState>((set) => ({
   isLoading: false,
   setCart: (cart) => set({ cart }),
   setLoading: (loading) => set({ isLoading: loading }),
-  addItemOptimistic: ({ city, product, quantity = 1, variant = '' }) =>
+  addItemOptimistic: ({ city, product, quantity = 1, variant = '', source = 'self' }) =>
     set((state) => {
       const baseCart =
         state.cart && state.cart.city === city
@@ -122,6 +124,7 @@ export const useCartStore = create<CartState>((set) => ({
                   quantity: Number(item.quantity || 0) + Number(quantity || 1),
                   price: Number(product.price || item.price || 0),
                   image: product.image || item.image,
+                  source: source === 'upsell' ? 'upsell' : item.source || 'self',
                 }
               : item,
           )
@@ -137,6 +140,7 @@ export const useCartStore = create<CartState>((set) => ({
               price: Number(product.price || 0),
               quantity: Number(quantity || 1),
               image: product.image || '',
+              source,
             },
           ];
 

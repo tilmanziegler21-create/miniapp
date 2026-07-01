@@ -35,14 +35,54 @@ function paymentLabel(method) {
   return 'Наличные';
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function userLink({ username, tgId, fallback }) {
+  const cleanUsername = String(username || '').replace(/^@/, '').trim();
+  if (cleanUsername) {
+    return `<a href="https://t.me/${escapeHtml(cleanUsername)}">@${escapeHtml(cleanUsername)}</a>`;
+  }
+  const cleanTgId = String(tgId || '').trim();
+  if (cleanTgId) {
+    return `<a href="tg://user?id=${escapeHtml(cleanTgId)}">${escapeHtml(fallback || cleanTgId)}</a>`;
+  }
+  return escapeHtml(fallback || 'Клиент');
+}
+
+function formatDateLabel(rawDate) {
+  const value = String(rawDate || '').trim();
+  if (!value) return 'сегодня';
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return escapeHtml(value);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((date.getTime() - today.getTime()) / 86400000);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const prefix = diffDays === 0 ? 'сегодня' : diffDays === 1 ? 'завтра' : diffDays === 2 ? 'послезавтра' : value;
+  return `${prefix} (${day}.${month})`;
+}
+
 function formatItems(items = []) {
   if (!items.length) return '—';
   return items
     .map((it) => {
       const name = String(it.name || it.product_id || 'Товар');
+      const brand = String(it.brand || '').trim();
+      const variant = String(it.variant || '').trim();
       const qty = Number(it.quantity || it.qty || 1);
-      const price = Number(it.price || it.unit_price || 0);
-      return `• ${name} × ${qty}${price ? ` — ${price.toFixed(2)}` : ''}`;
+      const title = brand
+        ? `${brand}${variant ? ` - ${variant}` : ` - ${name}`}`
+        : `${name}${variant ? ` - ${variant}` : ''}`;
+      const source = String(it.source || '').trim() === 'upsell' ? ' (апсел из приложения)' : ' (сам)';
+      return `• ${escapeHtml(title)}${source}${qty > 1 ? ` × ${qty}` : ''}`;
     })
     .join('\n');
 }
@@ -59,9 +99,18 @@ export async function notifyCouriersAboutNewOrder({ city, order, items = [] }) {
     return;
   }
 
+  const assignedCourierId = String(order.courier_id || '').trim();
+  const assignedCourier = assignedCourierId
+    ? couriers.find((c) => String(c?.courier_id || '') === assignedCourierId || String(c?.tg_id || '') === assignedCourierId)
+    : null;
+
+  const targetCouriers = assignedCourier
+    ? [assignedCourier]
+    : couriers.filter((c) => Boolean(c?.active));
+
   const targets = new Set(
-    couriers
-      .filter((c) => Boolean(c?.active) && String(c?.tg_id || '').trim())
+    targetCouriers
+      .filter((c) => String(c?.tg_id || '').trim())
       .map((c) => String(c.tg_id).trim()),
   );
 
@@ -75,18 +124,23 @@ export async function notifyCouriersAboutNewOrder({ city, order, items = [] }) {
 
   const orderId = String(order.id || order.order_id || '');
   let userName = String(order.user_name || order.username || order.user_id || 'Клиент');
+  let username = String(order.username || '').trim();
+  let tgId = String(order.user_id || '').trim();
   try {
     const raw = String(order.courier_data || '').trim();
     if (raw) {
       const parsed = JSON.parse(raw);
       userName = String(parsed?.user?.username || parsed?.user?.tgId || userName);
+      username = String(parsed?.user?.username || username).trim();
+      tgId = String(parsed?.user?.tgId || tgId).trim();
     }
   } catch {
     // ignore
   }
   const total = Number(order.final_amount ?? order.total_amount ?? 0);
   const payment = paymentLabel(order.payment_method);
-  const pickup = String(order.delivery_method || '') === 'pickup' ? 'Самовывоз' : String(order.delivery_method || 'Самовывоз');
+  const when = formatDateLabel(order.delivery_date);
+  const time = String(order.delivery_time || '').trim() || 'по графику курьера';
   let comment = String(order.comment || '').trim();
   try {
     const raw = String(order.courier_data || '').trim();
@@ -99,11 +153,11 @@ export async function notifyCouriersAboutNewOrder({ city, order, items = [] }) {
   }
 
   const text = [
-    `📦 <b>Новый заказ #${orderId}</b>`,
-    `Город: <b>${city}</b>`,
-    `Получение: ${pickup}`,
-    `Оплата: ${payment}`,
-    `Клиент: ${userName}`,
+    `🚀 <b>Новый заказ #${escapeHtml(orderId)}</b>`,
+    `Оплата: <b>${escapeHtml(payment)}</b>`,
+    `Клиент: ${userLink({ username, tgId, fallback: userName })}`,
+    `Когда: ${when}`,
+    `Время: ${escapeHtml(time)}`,
     '',
     formatItems(items),
     '',
