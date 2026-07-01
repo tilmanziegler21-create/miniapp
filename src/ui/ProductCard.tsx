@@ -261,11 +261,11 @@ export const ProductCard = React.memo<ProductCardProps>(({
           type="button"
           onClick={handleAddToCart}
           style={stock <= 0 ? { ...styles.addButton, background: 'rgba(148,163,184,0.22)', color: theme.colors.dark.textSecondary, boxShadow: 'none', cursor: 'not-allowed' } : added ? { ...styles.addButton, background: theme.colors.dark.accentGreen } : styles.addButton}
-          className={added || stock <= 0 ? "" : "sparkle-button"}
+          className={added || stock <= 0 ? '' : 'btn-add-cart'}
           aria-label={`Добавить ${name} в корзину`}
           disabled={stock <= 0}
         >
-          {added ? <span style={{fontSize: '20px'}}>✓</span> : (stock === 0 ? <ShoppingCart size={20} /> : <Plus className="sparkle-icon" size={22} strokeWidth={2.4} />)}
+          {added ? <span style={{fontSize: '20px'}}>✓</span> : (stock === 0 ? <ShoppingCart size={20} /> : <Plus size={22} strokeWidth={2.4} />)}
         </button>
       </div>
     </div>

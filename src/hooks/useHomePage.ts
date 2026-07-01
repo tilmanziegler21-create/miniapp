@@ -7,6 +7,7 @@ import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useConfigStore } from '../store/useConfigStore';
 import { useToastStore } from '../store/useToastStore';
 import { useSplashStore } from '../store/useSplashStore';
+import { withRetry } from '../lib/withRetry';
 
 interface Product {
   id: string;
@@ -54,7 +55,7 @@ export function useHomePage() {
         if (requestId === requestRef.current) setLoadError('Выберите город');
         return;
       }
-      const response = await catalogAPI.getProducts({ city });
+      const response = await withRetry(() => catalogAPI.getProducts({ city }), { retries: 2 });
       const featured: Product[] = response.data.products.slice(0, 4).map((p: any) => ({
         id: p.id,
         name: p.name,
@@ -152,5 +153,6 @@ export function useHomePage() {
     favorites,
     addToCart,
     toggleFavorite,
+    reload: loadProducts,
   };
 }

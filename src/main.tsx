@@ -20,3 +20,7 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </ErrorBoundary>,
 )
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason)
+})

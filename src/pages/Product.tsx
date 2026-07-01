@@ -98,9 +98,9 @@ const FlavorRow = ({ flavor, onAdd, disabled = false }: { flavor: string, onAdd:
           boxShadow: added || disabled ? 'none' : '0 4px 12px rgba(96,165,250,0.3)',
           opacity: disabled ? 0.55 : 1,
         }}
-        className={added || disabled ? "" : "sparkle-button"}
+        className={added || disabled ? '' : 'btn-add-cart'}
       >
-        {added ? <span style={{ fontSize: '18px' }}>✓</span> : <Plus className="sparkle-icon" size={20} strokeWidth={2.5} />}
+        {added ? <span style={{ fontSize: '18px' }}>✓</span> : <Plus size={20} strokeWidth={2.5} />}
       </button>
     </div>
   );
@@ -492,7 +492,7 @@ const Product: React.FC = () => {
             setTimeout(() => setAddedToCart(false), 2000);
             addToCart(1); // don't await
           }}
-          className={addedToCart || !canAddToCart ? "" : "sparkle-button"}
+          className={addedToCart || !canAddToCart ? '' : 'btn-add-cart'}
           disabled={!canAddToCart}
         >
           {!canAddToCart ? 'Нет в наличии' : addedToCart ? '✓ Добавлено' : 'Добавить заказ в корзину'}

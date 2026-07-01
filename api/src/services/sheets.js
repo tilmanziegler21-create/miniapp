@@ -132,16 +132,46 @@ function sheetCandidates(base, city) {
 }
 
 const cache = new Map();
-function cacheGet(key) {
-  const ttl = Number(getEnv('SHEETS_CACHE_TTL_SECONDS', '60')) * 1000;
+
+function cacheTtlMs() {
+  return Number(getEnv('SHEETS_CACHE_TTL_SECONDS', '180')) * 1000;
+}
+
+function cacheGetFresh(key) {
   const v = cache.get(key);
   if (!v) return null;
-  if (Date.now() - v.ts > ttl) return null;
+  if (Date.now() - v.ts > cacheTtlMs()) return null;
   return v.data;
+}
+
+function cacheGetStale(key) {
+  const v = cache.get(key);
+  return v?.data || null;
 }
 
 function cacheSet(key, data) {
   cache.set(key, { ts: Date.now(), data });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchSheetRange(api, spreadsheetId, range, retries = 3) {
+  let lastErr = null;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const resp = await api.spreadsheets.values.get({ spreadsheetId, range });
+      return resp.data.values || [];
+    } catch (e) {
+      lastErr = e;
+      const status = Number(e?.code || e?.response?.status || 0);
+      const retryable = !status || status >= 500 || status === 429 || status === 408;
+      if (!retryable || attempt >= retries - 1) break;
+      await sleep(Math.min(400 * (2 ** attempt), 2400));
+    }
+  }
+  throw lastErr || new Error(`Unable to read range ${range}`);
 }
 
 export async function readSheetTable(baseName, city) {
@@ -160,23 +190,44 @@ export async function readSheetTable(baseName, city) {
 
   for (const name of candidates) {
     const key = `${spreadsheetId}:${name}`;
-    const cached = cacheGet(key);
+    const cached = cacheGetFresh(key);
     if (cached) return cached;
     try {
       const range = `${name}!A:Z`;
-      const resp = await api.spreadsheets.values.get({ spreadsheetId, range });
-      const values = resp.data.values || [];
+      const values = await fetchSheetRange(api, spreadsheetId, range);
       const headers = (values[0] || []).map((x) => String(x));
       const rows = values.slice(1);
       const out = { sheet: name, headers, rows };
       cacheSet(key, out);
       return out;
     } catch (e) {
+      const stale = cacheGetStale(key);
+      if (stale) {
+        console.warn(`Sheets stale fallback for ${name}:`, e?.message || e);
+        return stale;
+      }
       lastErr = e;
     }
   }
 
   throw lastErr || new Error(`Unable to read sheet ${baseName}`);
+}
+
+export async function warmupSheetsCache(cities = []) {
+  const list = Array.isArray(cities) ? cities.filter(Boolean) : [];
+  if (!list.length) return;
+  const tables = ['products', 'couriers'];
+  await Promise.all(
+    list.flatMap((city) =>
+      tables.map(async (table) => {
+        try {
+          await readSheetTable(table, city);
+        } catch (e) {
+          console.warn(`Sheets warmup skipped ${table}/${city}:`, e?.message || e);
+        }
+      }),
+    ),
+  );
 }
 
 export async function getLiquidPrices(city) {

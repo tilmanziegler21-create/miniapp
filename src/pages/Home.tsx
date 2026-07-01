@@ -20,6 +20,7 @@ const Home: React.FC = () => {
     favorites,
     addToCart,
     toggleFavorite,
+    reload,
   } = useHomePage();
 
   const liquidPrices = config?.liquidPrices || {
@@ -209,7 +210,8 @@ const Home: React.FC = () => {
       {loadError ? (
         <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.lg }}>
           <GlassCard padding="lg" variant="elevated">
-            <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm, lineHeight: '1.4' }}>{loadError}</div>
+            <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm, lineHeight: '1.4', marginBottom: theme.spacing.md }}>{loadError}</div>
+            <PrimaryButton fullWidth onClick={() => reload()}>Повторить загрузку</PrimaryButton>
           </GlassCard>
         </div>
       ) : null}

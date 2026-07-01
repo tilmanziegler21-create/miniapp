@@ -321,6 +321,18 @@ class InMemoryDB {
     }
     return list;
   }
+
+  getActiveReservationQtyMap() {
+    const map = new Map();
+    const now = Date.now();
+    for (const r of this.reservations.values()) {
+      if (r.released === false && r.expiry_ms > now) {
+        const pid = String(r.product_id);
+        map.set(pid, (map.get(pid) || 0) + Number(r.qty || 0));
+      }
+    }
+    return map;
+  }
   addReservation(orderId, productId, qty, ttlMs = 30 * 60 * 1000) {
     const id = Math.random().toString(36).substring(2, 15);
     const now = Date.now();

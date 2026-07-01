@@ -44,9 +44,10 @@ router.get('/', requireAuth, async (req, res) => {
     }
 
     const sheetProducts = await getProducts(String(city));
+    const reservationQty = db.getActiveReservationQtyMap();
     let filteredProducts = sheetProducts
       .map((p) => {
-        const activeRes = db.getActiveReservationsByProduct(p.sku).reduce((s, r) => s + r.qty, 0);
+        const activeRes = reservationQty.get(String(p.sku)) || 0;
         const qtyAvailable = Math.max(0, Number(p.stock) - activeRes);
         return {
           id: p.sku,

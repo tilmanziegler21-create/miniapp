@@ -36,16 +36,6 @@ function App() {
   const [showSplash, setShowSplash] = React.useState(true);
   const [isFadingOut, setIsFadingOut] = React.useState(false);
   const mountTimeRef = React.useRef(Date.now());
-  const fireflies = React.useMemo(
-    () =>
-      Array.from({ length: 8 }, () => ({
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        animationDelay: `${Math.random() * 5}s`,
-        animationDuration: `${6 + Math.random() * 4}s`,
-      })),
-    [],
-  );
 
   const safeAlert = (message: string) => {
     try {
@@ -65,11 +55,11 @@ function App() {
       if (isAppReady) {
         // Keep the splash short enough to feel premium while content loads underneath
         const elapsed = Date.now() - mountTimeRef.current;
-        const delay = Math.max(0, 900 - elapsed);
+        const delay = Math.max(0, 450 - elapsed);
 
         const t1 = window.setTimeout(() => {
           setIsFadingOut(true);
-          hideSplashTimer = window.setTimeout(() => setShowSplash(false), 500); // 500ms fade duration
+          hideSplashTimer = window.setTimeout(() => setShowSplash(false), 380);
         }, delay);
         return () => {
           window.clearTimeout(t1);
@@ -79,8 +69,8 @@ function App() {
         // Fallback: don't trap the user behind splash for too long
         const fallback = window.setTimeout(() => {
           setIsFadingOut(true);
-          hideSplashTimer = window.setTimeout(() => setShowSplash(false), 500);
-        }, 2200);
+          hideSplashTimer = window.setTimeout(() => setShowSplash(false), 380);
+        }, 1600);
         return () => {
           window.clearTimeout(fallback);
           if (hideSplashTimer) window.clearTimeout(hideSplashTimer);
@@ -234,51 +224,21 @@ function App() {
   return (
     <SafeAreaProvider>
       {showSplash && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 9999,
-          background: 'linear-gradient(135deg, #08070a 0%, #0f172a 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          transition: 'opacity 0.5s ease-out',
-          opacity: isFadingOut ? 0 : 1,
-          pointerEvents: isFadingOut ? 'none' : 'auto'
-        }}>
-          {/* Animated fireflies on background */}
-          <div className="fireflies-container">
-            {fireflies.map((style, i) => (
-              <div key={i} className="firefly" style={{
-                left: style.left,
-                top: style.top,
-                animationDelay: style.animationDelay,
-                animationDuration: style.animationDuration,
-              }}></div>
-            ))}
-          </div>
-          <div style={{ textAlign: 'center', zIndex: 10, animation: 'splashFadeIn 1s ease-out' }}>
-            <div style={{
-                width: '100px',
-                height: '100px',
-                background: 'linear-gradient(135deg, rgba(96,165,250,0.2) 0%, rgba(37,99,235,0.2) 100%)',
-                borderRadius: '24px',
-                margin: '0 auto 24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 24px rgba(96,165,250,0.2)',
-                border: '1px solid rgba(96,165,250,0.3)',
-                animation: 'pulseGlow 2.8s ease-in-out infinite',
-                overflow: 'hidden',
-                opacity: 1,
-                transition: 'opacity 0.25s ease-in'
-              }}>
-                <img src={branding.brandAvatarUrl || "/favicon.svg"} alt="logo" style={{ width: branding.brandAvatarUrl ? '100%' : '60px', height: branding.brandAvatarUrl ? '100%' : '60px', objectFit: 'cover', filter: branding.brandAvatarUrl ? 'none' : 'drop-shadow(0 0 10px rgba(96,165,250,0.8))' }} />
-              </div>
-            <h1 style={{ color: '#ffffff', fontSize: '28px', fontWeight: 'bold', marginBottom: '8px', letterSpacing: '0.05em', opacity: 1, transition: 'opacity 0.25s ease-in' }}>{branding.name}</h1>
-            <p style={{ color: '#93c5fd', fontSize: '14px', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em', transition: 'opacity 0.25s ease-in' }}>{branding.subtitle}</p>
+        <div className={`splash-screen${isFadingOut ? ' splash-screen--fade' : ''}`}>
+          <div className="splash-content">
+            <div className="splash-logo">
+              <img
+                src={branding.brandAvatarUrl || '/favicon.svg'}
+                alt="logo"
+                style={{
+                  width: branding.brandAvatarUrl ? '100%' : '52px',
+                  height: branding.brandAvatarUrl ? '100%' : '52px',
+                  objectFit: 'cover',
+                }}
+              />
+            </div>
+            <h1 className="splash-title">{branding.name}</h1>
+            <p className="splash-subtitle">{branding.subtitle}</p>
           </div>
         </div>
       )}
@@ -286,17 +246,6 @@ function App() {
       {user && (
         <Router>
           <div className="min-h-screen bg-app safe-bottom relative">
-            {/* Animated fireflies on global background */}
-            <div className="fireflies-container fixed">
-              {fireflies.map((style, i) => (
-                <div key={i} className="firefly" style={{
-                  left: style.left,
-                  top: style.top,
-                  animationDelay: style.animationDelay,
-                  animationDuration: style.animationDuration,
-                }}></div>
-              ))}
-            </div>
             <Suspense
               fallback={
                 <div style={{ padding: '20px 16px 120px' }}>

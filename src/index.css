@@ -24,12 +24,10 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: 
-    radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.1) 0%, transparent 60%),
-    linear-gradient(-45deg, #08070a, #0f172a, #081121, #1e3a8a, #0f172a);
-  background-size: 140% 140%, 140% 140%, 160% 160%, cover;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(56, 189, 248, 0.12) 0%, transparent 42%),
+    radial-gradient(circle at 82% 78%, rgba(59, 130, 246, 0.10) 0%, transparent 44%),
+    linear-gradient(180deg, #08070a 0%, #0f172a 55%, #081121 100%);
   z-index: -1;
 }
 
@@ -144,24 +142,17 @@ body {
 }
 
 .page-transition {
-  animation: pageEnter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  will-change: opacity, transform;
+  animation: pageEnter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page-transition {
-    animation: none;
   }
 }
 
@@ -197,97 +188,83 @@ a {
   padding-right: var(--safe-area-right, 0px);
 }
 
-/* Splash and Fireflies Animations */
-@keyframes splashFadeIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes pulseGlow {
-  0% { box-shadow: 0 0 16px rgba(96,165,250,0.16); transform: scale(1); }
-  50% { box-shadow: 0 0 26px rgba(96,165,250,0.28); transform: scale(1.02); }
-  100% { box-shadow: 0 0 16px rgba(96,165,250,0.16); transform: scale(1); }
-}
-
-.fireflies-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 1;
-}
-.fireflies-container.fixed {
+/* Splash screen */
+.splash-screen {
   position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: linear-gradient(180deg, #08070a 0%, #0f172a 100%);
+  transition: opacity 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.firefly {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: #60a5fa;
-  border-radius: 50%;
-  box-shadow: 0 0 6px 1px #60a5fa, 0 0 10px 2px rgba(147,197,253,0.7);
+.splash-screen--fade {
   opacity: 0;
-  animation: floatFirefly linear infinite;
-  will-change: transform, opacity;
+  pointer-events: none;
 }
 
-@keyframes floatFirefly {
-  0% { transform: translateY(0) translateX(0) scale(0); opacity: 0; }
-  12% { transform: translateY(-8px) translateX(4px) scale(1); opacity: 0.85; }
-  88% { transform: translateY(-88px) translateX(38px) scale(1); opacity: 0.85; }
-  100% { transform: translateY(-100px) translateX(50px) scale(0); opacity: 0; }
+.splash-content {
+  text-align: center;
+  animation: splashFadeIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes buttonSparkle {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.08); opacity: 0.92; }
-  100% { transform: scale(1); opacity: 1; }
+.splash-logo {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 20px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(96,165,250,0.22);
+  background: rgba(96,165,250,0.08);
+  box-shadow: 0 12px 32px rgba(37,99,235,0.18);
+}
+
+.splash-title {
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+.splash-subtitle {
+  color: rgba(147,197,253,0.78);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+@keyframes splashFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.btn-add-cart {
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), opacity 140ms ease, background 140ms ease;
+}
+
+.btn-add-cart:active:not(:disabled) {
+  transform: scale(0.94);
 }
 
 @keyframes cartIconPulse {
   0% { transform: scale(1); }
-  35% { transform: scale(1.14); }
+  40% { transform: scale(1.08); }
   100% { transform: scale(1); }
-}
-
-.sparkle-button {
-  position: relative;
-  overflow: hidden;
-}
-.sparkle-button::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
-  transform: rotate(45deg);
-  animation: shine 3s infinite;
-}
-@keyframes shine {
-  0% { left: -100%; }
-  20% { left: 100%; }
-  100% { left: 100%; }
-}
-.sparkle-icon {
-  animation: buttonSparkle 2s infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .bg-app::before,
-  .firefly,
-  .sparkle-button::after,
-  .sparkle-button,
-  .page-transition {
+  .page-transition,
+  .splash-content,
+  .btn-add-cart {
     animation: none !important;
     transition: none !important;
-  }
-  .sparkle-icon {
-    animation: none;
   }
 }

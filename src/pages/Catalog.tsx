@@ -45,6 +45,7 @@ const Catalog: React.FC = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [query, setQuery] = useState('');
   const catalogRequestRef = React.useRef(0);
@@ -91,6 +92,7 @@ const Catalog: React.FC = () => {
     const requestId = ++catalogRequestRef.current;
     try {
       setLoading(true);
+      setLoadError(null);
       const response = await catalogAPI.getProducts({
         city: selectedCity,
         category: filters.category,
@@ -105,10 +107,8 @@ const Catalog: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load catalog:', error);
-      try {
-        WebApp.showAlert('Ошибка загрузки каталога');
-      } catch {
-        toast.push('Ошибка загрузки каталога', 'error');
+      if (requestId === catalogRequestRef.current) {
+        setLoadError('Не удалось загрузить каталог');
       }
     } finally {
       if (requestId === catalogRequestRef.current) {
@@ -457,6 +457,19 @@ const Catalog: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {loadError ? (
+        <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.lg }}>
+          <GlassCard padding="lg" variant="elevated">
+            <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm, lineHeight: 1.4, marginBottom: theme.spacing.md }}>
+              {loadError}
+            </div>
+            <SecondaryButton fullWidth onClick={() => city && loadCatalog(city)}>
+              Повторить загрузку
+            </SecondaryButton>
+          </GlassCard>
+        </div>
+      ) : null}
 
       {loading ? (
         <div style={styles.grid}>

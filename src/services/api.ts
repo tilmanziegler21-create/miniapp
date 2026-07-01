@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useToastStore } from '../store/useToastStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { withRetry } from '../lib/withRetry';
 
 const configuredApiUrl = String(import.meta.env?.VITE_API_URL || '').trim();
 const localDevApiUrl =
@@ -10,11 +11,14 @@ const API_BASE_URL = import.meta.env.DEV && localDevApiUrl ? '/api' : configured
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 20000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+const retryGet = (url: string, config?: Parameters<typeof api.get>[1]) =>
+  withRetry(() => api.get(url, config));
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -77,7 +81,7 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  me: () => api.get('/auth/me'),
+  me: () => retryGet('/auth/me'),
   verify: (initData: string) =>
     api.post('/auth/verify', { initData }),
   
@@ -89,18 +93,18 @@ export const authAPI = {
 
 export const catalogAPI = {
   getProducts: (params: any) =>
-    api.get('/catalog', { params }),
+    retryGet('/catalog', { params }),
   
   getCategories: (city: string) =>
-    api.get('/catalog/categories', { params: { city } }),
+    retryGet('/catalog/categories', { params: { city } }),
   
   getBrands: (city: string) =>
-    api.get('/catalog/brands', { params: { city } }),
+    retryGet('/catalog/brands', { params: { city } }),
 };
 
 export const productAPI = {
   getById: (id: string, city: string) =>
-    api.get(`/product/${encodeURIComponent(id)}`, { params: { city } }),
+    retryGet(`/product/${encodeURIComponent(id)}`, { params: { city } }),
 };
 
 export const cartAPI = {
@@ -186,7 +190,7 @@ export const analyticsAPI = {
 };
 
 export const configAPI = {
-  get: () => api.get('/config'),
+  get: () => retryGet('/config'),
 };
 
 export default api;

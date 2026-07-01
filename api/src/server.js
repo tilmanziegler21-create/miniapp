@@ -23,7 +23,7 @@ import referralRoutes from './routes/referral.js';
 import fortuneRoutes from './routes/fortune.js';
 import cron from 'node-cron';
 import db from './services/database.js';
-import { updateOrderRowByOrderId } from './services/sheets.js';
+import { updateOrderRowByOrderId, warmupSheetsCache } from './services/sheets.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -180,10 +180,24 @@ async function initTSBackend() {
   }
 }
 
+async function warmupApiSheetsCache() {
+  if (String(process.env.DATA_BACKEND || 'mock') !== 'sheets') return;
+  const cities = String(process.env.CITY_CODES || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  try {
+    await warmupSheetsCache(cities);
+    console.log('[API] Sheets cache warmed for cities:', cities.join(', '));
+  } catch (e) {
+    console.warn('[API] Sheets warmup warning:', e?.message || e);
+  }
+}
+
 const server = app.listen(PORT, async () => {
   const actualPort = server.address().port;
   console.log(`🚀 Server running on port ${actualPort}`);
-  await initTSBackend();
+  await Promise.all([initTSBackend(), warmupApiSheetsCache()]);
 });
 
 cron.schedule('*/1 * * * *', () => {
