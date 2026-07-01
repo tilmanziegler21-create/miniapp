@@ -271,7 +271,7 @@ const Cart: React.FC = () => {
 
       trackOrderComplete(orderId, Number(totalAmount || cart.total), cart.items);
       pushToast(`Заказ ${orderId} оформлен`, 'success');
-      navigate('/orders');
+      navigate('/orders', { state: { freshOrderId: orderId } });
     } catch (e) {
       console.error('Failed to create order:', e);
       try {

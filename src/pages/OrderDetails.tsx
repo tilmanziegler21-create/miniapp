@@ -1,12 +1,17 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import WebApp from '@twa-dev/sdk';
+import { ArrowLeft, MessageCircle } from 'lucide-react';
 import { orderAPI } from '../services/api';
-import { GlassCard, SectionDivider, IconButton, theme } from '../ui';
+import { GlassCard, SectionDivider, IconButton, PrimaryButton, theme } from '../ui';
 import { useCityStore } from '../store/useCityStore';
+import { useConfigStore } from '../store/useConfigStore';
+import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { resolveProductImage } from '../lib/productMedia';
 import { getOrderStatusLabel } from '../lib/orderStatus';
+import { buildManagerTelegramUrl, buildOrderManagerMessage } from '../lib/orderManagerMessage';
+import { getManagerUsernameForClient } from '../config/managerContacts';
 
 type OrderDetailsResponse = {
   order: {
@@ -41,6 +46,8 @@ const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const city = useCityStore((state) => state.city);
+  const config = useConfigStore((state) => state.config);
+  const toast = useToastStore();
   const [loading, setLoading] = React.useState(true);
   const [data, setData] = React.useState<OrderDetailsResponse | null>(null);
 
@@ -107,6 +114,30 @@ const OrderDetails: React.FC = () => {
   const subtotal = items.reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 0), 0);
   const bonusApplied = Number(order.bonusApplied || 0);
   const finalAmount = Number(order.finalAmount || 0) || Math.max(0, Number(order.totalAmount || 0) - bonusApplied);
+  const cityTitle = config?.cities?.find((c) => c.code === city)?.title || city || '';
+
+  const writeToManager = async () => {
+    const managerUsername = getManagerUsernameForClient(city, config?.support?.managerUsername);
+    if (!managerUsername) {
+      toast.push('Контакт менеджера не настроен', 'error');
+      return;
+    }
+    const message = buildOrderManagerMessage(order, items, cityTitle);
+    const url = buildManagerTelegramUrl(managerUsername, message);
+    if (!url) {
+      toast.push('Не удалось открыть чат', 'error');
+      return;
+    }
+    try {
+      if (WebApp.openTelegramLink) {
+        WebApp.openTelegramLink(url);
+        return;
+      }
+    } catch (e) {
+      console.error('Open telegram link failed:', e);
+    }
+    window.open(url, '_blank');
+  };
 
   return (
     <div className="gold-glow">
@@ -188,7 +219,7 @@ const OrderDetails: React.FC = () => {
       </div>
 
       <SectionDivider title="Итог" />
-      <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.xl }}>
+      <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.xl, display: 'grid', gap: theme.spacing.md }}>
         <GlassCard padding="lg" variant="elevated">
           <div style={{ display: 'grid', gap: 8, fontSize: theme.typography.fontSize.sm }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -205,6 +236,12 @@ const OrderDetails: React.FC = () => {
             </div>
           </div>
         </GlassCard>
+        <PrimaryButton fullWidth onClick={writeToManager}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <MessageCircle size={18} />
+            Написать менеджеру
+          </span>
+        </PrimaryButton>
       </div>
     </div>
   );

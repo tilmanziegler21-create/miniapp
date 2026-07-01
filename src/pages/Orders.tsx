@@ -1,10 +1,16 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import WebApp from '@twa-dev/sdk';
+import { MessageCircle } from 'lucide-react';
 import { orderAPI } from '../services/api';
-import { GlassCard, SectionDivider, theme } from '../ui';
+import { GlassCard, SectionDivider, PrimaryButton, theme } from '../ui';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
+import { useConfigStore } from '../store/useConfigStore';
+import { useToastStore } from '../store/useToastStore';
 import { getOrderStatusLabel } from '../lib/orderStatus';
+import { buildManagerTelegramUrl, buildOrderManagerMessage } from '../lib/orderManagerMessage';
+import { getManagerUsernameForClient } from '../config/managerContacts';
 
 type OrderItem = {
   id: string;
@@ -28,9 +34,15 @@ const statusStyles: Record<string, { bg: string; text: string }> = {
 
 const Orders: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const city = useCityStore((state) => state.city);
+  const config = useConfigStore((state) => state.config);
+  const toast = useToastStore();
   const [loading, setLoading] = React.useState(true);
   const [orders, setOrders] = React.useState<OrderItem[]>([]);
+  const [managerBusyId, setManagerBusyId] = React.useState<string | null>(null);
+  const freshOrderId = String((location.state as { freshOrderId?: string } | null)?.freshOrderId || '').trim();
+  const cityTitle = config?.cities?.find((c) => c.code === city)?.title || city || '';
 
   React.useEffect(() => {
     let cancelled = false;
@@ -56,6 +68,45 @@ const Orders: React.FC = () => {
       cancelled = true;
     };
   }, [city]);
+
+  const writeToManager = async (orderId: string) => {
+    if (!city) return;
+    setManagerBusyId(orderId);
+    try {
+      const managerUsername = getManagerUsernameForClient(city, config?.support?.managerUsername);
+      if (!managerUsername) {
+        toast.push('Контакт менеджера не настроен', 'error');
+        return;
+      }
+      const resp = await orderAPI.getById(orderId, city);
+      const order = resp.data?.order;
+      const items = Array.isArray(resp.data?.items) ? resp.data.items : [];
+      if (!order) {
+        toast.push('Не удалось загрузить заказ', 'error');
+        return;
+      }
+      const message = buildOrderManagerMessage(order, items, cityTitle);
+      const url = buildManagerTelegramUrl(managerUsername, message);
+      if (!url) {
+        toast.push('Не удалось открыть чат', 'error');
+        return;
+      }
+      try {
+        if (WebApp.openTelegramLink) {
+          WebApp.openTelegramLink(url);
+          return;
+        }
+      } catch (e) {
+        console.error('Open telegram link failed:', e);
+      }
+      window.open(url, '_blank');
+    } catch (e) {
+      console.error('Write to manager failed:', e);
+      toast.push('Не удалось открыть чат с менеджером', 'error');
+    } finally {
+      setManagerBusyId(null);
+    }
+  };
 
   const styles = {
     title: {
@@ -114,21 +165,31 @@ const Orders: React.FC = () => {
       boxShadow: '0 14px 30px rgba(0,0,0,0.35)',
       whiteSpace: 'nowrap' as const,
     },
-    overlay: {
-      position: 'fixed' as const,
-      inset: 0,
-      background: 'rgba(0,0,0,0.65)',
-      zIndex: 1500,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: theme.padding.screen,
+    freshBanner: {
+      padding: `0 ${theme.padding.screen}`,
+      marginBottom: theme.spacing.md,
     },
   };
 
   return (
     <div className="gold-glow">
       <div style={styles.title}>История заказов</div>
+
+      {freshOrderId ? (
+        <div style={styles.freshBanner}>
+          <GlassCard padding="lg" variant="elevated">
+            <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.md, lineHeight: 1.45 }}>
+              Заказ <strong style={{ color: theme.colors.dark.text }}>{freshOrderId}</strong> оформлен. Напишите менеджеру — мы подставим состав и детали в сообщение.
+            </div>
+            <PrimaryButton fullWidth disabled={managerBusyId === freshOrderId} onClick={() => writeToManager(freshOrderId)}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <MessageCircle size={18} />
+                {managerBusyId === freshOrderId ? 'Открываем чат…' : 'Написать менеджеру'}
+              </span>
+            </PrimaryButton>
+          </GlassCard>
+        </div>
+      ) : null}
 
       <SectionDivider title="Последние заказы" />
 
@@ -148,18 +209,18 @@ const Orders: React.FC = () => {
           ))
         ) : orders.length ? (
           orders.slice(0, 50).map((o) => (
-            <button
-              key={o.id}
-              onClick={() => navigate(`/order/${encodeURIComponent(o.id)}`)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                padding: 0,
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              <GlassCard padding="lg" variant="elevated">
+            <GlassCard key={o.id} padding="lg" variant="elevated">
+              <button
+                onClick={() => navigate(`/order/${encodeURIComponent(o.id)}`)}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  padding: 0,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
+              >
                 <div style={styles.row}>
                   <div>
                     <div style={styles.id}>{o.id}</div>
@@ -172,8 +233,15 @@ const Orders: React.FC = () => {
                     <div style={styles.amount}>{formatCurrency(Number(o.finalAmount || o.totalAmount || 0))}</div>
                   </div>
                 </div>
-              </GlassCard>
-            </button>
+              </button>
+              {o.id === freshOrderId ? (
+                <div style={{ marginTop: theme.spacing.md }}>
+                  <PrimaryButton fullWidth size="sm" disabled={managerBusyId === o.id} onClick={() => writeToManager(o.id)}>
+                    Написать менеджеру
+                  </PrimaryButton>
+                </div>
+              ) : null}
+            </GlassCard>
           ))
         ) : (
           <GlassCard padding="lg" variant="elevated">
@@ -181,8 +249,6 @@ const Orders: React.FC = () => {
           </GlassCard>
         )}
       </div>
-
-      {null}
     </div>
   );
 };

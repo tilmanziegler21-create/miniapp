@@ -10,12 +10,35 @@ function numericTiers(prices) {
     .sort((a, b) => a.qty - b.qty);
 }
 
+/** Sheet rows like 1→18, 2→16, 3→15 store price-per-unit at each threshold. */
+function isPerUnitTierPricing(prices) {
+  const tiers = numericTiers(prices);
+  if (tiers.length < 2) return true;
+  return tiers[1].price <= tiers[0].price;
+}
+
+export function unitPriceAtQuantity(quantity, prices) {
+  const qty = Number(quantity || 0);
+  const tiers = numericTiers(prices);
+  if (!tiers.length || qty <= 0) return 0;
+  let unitPrice = tiers[0].price;
+  for (const tier of tiers) {
+    if (qty >= tier.qty) unitPrice = tier.price;
+  }
+  return unitPrice;
+}
+
 export function calculateLiquidBundleTotal(quantity, prices, fallbackTotal = 0) {
   const qty = Number(quantity || 0);
   if (!Number.isFinite(qty) || qty <= 0) return 0;
 
   const tiers = numericTiers(prices);
   if (!tiers.length) return fallbackTotal;
+
+  if (isPerUnitTierPricing(prices)) {
+    const unitPrice = unitPriceAtQuantity(qty, prices);
+    return Math.round(qty * unitPrice * 100) / 100;
+  }
 
   const exact = tiers.find((entry) => entry.qty === qty);
   if (exact) return exact.price;

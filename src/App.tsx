@@ -242,6 +242,7 @@ function App() {
       {user && (
         <Router>
           <div className="min-h-screen bg-app safe-bottom relative">
+            <div className="app-content-layer">
             <Suspense
               fallback={
                 <div style={{ padding: '20px 16px 120px' }}>
@@ -291,6 +292,7 @@ function App() {
                 <Route path="*" element={<Navigate to="/home" replace />} />
               </Routes>
             </Suspense>
+            </div>
           </div>
         </Router>
       )}

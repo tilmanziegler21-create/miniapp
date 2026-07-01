@@ -24,14 +24,99 @@ function parseCourierData(order, dbOrder) {
   return { address, phone, userName, comment };
 }
 
-async function resolveCourierIdForUser(city, tgId) {
+async function isActiveCourierInCity(city, tgId) {
   try {
     const list = await getCouriers(city);
-    const c = list.find((x) => String(x?.tg_id || '') === String(tgId)) || list.find((x) => String(x?.courier_id || '') === String(tgId));
-    return c ? String(c.courier_id || '').trim() : '';
+    return list.some((c) => c.active && String(c.tg_id || '') === String(tgId));
   } catch {
-    return '';
+    return false;
   }
+}
+
+function dbItemsForOrder(orderId) {
+  const items = [];
+  for (const oi of db.orderItems.values()) {
+    if (String(oi.order_id) !== String(orderId)) continue;
+    items.push({
+      name: String(oi.name || oi.product_id || ''),
+      quantity: Number(oi.quantity || 0),
+      price: Number(oi.price || 0),
+      productId: String(oi.product_id || ''),
+      brand: String(oi.brand || ''),
+      variant: oi.variant ? String(oi.variant) : '',
+      category: String(oi.category || ''),
+    });
+  }
+  return items;
+}
+
+function sheetRowFromLocalOrder(local) {
+  const orderId = String(local.id || '').trim();
+  const items = dbItemsForOrder(orderId);
+  const cd = safeJson(local.courier_data, {});
+  return {
+    order_id: orderId,
+    user_id: String(local.user_id || ''),
+    status: String(local.status || 'pending'),
+    total_amount: local.total_amount != null ? String(local.total_amount) : '',
+    final_amount: local.final_amount != null ? String(local.final_amount) : '',
+    delivery_method: String(local.delivery_method || ''),
+    courier_id: String(local.courier_id || ''),
+    delivery_date: String(local.delivery_date || ''),
+    delivery_time: String(local.delivery_time || ''),
+    payment_method: String(local.payment_method || ''),
+    created_at: String(local.created_at || new Date().toISOString()),
+    item_count: String(items.length),
+    items_json: JSON.stringify(items),
+    courier_data: String(local.courier_data || ''),
+    user_name: String(cd?.user?.username || cd?.user?.tgId || ''),
+    user_phone: String(cd?.phone || ''),
+    delivery_address: String(cd?.address || ''),
+    comment: String(cd?.comment || ''),
+  };
+}
+
+async function getMergedOrdersForCity(city) {
+  const rows = await getOrders(city);
+  const byId = new Map();
+  for (const row of rows) {
+    const id = String(row.order_id || '').trim();
+    if (id) byId.set(id, row);
+  }
+  for (const local of db.orders.values()) {
+    if (String(local.city || '') !== String(city)) continue;
+    const id = String(local.id || '').trim();
+    if (!id) continue;
+    const st = normalizeOrderStatus(local.status);
+    if (st === 'buffer') continue;
+    if (!byId.has(id)) byId.set(id, sheetRowFromLocalOrder(local));
+  }
+  return Array.from(byId.values());
+}
+
+function mapCourierOrderRow(o) {
+  const dbOrder = db.orders.get(String(o.order_id || ''));
+  const cd = parseCourierData(o, dbOrder);
+  const items = Array.isArray(safeJson(o.items_json, [])) ? safeJson(o.items_json, []) : dbItemsForOrder(String(o.order_id || ''));
+  const totalAmount = Number(o.final_amount || 0) > 0 ? Number(o.final_amount || 0) : Number(o.total_amount || 0);
+  const payoutAmount = Math.round(totalAmount * 0.2 * 100) / 100;
+  return {
+    id: String(o.order_id || ''),
+    userId: String(o.user_id || ''),
+    userName: cd.userName,
+    userPhone: cd.phone,
+    deliveryAddress: cd.address,
+    comment: cd.comment,
+    status: normalizeOrderStatus(o.status),
+    totalAmount,
+    payoutAmount,
+    courierId: String(o.courier_id || ''),
+    deliveryDate: String(o.delivery_date || ''),
+    deliveryTime: String(o.delivery_time || ''),
+    createdAt: String(o.created_at || ''),
+    itemCount: Number(o.item_count || (Array.isArray(items) ? items.length : 0) || 0),
+    items,
+  };
 }
 
 router.get('/orders', requireAuth, async (req, res) => {
@@ -44,37 +129,16 @@ router.get('/orders', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const myCourierId = status === 'admin' ? String(req.query.courierId || '').trim() : await resolveCourierIdForUser(city, req.user.tgId);
-    const filterCourierId = myCourierId || String(req.user.tgId);
+    if (status === 'courier') {
+      const active = await isActiveCourierInCity(city, req.user.tgId);
+      if (!active) return res.status(403).json({ error: 'Forbidden' });
+    }
 
-    const rows = await getOrders(city);
+    const rows = await getMergedOrdersForCity(city);
     const orders = rows
-      .filter((o) => String(o.courier_id || '') === String(filterCourierId))
+      .filter((o) => normalizeOrderStatus(o.status) !== 'cancelled')
       .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
-      .map((o) => {
-        const dbOrder = db.orders.get(String(o.order_id || ''));
-        const cd = parseCourierData(o, dbOrder);
-        const items = Array.isArray(safeJson(o.items_json, [])) ? safeJson(o.items_json, []) : [];
-        const totalAmount = Number(o.final_amount || 0) > 0 ? Number(o.final_amount || 0) : Number(o.total_amount || 0);
-        const payoutAmount = Math.round(totalAmount * 0.2 * 100) / 100;
-        return {
-          id: String(o.order_id || ''),
-          userId: String(o.user_id || ''),
-          userName: cd.userName,
-          userPhone: cd.phone,
-          deliveryAddress: cd.address,
-          comment: cd.comment,
-          status: normalizeOrderStatus(o.status),
-          totalAmount,
-          payoutAmount,
-          courierId: String(o.courier_id || ''),
-          deliveryDate: String(o.delivery_date || ''),
-          deliveryTime: String(o.delivery_time || ''),
-          createdAt: String(o.created_at || ''),
-          itemCount: Number(o.item_count || (Array.isArray(items) ? items.length : 0) || 0),
-          items,
-        };
-      });
+      .map(mapCourierOrderRow);
 
     res.json({ orders });
   } catch (e) {
@@ -100,20 +164,21 @@ router.post('/orders/status', requireAuth, async (req, res) => {
     if (!isAllowedCourierOrderStatus(next)) return res.status(400).json({ error: 'Invalid status' });
     const normalizedNext = normalizeOrderStatus(next);
 
-    const rows = await getOrders(city);
+    if (status === 'courier') {
+      const active = await isActiveCourierInCity(city, req.user.tgId);
+      if (!active) return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const rows = await getMergedOrdersForCity(city);
     const order = rows.find((o) => String(o.order_id || '') === orderId);
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    const myCourierId = status === 'admin' ? String(req.body?.courierId || req.query.courierId || '').trim() : await resolveCourierIdForUser(city, req.user.tgId);
-    const filterCourierId = myCourierId || String(req.user.tgId);
-    if (status !== 'admin' && String(order.courier_id || '') !== String(filterCourierId)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
 
     await updateOrderRowByOrderId(city, orderId, { status: normalizedNext });
     const local = db.orders.get(String(orderId));
     if (local) {
       local.status = normalizedNext;
       db.orders.set(String(orderId), local);
+      db.persistState();
     }
     res.json({ ok: true });
   } catch (e) {

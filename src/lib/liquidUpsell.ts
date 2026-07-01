@@ -38,21 +38,54 @@ export function pickLiquidUpsellProducts(
   return shuffled.slice(0, limit);
 }
 
+function numericTiers(liquidPrices: Record<string, number>) {
+  return Object.keys(liquidPrices)
+    .filter((key) => key !== 'extra')
+    .map((key) => ({ qty: Number(key), price: Number(liquidPrices[key]) }))
+    .filter((entry) => Number.isFinite(entry.qty) && entry.qty > 0 && Number.isFinite(entry.price) && entry.price > 0)
+    .sort((a, b) => a.qty - b.qty);
+}
+
+function isPerUnitTierPricing(liquidPrices: Record<string, number>) {
+  const tiers = numericTiers(liquidPrices);
+  if (tiers.length < 2) return true;
+  return tiers[1].price <= tiers[0].price;
+}
+
+function unitPriceAtQuantity(quantity: number, liquidPrices: Record<string, number>) {
+  const tiers = numericTiers(liquidPrices);
+  if (!tiers.length || quantity <= 0) return 0;
+  let unitPrice = tiers[0].price;
+  for (const tier of tiers) {
+    if (quantity >= tier.qty) unitPrice = tier.price;
+  }
+  return unitPrice;
+}
+
 export function nextLiquidBundlePrice(
   currentQty: number,
   liquidPrices: Record<string, number>,
 ) {
   const nextQty = Math.max(1, currentQty + 1);
+  const tiers = numericTiers(liquidPrices);
+  if (!tiers.length) return null;
+
+  if (isPerUnitTierPricing(liquidPrices)) {
+    const unitPrice = unitPriceAtQuantity(nextQty, liquidPrices);
+    return Math.round(nextQty * unitPrice * 100) / 100;
+  }
+
   if (liquidPrices[String(nextQty)]) return liquidPrices[String(nextQty)];
-  const numericKeys = Object.keys(liquidPrices)
-    .filter((key) => key !== 'extra')
-    .map((key) => Number(key))
-    .filter((n) => Number.isFinite(n) && n > 0);
-  const maxQty = numericKeys.length ? Math.max(...numericKeys) : 0;
+  const maxQty = tiers[tiers.length - 1].qty;
   if (maxQty > 0 && nextQty > maxQty) {
     const base = Number(liquidPrices[String(maxQty)] || 0);
-    const extra = Number(liquidPrices.extra || 14);
+    const extra = Number(liquidPrices.extra || 15);
     return base + (nextQty - maxQty) * extra;
   }
   return null;
+}
+
+export function liquidUnitPriceLabel(qty: number, liquidPrices: Record<string, number>) {
+  const price = unitPriceAtQuantity(qty, liquidPrices);
+  return price;
 }

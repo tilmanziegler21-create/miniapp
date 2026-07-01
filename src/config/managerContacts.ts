@@ -20,3 +20,21 @@ export function getManagerContact(cityCode: string): string {
   if (byEnv) return byEnv;
   return MANAGER_CONTACTS[code] || "@shop_support";
 }
+
+export function getManagerUsernameForClient(
+  cityCode: string,
+  configManagerUsername?: string,
+): string {
+  const fromConfig = String(configManagerUsername || "").trim();
+  if (fromConfig) return fromConfig.replace(/^@/, "");
+  const code = String(cityCode || "").toLowerCase();
+  const envKey = `VITE_MANAGER_USERNAME_${code.toUpperCase()}`;
+  const fromEnv = String(
+    (import.meta.env as Record<string, string | undefined>)[envKey] ||
+      import.meta.env.VITE_MANAGER_USERNAME ||
+      "",
+  ).trim();
+  if (fromEnv) return fromEnv.replace(/^@/, "");
+  const fallback = MANAGER_CONTACTS[code] || "@shop_support";
+  return fallback.replace(/^@/, "");
+}

@@ -93,6 +93,36 @@ function buildPaymentPayload(order) {
   };
 }
 
+function tryNotifyCouriersAboutOrder(cityStr, orderId, reqUser) {
+  try {
+    const order = db.orders.get(String(orderId));
+    if (!order || !cityStr || order.courier_notified_at) return;
+    order.courier_notified_at = new Date().toISOString();
+    db.persistState();
+
+    const notifyItems = [];
+    for (const oi of db.orderItems.values()) {
+      if (String(oi.order_id) !== String(orderId)) continue;
+      notifyItems.push({
+        name: oi.name || oi.product_id,
+        product_id: oi.product_id,
+        brand: oi.brand || '',
+        variant: oi.variant || '',
+        source: oi.source || 'self',
+        quantity: oi.quantity,
+        price: oi.price,
+      });
+    }
+
+    order.user_name = String(reqUser?.username || reqUser?.firstName || reqUser?.tgId || order.user_id || '');
+    notifyCouriersAboutNewOrder({ city: cityStr, order, items: notifyItems }).catch((e) => {
+      console.error('Courier notify failed:', e);
+    });
+  } catch (e) {
+    console.error('Courier notify setup failed:', e);
+  }
+}
+
 async function commitOrderStock(cityStr, orderId, order) {
   if (order.stock_committed) return { ok: true };
   const lockKey = String(orderId || '');
@@ -456,6 +486,8 @@ router.post('/confirm', requireAuth, async (req, res) => {
       }
     }
 
+    tryNotifyCouriersAboutOrder(cityStr, orderId, req.user);
+
     res.json({ success: true, status: 'pending' });
   } catch (error) {
     console.error('Confirm order error:', error);
@@ -608,30 +640,7 @@ router.post('/payment', requireAuth, async (req, res) => {
       db.persistState();
     }
 
-    try {
-      const freshOrder = db.orders.get(orderId);
-      const notifyItems = [];
-      for (const oi of db.orderItems.values()) {
-        if (String(oi.order_id) !== String(orderId)) continue;
-        notifyItems.push({
-          name: oi.name || oi.product_id,
-          product_id: oi.product_id,
-          brand: oi.brand || '',
-          variant: oi.variant || '',
-          source: oi.source || 'self',
-          quantity: oi.quantity,
-          price: oi.price,
-        });
-      }
-      if (freshOrder && cityStr) {
-        freshOrder.user_name = String(req.user?.username || req.user?.firstName || req.user?.tgId || freshOrder.user_id || '');
-        notifyCouriersAboutNewOrder({ city: cityStr, order: freshOrder, items: notifyItems }).catch((e) => {
-          console.error('Courier notify failed:', e);
-        });
-      }
-    } catch (e) {
-      console.error('Courier notify setup failed:', e);
-    }
+    tryNotifyCouriersAboutOrder(cityStr, orderId, req.user);
 
     const payload = buildPaymentPayload(db.orders.get(orderId));
     db.setPaymentIdempotency(paymentKey, payload, 30 * 60 * 1000);

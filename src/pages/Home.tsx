@@ -6,7 +6,7 @@ import { formatCurrency } from '../lib/currency';
 import { useHomePage } from '../hooks/useHomePage';
 
 import { useConfigStore } from '../store/useConfigStore';
-import { resolveBrandAssetUrl, useBranding } from '../hooks/useBranding';
+import { useBranding } from '../hooks/useBranding';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -25,12 +25,14 @@ const Home: React.FC = () => {
 
   const liquidPrices = config?.liquidPrices || {
     1: 18,
-    2: 32,
-    3: 45,
-    extra: 14
+    2: 16,
+    3: 15,
+    extra: 15,
   };
 
-  const bannerUrl = resolveBrandAssetUrl('banners/banner-1.jpg', branding.assetBasePath);
+  const liquidTierOne = Number(liquidPrices['1'] || 18);
+  const liquidTierTwo = Number(liquidPrices['2'] || 16);
+  const liquidTierThree = Number(liquidPrices['3'] || 15);
 
   const styles = {
     container: {
@@ -41,44 +43,6 @@ const Home: React.FC = () => {
     hero: {
       padding: `0 ${theme.padding.screen}`,
       marginBottom: theme.spacing.xl,
-    },
-    heroCard: {
-      position: 'relative' as const,
-      overflow: 'hidden',
-      borderRadius: '28px',
-      border: '1px solid rgba(96,165,250,0.14)',
-      minHeight: 190,
-      background: `linear-gradient(180deg, rgba(6,11,22,0.16) 0%, rgba(6,11,22,0.74) 100%), url(${bannerUrl}) center/cover`,
-      boxShadow: theme.shadow.card,
-    },
-    heroOverlay: {
-      padding: theme.spacing.lg,
-      minHeight: 190,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      justifyContent: 'flex-end',
-      background: 'linear-gradient(180deg, rgba(4,9,20,0.12) 0%, rgba(4,9,20,0.74) 100%)',
-    },
-    heroEyebrow: {
-      fontSize: theme.typography.fontSize.xs,
-      letterSpacing: '0.18em',
-      textTransform: 'uppercase' as const,
-      color: theme.colors.dark.primary,
-      marginBottom: theme.spacing.xs,
-      fontWeight: theme.typography.fontWeight.bold,
-    },
-    heroTitle: {
-      fontSize: theme.typography.fontSize['2xl'],
-      fontWeight: theme.typography.fontWeight.bold,
-      lineHeight: 1.05,
-      maxWidth: 280,
-    },
-    heroText: {
-      marginTop: theme.spacing.sm,
-      color: theme.colors.dark.textSecondary,
-      fontSize: theme.typography.fontSize.sm,
-      maxWidth: 280,
-      lineHeight: 1.45,
     },
     searchSection: {
       padding: `0 ${theme.padding.screen}`,
@@ -156,12 +120,18 @@ const Home: React.FC = () => {
   return (
     <div style={styles.container} className="gold-glow">
       <div className="stagger-item" style={{ ...styles.hero, ['--stagger-i' as string]: 0 }}>
-        <div style={styles.heroCard}>
-          <div style={styles.heroOverlay}>
-            <div style={styles.heroEyebrow}>Премиум качество</div>
-            <div style={styles.heroTitle}>{branding.name}</div>
-            <div style={styles.heroText}>
+        <div className="home-hero-banner">
+          <div className="home-hero-banner__mesh" aria-hidden />
+          <div className="home-hero-banner__shimmer" aria-hidden />
+          <div className="home-hero-banner__content">
+            <div className="home-hero-banner__eyebrow">Premium · 24/7</div>
+            <div className="home-hero-banner__title">{branding.name}</div>
+            <div className="home-hero-banner__subtitle">
               {branding.subtitle || 'Открой для себя лучшие вкусы и бренды'}
+            </div>
+            <div className="home-hero-banner__chips">
+              <span className="home-hero-banner__chip">Быстрая выдача</span>
+              <span className="home-hero-banner__chip">Бонусы за заказ</span>
             </div>
           </div>
         </div>
@@ -248,19 +218,19 @@ const Home: React.FC = () => {
             <div className="liquid-deal-grid" style={{ marginTop: theme.spacing.lg }}>
               <div className="liquid-deal-tier">
                 <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>1 шт</span>
-                <strong>{formatCurrency(liquidPrices['1'] || 18)}</strong>
+                <strong>{formatCurrency(liquidTierOne)}</strong>
               </div>
               <div className="liquid-deal-tier">
-                <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>2 шт</span>
-                <strong>{formatCurrency(liquidPrices['2'] || 32)}</strong>
+                <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>от 2 шт</span>
+                <strong>{formatCurrency(liquidTierTwo)}/шт</strong>
               </div>
               <div className="liquid-deal-tier">
-                <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>3 шт</span>
-                <strong>{formatCurrency(liquidPrices['3'] || 45)}</strong>
+                <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>от 3 шт</span>
+                <strong>{formatCurrency(liquidTierThree)}/шт</strong>
               </div>
               <div className="liquid-deal-tier">
                 <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: theme.colors.dark.textSecondary }}>Далее</span>
-                <strong>{formatCurrency(liquidPrices['extra'] || 14)}</strong>
+                <strong>{formatCurrency(liquidTierThree)}/шт</strong>
               </div>
             </div>
           </div>

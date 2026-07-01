@@ -32,6 +32,17 @@ const REFRESH_INTERVAL_MS = 12000;
 
 const isIssued = (status: CourierOrder['status']) => status === 'delivered';
 
+function parseLocalDay(raw: string, fallback?: string): Date {
+  const src = String(raw || '').trim() || String(fallback || '').trim();
+  if (!src) return new Date();
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(src);
+  if (isoMatch) {
+    return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+  }
+  const d = src.includes('T') ? new Date(src) : new Date(`${src}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+
 const Courier: React.FC = () => {
   const toast = useToastStore();
   const city = useCityStore((state) => state.city);
@@ -127,7 +138,7 @@ const Courier: React.FC = () => {
     dayAfter.setDate(dayAfter.getDate() + 2);
 
     return orders.filter(order => {
-      const orderDate = new Date(order.deliveryDate);
+      const orderDate = parseLocalDay(order.deliveryDate, order.createdAt);
       switch (selectedDate) {
         case 'today':
           return orderDate.toDateString() === today.toDateString();

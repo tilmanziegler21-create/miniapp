@@ -136,17 +136,6 @@ const Admin: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city, selectedDate]);
 
-  const updateOrderStatus = async (orderId: string, newStatus: AdminOrder['status']) => {
-    try {
-      await adminAPI.updateOrderStatus(orderId, newStatus, city);
-      toast.push('Статус заказа обновлен', 'success');
-      loadData();
-    } catch (error) {
-      console.error('Failed to update order status:', error);
-      toast.push('Ошибка обновления статуса', 'error');
-    }
-  };
-
   const toggleCourierStatus = async (courierId: string, active: boolean) => {
     try {
       await adminAPI.toggleCourierStatus(courierId, active, city);
@@ -588,25 +577,6 @@ const Admin: React.FC = () => {
                     <span style={styles.totalValue}>{formatCurrency(order.totalAmount)}</span>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div style={styles.actionButtons}>
-                    {order.status !== 'delivered' && order.status !== 'cancelled' && (
-                      <>
-                        <PrimaryButton
-                          size="sm"
-                          onClick={() => updateOrderStatus(order.id, 'delivered')}
-                        >
-                          Отметить выданным
-                        </PrimaryButton>
-                        <SecondaryButton
-                          size="sm"
-                          onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                        >
-                          Отменить
-                        </SecondaryButton>
-                      </>
-                    )}
-                  </div>
                 </GlassCard>
               ))
             )}

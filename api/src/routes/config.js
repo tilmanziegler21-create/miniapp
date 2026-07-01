@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
   res.json({
     branding,
     botUsername: String(process.env.TELEGRAM_BOT_USERNAME || '').trim().replace(/^@/, ''),
-    liquidPrices: liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 },
+    liquidPrices: liquidPrices || { 1: 18, 2: 16, 3: 15, extra: 15 },
     cities: codes.map((code) => ({
       code,
       title: code,
