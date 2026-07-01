@@ -12,28 +12,31 @@ function sleep(ms: number) {
 export async function runBootPipeline(tgId?: string) {
   const boot = useBootStore.getState();
   boot.reset();
-  boot.setProgress(10, 'Подключаемся…');
+  boot.setProgress(12, 'Подключаемся…');
 
   try {
+    boot.setProgress(22, 'Подбираем лучшие цены…');
     const config = await useConfigStore.getState().load();
-    boot.setProgress(30, 'Загружаем настройки…');
+    boot.setProgress(38, 'Готовим витрину…');
 
     const cities = (config?.cities || [])
       .map((c) => String(c.code || '').trim())
       .filter(Boolean);
 
     const city = useCityStore.getState().ensureCity(cities);
-    boot.setProgress(45, city ? 'Готовим витрину…' : 'Почти готово…');
+    boot.setProgress(52, city ? 'Проверяем город доставки…' : 'Почти готово…');
 
     if (city) {
-      useCatalogStore.getState().hydrateFromDisk(city);
+      const hasCachedCatalog = useCatalogStore.getState().hydrateFromDisk(city);
+      boot.setProgress(hasCachedCatalog ? 68 : 58, hasCachedCatalog ? 'Показываем сохранённый каталог…' : 'Прогружаем каталог…');
       await Promise.race([
         useCatalogStore.getState().prefetch(city),
         sleep(2800),
       ]);
-      boot.setProgress(80, 'Загружаем каталог…');
+      boot.setProgress(82, 'Обновляем наличие товаров…');
 
       if (tgId) {
+        boot.setProgress(90, 'Собираем корзину и избранное…');
         await Promise.allSettled([
           useCartStore.getState().syncCart(city),
           useFavoritesStore.getState().load(city),

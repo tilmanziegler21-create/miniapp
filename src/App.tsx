@@ -29,7 +29,7 @@ const CourierRegistration = React.lazy(() => import('./pages/CourierRegistration
 function App() {
   const { load: loadConfig } = useConfigStore();
   const { user, setUser, setLoading } = useAuthStore();
-  const { isReady: isBootReady } = useBootStore();
+  const isBootReady = useBootStore((state) => state.isReady);
   const authStartedRef = React.useRef(false);
   const bootStartedRef = React.useRef(false);
   const [authFinished, setAuthFinished] = React.useState(false);
@@ -117,6 +117,7 @@ function App() {
 
     const authenticate = async () => {
       setLoading(true);
+      useBootStore.getState().setProgress(8, 'Проверяем доступ…');
       try {
         // Preload config parallel to auth
         loadConfig().catch(() => {});

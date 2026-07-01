@@ -9,13 +9,13 @@ import { useToastStore } from '../store/useToastStore';
 import { useCatalogStore, type CatalogProduct } from '../store/useCatalogStore';
 
 export function useHomePage() {
+  const { city } = useCityStore();
   const pushToast = useToastStore((state) => state.push);
   const addItemOptimistic = useCartStore((state) => state.addItemOptimistic);
   const rollbackOptimisticAdd = useCartStore((state) => state.rollbackOptimisticAdd);
   const scheduleSync = useCartStore((state) => state.scheduleSync);
   const catalogProducts = useCatalogStore((state) => (city ? state.byCity[city] : undefined));
   const prefetchCatalog = useCatalogStore((state) => state.prefetch);
-  const { city } = useCityStore();
   const favorites = useFavoritesStore();
   const { config } = useConfigStore();
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -62,11 +62,11 @@ export function useHomePage() {
 
   useEffect(() => {
     if (!city) return;
-    favorites.load(city);
+    useFavoritesStore.getState().load(city);
     if (!useCatalogStore.getState().byCity[city]) {
       loadProducts(false);
     }
-  }, [city, favorites, loadProducts]);
+  }, [city, loadProducts]);
 
   const addToCart = async (product: CatalogProduct) => {
     if (!city) {
