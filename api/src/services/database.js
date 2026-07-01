@@ -427,11 +427,14 @@ class InMemoryDB {
   }
 
   getFavorites(tgId) {
-    return Array.from(this.favorites.values()).filter((x) => x.user_id === tgId);
+    const userId = String(tgId);
+    return Array.from(this.favorites.values()).filter((x) => String(x.user_id) === userId);
   }
 
   setFavorite(tgId, productId, enabled, snapshot) {
-    const key = `${tgId}:${productId}`;
+    const userId = String(tgId);
+    const pid = String(productId);
+    const key = `${userId}:${pid}`;
     if (!enabled) {
       this.favorites.delete(key);
       this.persistState();
@@ -440,8 +443,8 @@ class InMemoryDB {
     const existing = this.favorites.get(key);
     this.favorites.set(key, {
       id: key,
-      user_id: tgId,
-      product_id: String(productId),
+      user_id: userId,
+      product_id: pid,
       created_at: existing?.created_at || new Date().toISOString(),
       snapshot: snapshot || existing?.snapshot || null,
     });

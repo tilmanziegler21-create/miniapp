@@ -6,13 +6,13 @@ import { bonusesAPI, cartAPI, orderAPI } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { GlassCard, PrimaryButton, theme, CartLiquidUpsell } from '../ui';
+import { GlassCard, PrimaryButton, theme, CartLiquidUpsell, CartLiquidTierBanner, CartLiquidFlavorPicker } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
 import { useConfigStore } from '../store/useConfigStore';
 import { useCatalogStore } from '../store/useCatalogStore';
-import { countLiquidItems, nextLiquidBundlePrice, pickLiquidUpsellProducts } from '../lib/liquidUpsell';
+import { countLiquidItems, getLiquidUpsellStage, pickLiquidUpsellProducts } from '../lib/liquidUpsell';
 import type { CatalogProduct } from '../store/useCatalogStore';
 
 type PaymentMethod = 'cash' | 'card' | 'crypto';
@@ -51,17 +51,22 @@ const Cart: React.FC = () => {
   const cityTitle =
     config?.cities?.find((entry) => String(entry.code) === String(city || ''))?.title || city || 'Ваш город';
 
-  const liquidPrices = config?.liquidPrices || { 1: 18, 2: 32, 3: 45, extra: 14 };
+  const liquidPrices = config?.liquidPrices || { 1: 18, 2: 16, 3: 15, extra: 15 };
+  const liquidQty = countLiquidItems(cart?.items || []);
 
   const upsellProducts = React.useMemo(
     () => pickLiquidUpsellProducts(cart?.items || [], catalogEntry?.products || []),
     [cart?.items, catalogEntry?.products],
   );
 
-  const bundleHint = React.useMemo(() => {
-    const next = nextLiquidBundlePrice(countLiquidItems(cart?.items || []), liquidPrices);
-    return next != null ? formatCurrency(next) : null;
-  }, [cart?.items, liquidPrices]);
+  const upsellStage = React.useMemo(
+    () => getLiquidUpsellStage(liquidQty, liquidPrices),
+    [liquidQty, liquidPrices],
+  );
+
+  React.useEffect(() => {
+    if (city) useCatalogStore.getState().prefetch(city).catch(() => {});
+  }, [city]);
 
   React.useEffect(() => {
     if (!city) {
@@ -144,7 +149,7 @@ const Cart: React.FC = () => {
     }
   };
 
-  const addUpsellProduct = async (product: CatalogProduct) => {
+  const addUpsellProduct = async (product: CatalogProduct, variant?: string) => {
     if (!city) {
       pushToast('Выберите город', 'error');
       return;
@@ -155,6 +160,7 @@ const Cart: React.FC = () => {
       addItemOptimistic({
         city,
         quantity: 1,
+        variant: variant || product.name,
         product: {
           id: product.id,
           name: product.name,
@@ -165,7 +171,7 @@ const Cart: React.FC = () => {
         },
         source: 'upsell',
       });
-      await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price, source: 'upsell' });
+      await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price, source: 'upsell', variant: variant || product.name });
       scheduleSync(city);
     } catch {
       scheduleSync(city, 0);
@@ -386,15 +392,23 @@ const Cart: React.FC = () => {
                 <Trash2 size={14} />
               </button>
             </div>
+            <CartLiquidFlavorPicker
+              item={item}
+              catalog={catalogEntry?.products || []}
+              busyId={upsellBusyId}
+              onAddFlavor={(product) => addUpsellProduct(product, product.name)}
+            />
           </div>
         ))}
       </div>
 
+      <CartLiquidTierBanner liquidQty={liquidQty} liquidPrices={liquidPrices} discount={pricing.discount} />
+
       <CartLiquidUpsell
         products={upsellProducts}
-        bundleHint={bundleHint}
+        stage={upsellStage}
         busyId={upsellBusyId}
-        onAdd={addUpsellProduct}
+        onAdd={(product) => addUpsellProduct(product, product.name)}
       />
 
       <div

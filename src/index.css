@@ -552,8 +552,234 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #93c5fd 0%, #60a5fa 55%, #2563eb 100%);
+  background: linear-gradient(180deg, #1d4ed8 0%, #172554 100%);
   color: #eff6ff;
+}
+
+.product-cart-card {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(23, 37, 84, 0.94) 100%) !important;
+  border: 1px solid rgba(147, 197, 253, 0.28) !important;
+  box-shadow: 0 22px 48px rgba(2, 6, 23, 0.55), inset 0 1px 0 rgba(191, 219, 254, 0.08) !important;
+}
+
+.product-price-pill {
+  background: linear-gradient(180deg, #1d4ed8 0%, #172554 100%);
+  color: #eff6ff;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  border: 1px solid rgba(147, 197, 253, 0.35);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.45);
+}
+
+.product-flavor-label,
+.cart-flavor-picker__label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(191, 219, 254, 0.82);
+  margin-bottom: 10px;
+}
+
+.product-flavor-grid,
+.cart-flavor-picker__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.product-flavor-chip,
+.cart-flavor-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(147, 197, 253, 0.22);
+  background: rgba(15, 23, 42, 0.72);
+  color: #eff6ff;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.product-flavor-chip strong,
+.cart-flavor-chip__price {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.product-flavor-chip--active,
+.cart-flavor-chip--active {
+  border-color: rgba(147, 197, 253, 0.55);
+  background: linear-gradient(180deg, rgba(29, 78, 216, 0.42) 0%, rgba(23, 37, 84, 0.92) 100%);
+  box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.18);
+}
+
+.product-flavor-chip--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.product-add-btn {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(147, 197, 253, 0.34);
+  background: linear-gradient(180deg, #2563eb 0%, #172554 100%);
+  color: #eff6ff;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 15px 16px;
+  cursor: pointer;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.48);
+}
+
+.product-add-btn--success {
+  background: linear-gradient(180deg, #15803d 0%, #14532d 100%);
+}
+
+.product-add-btn--disabled {
+  background: rgba(30, 41, 59, 0.72);
+  color: rgba(226, 232, 240, 0.55);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.cart-item {
+  border-color: rgba(147, 197, 253, 0.18);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(23, 37, 84, 0.88) 100%);
+}
+
+.cart-item-price {
+  color: #93c5fd;
+  background: rgba(23, 37, 84, 0.72);
+  border: 1px solid rgba(147, 197, 253, 0.22);
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+
+.cart-flavor-picker {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(147, 197, 253, 0.12);
+}
+
+.cart-flavor-picker__hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: rgba(191, 219, 254, 0.72);
+  line-height: 1.35;
+}
+
+.cart-flavor-chip__add {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #2563eb 0%, #172554 100%);
+  color: #eff6ff;
+}
+
+.cart-liquid-tier-banner__inner {
+  border-radius: 22px;
+  border: 1px solid rgba(147, 197, 253, 0.24);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 58, 138, 0.88) 100%);
+  padding: 16px;
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.42);
+}
+
+.cart-liquid-tier-banner__title {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(191, 219, 254, 0.88);
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.cart-liquid-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cart-liquid-tier-chip {
+  border-radius: 14px;
+  border: 1px solid rgba(147, 197, 253, 0.18);
+  background: rgba(15, 23, 42, 0.72);
+  padding: 10px 8px;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 11px;
+}
+
+.cart-liquid-tier-chip strong {
+  color: #dbeafe;
+  font-size: 14px;
+}
+
+.cart-liquid-tier-chip--active {
+  border-color: rgba(147, 197, 253, 0.55);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.34) 0%, rgba(23, 37, 84, 0.92) 100%);
+  box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.16);
+}
+
+.cart-liquid-tier-banner__meta {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(191, 219, 254, 0.86);
+}
+
+.cart-upsell-card {
+  overflow: hidden;
+}
+
+.cart-upsell-card__badge {
+  display: inline-flex;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(29, 78, 216, 0.24);
+  border: 1px solid rgba(147, 197, 253, 0.24);
+  color: #bfdbfe;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cart-upsell-card--pulse {
+  animation: upsellPulse 2.4s ease-in-out infinite;
+}
+
+.cart-upsell-card--burst {
+  animation: upsellBurst 2.8s ease-in-out infinite;
+}
+
+.cart-upsell-card--glow {
+  animation: upsellGlow 3.2s ease-in-out infinite;
+}
+
+@keyframes upsellPulse {
+  0%, 100% { box-shadow: 0 18px 44px rgba(0,0,0,0.48), 0 0 0 rgba(37, 99, 235, 0); }
+  50% { box-shadow: 0 18px 44px rgba(0,0,0,0.48), 0 0 24px rgba(59, 130, 246, 0.28); }
+}
+
+@keyframes upsellBurst {
+  0%, 100% { transform: scale(1); box-shadow: 0 18px 44px rgba(0,0,0,0.48); }
+  35% { transform: scale(1.015); box-shadow: 0 22px 48px rgba(59, 130, 246, 0.28); }
+  70% { transform: scale(1); }
+}
+
+@keyframes upsellGlow {
+  0%, 100% { border-color: rgba(96,165,250,0.16); }
+  50% { border-color: rgba(147, 197, 253, 0.42); }
 }
 
 .home-hero-banner {
@@ -728,6 +954,9 @@ a {
   .chrome-aurora,
   .home-hero-banner__mesh,
   .home-hero-banner__shimmer,
+  .cart-upsell-card--pulse,
+  .cart-upsell-card--burst,
+  .cart-upsell-card--glow,
   .liquid-deal-card,
   .liquid-deal-card::before,
   .page-transition,

@@ -13,6 +13,7 @@ import { useFavoritesStore } from '../store/useFavoritesStore';
 import { resolveBrandAssetUrl, useBranding } from '../hooks/useBranding';
 import { getStableTrustData } from '../lib/productPresentation';
 import { normalizeTasteProfile } from '../lib/productMedia';
+import { categoryFilterMatches, getCategoryLabel } from '../lib/categories';
 
 const Catalog: React.FC = () => {
   const navigate = useNavigate();
@@ -93,16 +94,7 @@ const Catalog: React.FC = () => {
     [products],
   );
 
-  const getCategoryName = (slug: string) => {
-    const map: Record<string, string> = {
-      liquids: 'Жидкости',
-      electronics: 'Электронки',
-      pods: 'Поды',
-      cartridges: 'Картриджи',
-      disposables: 'Одноразки'
-    };
-    return map[slug] || slug;
-  };
+  const getCategoryName = (slug: string) => getCategoryLabel(slug);
 
   const addToCart = async (product: CatalogProduct) => {
     if (!city) {
@@ -165,7 +157,7 @@ const Catalog: React.FC = () => {
     const minFruitiness = Number(filters.taste_fruitiness_min || 0);
 
     return products.filter((p) => {
-      if (filters.category && p.category !== filters.category) return false;
+      if (filters.category && !categoryFilterMatches(filters.category, p.category)) return false;
       if (filters.brand && p.brand !== filters.brand) return false;
       if (filters.price_min && p.price < parseFloat(filters.price_min)) return false;
       if (filters.price_max && p.price > parseFloat(filters.price_max)) return false;

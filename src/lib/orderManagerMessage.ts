@@ -1,3 +1,4 @@
+import WebApp from '@twa-dev/sdk';
 import { formatCurrency } from './currency';
 import { getOrderStatusLabel } from './orderStatus';
 
@@ -24,16 +25,25 @@ type OrderSummary = {
   createdAt?: string;
 };
 
+export type CourierContact = {
+  courierId?: string;
+  tgId?: string;
+  username?: string;
+  name?: string;
+};
+
 export function buildOrderManagerMessage(
   order: OrderSummary,
   items: OrderLine[],
   cityTitle: string,
+  courierName?: string,
 ): string {
   const finalAmount =
     Number(order.finalAmount || 0) ||
     Math.max(0, Number(order.totalAmount || 0) - Number(order.bonusApplied || 0));
   const lines = [
-    'Здравствуйте! Мой заказ:',
+    courierName ? `Здравствуйте, ${courierName}!` : 'Здравствуйте!',
+    'Мой заказ:',
     '',
     `№ ${order.id}`,
     `Город: ${cityTitle || '—'}`,
@@ -63,8 +73,41 @@ export function buildOrderManagerMessage(
   return lines.join('\n');
 }
 
-export function buildManagerTelegramUrl(username: string, message: string): string {
-  const handle = String(username || '').trim().replace(/^@/, '');
-  if (!handle) return '';
-  return `https://t.me/${handle}?text=${encodeURIComponent(message)}`;
+function openTelegramUrl(url: string) {
+  try {
+    if (WebApp.openTelegramLink) {
+      WebApp.openTelegramLink(url);
+      return;
+    }
+  } catch (e) {
+    console.error('Open telegram link failed:', e);
+  }
+  window.open(url, '_blank');
+}
+
+export async function openCourierTelegramChat(
+  contact: CourierContact | null | undefined,
+  message: string,
+  toast?: { push: (msg: string, type?: 'success' | 'error' | 'info') => void },
+) {
+  const username = String(contact?.username || '').trim().replace(/^@/, '');
+  if (username) {
+    openTelegramUrl(`https://t.me/${username}?text=${encodeURIComponent(message)}`);
+    return;
+  }
+
+  const tgId = String(contact?.tgId || '').trim();
+  if (!tgId) {
+    toast?.push('Курьер не назначен', 'error');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(message);
+    toast?.push('Текст заказа скопирован — вставьте в чат курьеру', 'success');
+  } catch {
+    toast?.push('Откройте чат и отправьте текст заказа', 'info');
+  }
+
+  openTelegramUrl(`tg://user?id=${tgId}`);
 }

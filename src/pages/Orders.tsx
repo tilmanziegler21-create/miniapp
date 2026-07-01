@@ -1,6 +1,5 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import WebApp from '@twa-dev/sdk';
 import { MessageCircle } from 'lucide-react';
 import { orderAPI } from '../services/api';
 import { GlassCard, SectionDivider, PrimaryButton, theme } from '../ui';
@@ -9,8 +8,7 @@ import { useCityStore } from '../store/useCityStore';
 import { useConfigStore } from '../store/useConfigStore';
 import { useToastStore } from '../store/useToastStore';
 import { getOrderStatusLabel } from '../lib/orderStatus';
-import { buildManagerTelegramUrl, buildOrderManagerMessage } from '../lib/orderManagerMessage';
-import { getManagerUsernameForClient } from '../config/managerContacts';
+import { buildOrderManagerMessage, openCourierTelegramChat, type CourierContact } from '../lib/orderManagerMessage';
 
 type OrderItem = {
   id: string;
@@ -69,40 +67,27 @@ const Orders: React.FC = () => {
     };
   }, [city]);
 
-  const writeToManager = async (orderId: string) => {
+  const writeToCourier = async (orderId: string) => {
     if (!city) return;
     setManagerBusyId(orderId);
     try {
-      const managerUsername = getManagerUsernameForClient(city, config?.support?.managerUsername);
-      if (!managerUsername) {
-        toast.push('Контакт менеджера не настроен', 'error');
-        return;
-      }
       const resp = await orderAPI.getById(orderId, city);
       const order = resp.data?.order;
       const items = Array.isArray(resp.data?.items) ? resp.data.items : [];
+      const courier = (resp.data?.courier || null) as CourierContact | null;
       if (!order) {
         toast.push('Не удалось загрузить заказ', 'error');
         return;
       }
-      const message = buildOrderManagerMessage(order, items, cityTitle);
-      const url = buildManagerTelegramUrl(managerUsername, message);
-      if (!url) {
-        toast.push('Не удалось открыть чат', 'error');
+      if (!courier?.tgId && !courier?.username) {
+        toast.push('Курьер не назначен', 'error');
         return;
       }
-      try {
-        if (WebApp.openTelegramLink) {
-          WebApp.openTelegramLink(url);
-          return;
-        }
-      } catch (e) {
-        console.error('Open telegram link failed:', e);
-      }
-      window.open(url, '_blank');
+      const message = buildOrderManagerMessage(order, items, cityTitle, courier?.name);
+      await openCourierTelegramChat(courier, message, toast);
     } catch (e) {
-      console.error('Write to manager failed:', e);
-      toast.push('Не удалось открыть чат с менеджером', 'error');
+      console.error('Write to courier failed:', e);
+      toast.push('Не удалось открыть чат с курьером', 'error');
     } finally {
       setManagerBusyId(null);
     }
@@ -179,12 +164,12 @@ const Orders: React.FC = () => {
         <div style={styles.freshBanner}>
           <GlassCard padding="lg" variant="elevated">
             <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.md, lineHeight: 1.45 }}>
-              Заказ <strong style={{ color: theme.colors.dark.text }}>{freshOrderId}</strong> оформлен. Напишите менеджеру — мы подставим состав и детали в сообщение.
+              Заказ <strong style={{ color: theme.colors.dark.text }}>{freshOrderId}</strong> оформлен. Напишите курьеру — мы подставим состав и детали в сообщение.
             </div>
-            <PrimaryButton fullWidth disabled={managerBusyId === freshOrderId} onClick={() => writeToManager(freshOrderId)}>
+            <PrimaryButton fullWidth disabled={managerBusyId === freshOrderId} onClick={() => writeToCourier(freshOrderId)}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <MessageCircle size={18} />
-                {managerBusyId === freshOrderId ? 'Открываем чат…' : 'Написать менеджеру'}
+                {managerBusyId === freshOrderId ? 'Открываем чат…' : 'Написать курьеру'}
               </span>
             </PrimaryButton>
           </GlassCard>
@@ -236,8 +221,8 @@ const Orders: React.FC = () => {
               </button>
               {o.id === freshOrderId ? (
                 <div style={{ marginTop: theme.spacing.md }}>
-                  <PrimaryButton fullWidth size="sm" disabled={managerBusyId === o.id} onClick={() => writeToManager(o.id)}>
-                    Написать менеджеру
+                  <PrimaryButton fullWidth size="sm" disabled={managerBusyId === o.id} onClick={() => writeToCourier(o.id)}>
+                    Написать курьеру
                   </PrimaryButton>
                 </div>
               ) : null}

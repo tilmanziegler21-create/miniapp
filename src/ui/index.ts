@@ -1,5 +1,7 @@
 export { AppShell } from './AppShell';
 export { CartLiquidUpsell } from './CartLiquidUpsell';
+export { CartLiquidTierBanner } from './CartLiquidTierBanner';
+export { CartLiquidFlavorPicker } from './CartLiquidFlavorPicker';
 export { ChipBadge } from './ChipBadge';
 export { CityPickerModal } from './CityPickerModal';
 export { DrawerMenu } from './DrawerMenu';

@@ -2,26 +2,9 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import db from '../services/database.js';
 import { getProducts } from '../services/sheets.js';
+import { categoryFilterMatches, normalizeCategory } from '../domain/categories.js';
 
 const router = express.Router();
-
-function normalizeCategory(value) {
-  const raw = String(value || '').trim().toLowerCase();
-  if (!raw) return '';
-  const map = {
-    liquids: 'liquids',
-    'жидкости': 'liquids',
-    electronics: 'electronics',
-    'электронки': 'electronics',
-    disposables: 'disposables',
-    'одноразки': 'disposables',
-    pods: 'pods',
-    'поды': 'pods',
-    cartridges: 'cartridges',
-    'картриджи': 'cartridges',
-  };
-  return map[raw] || raw;
-}
 
 function normalizeTasteProfile(profile) {
   if (!profile || typeof profile !== 'object') return null;
@@ -68,7 +51,7 @@ router.get('/', requireAuth, async (req, res) => {
       .filter((product) => product.active && product.qtyAvailable > 0);
 
     if (category) {
-      filteredProducts = filteredProducts.filter((product) => normalizeCategory(product.category) === normalizeCategory(category));
+      filteredProducts = filteredProducts.filter((product) => categoryFilterMatches(category, product.category));
     }
 
     if (brand) {

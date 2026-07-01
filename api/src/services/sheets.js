@@ -440,6 +440,7 @@ export async function getCouriers(city) {
   const idIdx = headerIndexAny(headers, ['courier_id', 'id']);
   const nameIdx = headerIndexAny(headers, ['name']);
   const tgIdx = headerIndexAny(headers, ['tg_id', 'telegram_id']);
+  const usernameIdx = headerIndexAny(headers, ['username', 'tg_username', 'telegram_username']);
   const activeIdx = headerIndexAny(headers, ['active', 'is_active']);
   const fromIdx = headerIndexAny(headers, ['time_from']);
   const toIdx = headerIndexAny(headers, ['time_to']);
@@ -451,6 +452,7 @@ export async function getCouriers(city) {
       courier_id: idIdx >= 0 ? String(r[idIdx] || '').trim() : '',
       name: nameIdx >= 0 ? String(r[nameIdx] || '').trim() : '',
       tg_id: tgIdx >= 0 ? String(r[tgIdx] || '').trim() : '',
+      username: usernameIdx >= 0 ? String(r[usernameIdx] || '').trim() : '',
       active,
       time_from: fromIdx >= 0 ? String(r[fromIdx] || '').trim() : '',
       time_to: toIdx >= 0 ? String(r[toIdx] || '').trim() : '',

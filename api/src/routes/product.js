@@ -2,26 +2,9 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import db from '../services/database.js';
 import { getProducts } from '../services/sheets.js';
+import { normalizeCategory } from '../domain/categories.js';
 
 const router = express.Router();
-
-function normalizeCategory(value) {
-  const raw = String(value || '').trim().toLowerCase();
-  if (!raw) return '';
-  const map = {
-    liquids: 'liquids',
-    'жидкости': 'liquids',
-    electronics: 'electronics',
-    'электронки': 'electronics',
-    disposables: 'disposables',
-    'одноразки': 'disposables',
-    pods: 'pods',
-    'поды': 'pods',
-    cartridges: 'cartridges',
-    'картриджи': 'cartridges',
-  };
-  return map[raw] || raw;
-}
 
 function normalizeTasteProfile(profile) {
   if (!profile || typeof profile !== 'object') return null;
@@ -83,6 +66,27 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     const fav = db.getFavorites(req.user.tgId).some((f) => String(f.product_id) === sku);
 
+    const reservationQty = db.getActiveReservationQtyMap();
+    const brandFlavors = products
+      .filter(
+        (x) =>
+          x.active &&
+          normalizeCategory(x.category) === 'liquids' &&
+          String(x.brand || '').trim() &&
+          String(x.brand) === String(p.brand),
+      )
+      .map((x) => {
+        const reservedSku = db.getActiveReservationsByProduct(String(x.sku)).reduce((s, r) => s + r.qty, 0);
+        return {
+          id: x.sku,
+          name: x.name,
+          price: x.price,
+          qtyAvailable: Math.max(0, Number(x.stock) - reservedSku),
+          image: x.image || '',
+        };
+      })
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
     res.json({
       product: {
         id: p.sku,
@@ -99,6 +103,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       },
       social: socialProof(sku),
       similar,
+      brandFlavors,
     });
   } catch (e) {
     console.error('Product error:', e);

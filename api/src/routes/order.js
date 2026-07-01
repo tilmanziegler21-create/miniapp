@@ -5,6 +5,7 @@ import { getCouriers, getLiquidPrices, getProducts, updateProductStockBatch, app
 import { normalizeOrderStatus } from '../domain/orderStatus.js';
 import { notifyCouriersAboutNewOrder } from '../services/telegramNotify.js';
 import { calculateOrderPricing } from '../services/liquidPricing.js';
+import { resolveCourierContact } from '../services/courierContact.js';
 
 const router = express.Router();
 const stockCommitting = new Set();
@@ -748,6 +749,7 @@ router.get('/:id', requireAuth, async (req, res) => {
         const deliveryAddress = String(row.delivery_address || '').trim() || String(cd?.address || '').trim();
         const userPhone = String(row.user_phone || '').trim() || String(cd?.phone || '').trim();
         const comment = String(row.comment || '').trim() || String(cd?.comment || '').trim();
+        const courier = await resolveCourierContact(cityStr, row.courier_id || local?.courier_id || '');
 
         return res.json({
           order: {
@@ -766,6 +768,7 @@ router.get('/:id', requireAuth, async (req, res) => {
             deliveryTime: row.delivery_time || '',
             createdAt: row.created_at || '',
           },
+          courier,
           items: enriched,
         });
       }
@@ -814,6 +817,8 @@ router.get('/:id', requireAuth, async (req, res) => {
     const deliveryAddress = String(dbOrder.delivery_address || '').trim() || String(cd?.address || '').trim();
     const userPhone = String(dbOrder.user_phone || '').trim() || String(cd?.phone || '').trim();
     const comment = String(dbOrder.comment || '').trim() || String(cd?.comment || '').trim();
+    const cityStr = city || String(dbOrder.city || '');
+    const courier = cityStr ? await resolveCourierContact(cityStr, dbOrder.courier_id || '') : null;
 
     res.json({
       order: {
@@ -832,6 +837,7 @@ router.get('/:id', requireAuth, async (req, res) => {
         deliveryTime: String(dbOrder.delivery_time || ''),
         createdAt: String(dbOrder.created_at || ''),
       },
+      courier,
       items,
     });
   } catch (error) {

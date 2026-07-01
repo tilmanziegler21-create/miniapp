@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import WebApp from '@twa-dev/sdk';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import { orderAPI } from '../services/api';
 import { GlassCard, SectionDivider, IconButton, PrimaryButton, theme } from '../ui';
@@ -10,8 +9,7 @@ import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { resolveProductImage } from '../lib/productMedia';
 import { getOrderStatusLabel } from '../lib/orderStatus';
-import { buildManagerTelegramUrl, buildOrderManagerMessage } from '../lib/orderManagerMessage';
-import { getManagerUsernameForClient } from '../config/managerContacts';
+import { buildOrderManagerMessage, openCourierTelegramChat, type CourierContact } from '../lib/orderManagerMessage';
 
 type OrderDetailsResponse = {
   order: {
@@ -30,6 +28,7 @@ type OrderDetailsResponse = {
     deliveryTime?: string;
     createdAt?: string;
   };
+  courier?: CourierContact | null;
   items: Array<{
     productId: string;
     name: string;
@@ -116,27 +115,14 @@ const OrderDetails: React.FC = () => {
   const finalAmount = Number(order.finalAmount || 0) || Math.max(0, Number(order.totalAmount || 0) - bonusApplied);
   const cityTitle = config?.cities?.find((c) => c.code === city)?.title || city || '';
 
-  const writeToManager = async () => {
-    const managerUsername = getManagerUsernameForClient(city, config?.support?.managerUsername);
-    if (!managerUsername) {
-      toast.push('Контакт менеджера не настроен', 'error');
+  const writeToCourier = async () => {
+    const courier = data?.courier;
+    if (!courier?.tgId && !courier?.username) {
+      toast.push('Курьер не назначен', 'error');
       return;
     }
-    const message = buildOrderManagerMessage(order, items, cityTitle);
-    const url = buildManagerTelegramUrl(managerUsername, message);
-    if (!url) {
-      toast.push('Не удалось открыть чат', 'error');
-      return;
-    }
-    try {
-      if (WebApp.openTelegramLink) {
-        WebApp.openTelegramLink(url);
-        return;
-      }
-    } catch (e) {
-      console.error('Open telegram link failed:', e);
-    }
-    window.open(url, '_blank');
+    const message = buildOrderManagerMessage(order, items, cityTitle, courier?.name);
+    await openCourierTelegramChat(courier, message, toast);
   };
 
   return (
@@ -236,10 +222,10 @@ const OrderDetails: React.FC = () => {
             </div>
           </div>
         </GlassCard>
-        <PrimaryButton fullWidth onClick={writeToManager}>
+        <PrimaryButton fullWidth onClick={writeToCourier}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <MessageCircle size={18} />
-            Написать менеджеру
+            Написать курьеру
           </span>
         </PrimaryButton>
       </div>

@@ -3,38 +3,27 @@ import { Plus } from 'lucide-react';
 import { GlassCard, theme } from './index';
 import { formatCurrency } from '../lib/currency';
 import type { CatalogProduct } from '../store/useCatalogStore';
+import type { LiquidUpsellStage } from '../lib/liquidUpsell';
 
 type Props = {
   products: CatalogProduct[];
-  bundleHint: string | null;
+  stage: LiquidUpsellStage | null;
   busyId: string | null;
   onAdd: (product: CatalogProduct) => void;
 };
 
-export const CartLiquidUpsell: React.FC<Props> = ({ products, bundleHint, busyId, onAdd }) => {
-  if (!products.length) return null;
+export const CartLiquidUpsell: React.FC<Props> = ({ products, stage, busyId, onAdd }) => {
+  if (!products.length || !stage) return null;
 
   return (
     <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.lg }}>
-      <GlassCard padding="lg" variant="elevated">
-        <div
-          style={{
-            fontSize: theme.typography.fontSize.xs,
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-            color: theme.colors.dark.primary,
-            marginBottom: theme.spacing.sm,
-          }}
-        >
-          Сэкономьте на жидкостях
-        </div>
-        <div style={{ color: theme.colors.dark.text, fontWeight: theme.typography.fontWeight.semibold, marginBottom: 6 }}>
-          Возьмите ещё одну к своей
+      <GlassCard padding="lg" variant="elevated" className={`cart-upsell-card cart-upsell-card--${stage.animation}`}>
+        <div className="cart-upsell-card__badge">Выгодное предложение</div>
+        <div style={{ color: theme.colors.dark.text, fontWeight: theme.typography.fontWeight.bold, fontSize: theme.typography.fontSize.lg, marginBottom: 6 }}>
+          {stage.title}
         </div>
         <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.md, lineHeight: 1.45 }}>
-          {bundleHint
-            ? `При 2 шт по таблице цен: ${bundleHint}`
-            : 'Добавьте ещё жидкость — выгоднее по таблице цен'}
+          {stage.subtitle}
         </div>
         <div style={{ display: 'grid', gap: theme.spacing.sm }}>
           {products.map((product) => (
