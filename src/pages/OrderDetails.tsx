@@ -6,6 +6,7 @@ import { GlassCard, SectionDivider, IconButton, theme } from '../ui';
 import { useCityStore } from '../store/useCityStore';
 import { formatCurrency } from '../lib/currency';
 import { resolveProductImage } from '../lib/productMedia';
+import { getOrderStatusLabel } from '../lib/orderStatus';
 
 type OrderDetailsResponse = {
   order: {
@@ -137,7 +138,7 @@ const OrderDetails: React.FC = () => {
             <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm }}>{order.createdAt ? new Date(order.createdAt).toLocaleString() : ''}</div>
           </div>
           <div style={{ display: 'grid', gap: 6, color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm }}>
-            <div>Статус: <span style={{ color: theme.colors.dark.text }}>{order.status}</span></div>
+            <div>Статус: <span style={{ color: theme.colors.dark.text }}>{getOrderStatusLabel(order.status)}</span></div>
             <div>Доставка: <span style={{ color: theme.colors.dark.text }}>{order.deliveryMethod || '—'}</span></div>
             <div>Оплата: <span style={{ color: theme.colors.dark.text }}>{order.paymentMethod || '—'}</span></div>
             {order.deliveryAddress ? (
@@ -191,7 +192,7 @@ const OrderDetails: React.FC = () => {
         <GlassCard padding="lg" variant="elevated">
           <div style={{ display: 'grid', gap: 8, fontSize: theme.typography.fontSize.sm }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: theme.colors.dark.textSecondary }}>Subtotal</span>
+              <span style={{ color: theme.colors.dark.textSecondary }}>Товары</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>

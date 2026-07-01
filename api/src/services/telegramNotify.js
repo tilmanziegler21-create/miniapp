@@ -122,6 +122,11 @@ export async function notifyCouriersAboutNewOrder({ city, order, items = [] }) {
 
   if (!targets.size) return;
 
+  const botUsername = String(process.env.TELEGRAM_BOT_USERNAME || '').trim().replace(/^@/, '');
+  const replyMarkup = botUsername
+    ? { inline_keyboard: [[{ text: '📦 Открыть заказ', url: `https://t.me/${botUsername}?startapp=courier` }]] }
+    : undefined;
+
   const orderId = String(order.id || order.order_id || '');
   let userName = String(order.user_name || order.username || order.user_id || 'Клиент');
   let username = String(order.username || '').trim();
@@ -167,5 +172,7 @@ export async function notifyCouriersAboutNewOrder({ city, order, items = [] }) {
     .filter(Boolean)
     .join('\n');
 
-  await Promise.allSettled([...targets].map((chatId) => sendTelegramMessage(chatId, text)));
+  await Promise.allSettled(
+    [...targets].map((chatId) => sendTelegramMessage(chatId, text, replyMarkup ? { reply_markup: replyMarkup } : {})),
+  );
 }

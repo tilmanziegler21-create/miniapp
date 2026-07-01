@@ -1,4 +1,5 @@
 import React from 'react';
+import WebApp from '@twa-dev/sdk';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TopBar } from './TopBar';
 import { DrawerMenu } from './DrawerMenu';
@@ -78,21 +79,39 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
     (async () => {
       try {
         if (!user?.tgId) return;
+
+        // Referral code can arrive either as a `?ref=` query param (web/testing)
+        // or as the Telegram deep-link start_param (`startapp=ref_XXXX`), which is
+        // how real invite links shared inside Telegram actually work.
         const params = new URLSearchParams(location.search || '');
-        const ref = String(params.get('ref') || '').trim();
+        let ref = String(params.get('ref') || '').trim();
+        let fromStartParam = false;
+        if (!ref) {
+          const startParam = String(WebApp.initDataUnsafe?.start_param || '').trim();
+          if (startParam.startsWith('ref_')) {
+            ref = startParam.slice(4);
+            fromStartParam = true;
+          }
+        }
         if (!ref) return;
+
         const key = `ref_claimed:${user.tgId}:${ref}`;
         if (localStorage.getItem(key)) return;
         await referralAPI.claim(ref);
         localStorage.setItem(key, '1');
-        params.delete('ref');
-        navigate({ pathname: location.pathname, search: params.toString() ? `?${params.toString()}` : '' }, { replace: true });
+
+        if (!fromStartParam) {
+          params.delete('ref');
+          navigate({ pathname: location.pathname, search: params.toString() ? `?${params.toString()}` : '' }, { replace: true });
+        }
       } catch {
       }
     })();
   }, [location.pathname, location.search, navigate, user?.tgId]);
 
   React.useEffect(() => {
+    const pendingTimers = new Set<number>();
+
     const handleCartFly = (event: Event) => {
       const detail = (event as CustomEvent<CartFlyDetail>).detail;
       if (!detail) return;
@@ -122,19 +141,25 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
         },
       ]);
 
-      window.setTimeout(() => {
+      const activateTimer = window.setTimeout(() => {
+        pendingTimers.delete(activateTimer);
         setFlyItems((prev) => prev.map((item) => (item.id === id ? { ...item, active: true } : item)));
       }, 16);
+      pendingTimers.add(activateTimer);
 
-      window.setTimeout(() => {
+      const cleanupTimer = window.setTimeout(() => {
+        pendingTimers.delete(cleanupTimer);
         setCartPulseKey((prev) => prev + 1);
         setFlyItems((prev) => prev.filter((item) => item.id !== id));
       }, 720);
+      pendingTimers.add(cleanupTimer);
     };
 
     window.addEventListener(CART_FLY_EVENT, handleCartFly as EventListener);
     return () => {
       window.removeEventListener(CART_FLY_EVENT, handleCartFly as EventListener);
+      pendingTimers.forEach((timerId) => window.clearTimeout(timerId));
+      pendingTimers.clear();
     };
   }, []);
 

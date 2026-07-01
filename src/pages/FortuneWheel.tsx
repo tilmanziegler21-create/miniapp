@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme, SectionDivider, PrimaryButton, SecondaryButton } from '../ui';
 import { useAuthStore } from '../store/useAuthStore';
@@ -18,8 +18,6 @@ interface WheelPrize {
 const FortuneWheel: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToastStore();
-  const user = useAuthStore((state) => state.user);
-  const token = useAuthStore((state) => state.token);
   const setUser = useAuthStore((state) => state.setUser);
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
@@ -27,6 +25,13 @@ const FortuneWheel: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [dailySpins, setDailySpins] = useState(0);
   const [tier, setTier] = useState<'regular' | 'vip' | 'elite'>('regular');
+  const resultTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (resultTimerRef.current) window.clearTimeout(resultTimerRef.current);
+    };
+  }, []);
 
   const prizes: WheelPrize[] = [
     { id: '1', name: '2 бонуса', type: 'bonus', value: 2, probability: 0.25, color: '#2563eb' },
@@ -63,9 +68,13 @@ const FortuneWheel: React.FC = () => {
       reward = resp.data?.reward;
       setDailySpins(Number(resp.data?.left ?? Math.max(0, dailySpins - 1)));
       setTier((resp.data?.tier as any) || tier);
-      if (reward?.type === 'bonus' && user && token) {
-        const nextBalance = Number(resp.data?.bonusBalance ?? user.bonusBalance);
-        setUser({ ...user, bonusBalance: nextBalance }, token);
+      if (reward?.type === 'bonus') {
+        const currentUser = useAuthStore.getState().user;
+        const currentToken = useAuthStore.getState().token;
+        if (currentUser && currentToken) {
+          const nextBalance = Number(resp.data?.bonusBalance ?? currentUser.bonusBalance);
+          setUser({ ...currentUser, bonusBalance: nextBalance }, currentToken);
+        }
       }
     } catch (e: any) {
       setIsSpinning(false);
@@ -90,7 +99,9 @@ const FortuneWheel: React.FC = () => {
     setRotation(finalRotation);
     setSelectedPrize(selected);
 
-    setTimeout(() => {
+    if (resultTimerRef.current) window.clearTimeout(resultTimerRef.current);
+    resultTimerRef.current = window.setTimeout(() => {
+      resultTimerRef.current = null;
       setIsSpinning(false);
       setShowResult(true);
       if (reward?.type === 'nothing') toast.push('Попробуйте еще раз!', 'info');

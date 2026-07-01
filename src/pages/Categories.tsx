@@ -1,12 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GlassCard, theme } from '../ui';
+import { GlassCard, PrimaryButton, theme } from '../ui';
 import { useConfigStore } from '../store/useConfigStore';
 import { assetUrl } from '../lib/productMedia';
 
 const Categories: React.FC = () => {
   const navigate = useNavigate();
   const config = useConfigStore((state) => state.config);
+  const isLoading = useConfigStore((state) => state.isLoading);
+  const error = useConfigStore((state) => state.error);
+  const load = useConfigStore((state) => state.load);
   const tiles = config?.categoryTiles || [];
 
   return (
@@ -23,6 +26,18 @@ const Categories: React.FC = () => {
         Категории
       </div>
 
+      {!tiles.length && !isLoading && error ? (
+        <GlassCard padding="lg" variant="elevated">
+          <div style={{ textAlign: 'center', color: theme.colors.dark.textSecondary, marginBottom: theme.spacing.md }}>
+            Не удалось загрузить категории
+          </div>
+          <PrimaryButton fullWidth onClick={() => load()}>Повторить</PrimaryButton>
+        </GlassCard>
+      ) : !tiles.length && !isLoading ? (
+        <GlassCard padding="lg" variant="elevated">
+          <div style={{ textAlign: 'center', color: theme.colors.dark.textSecondary }}>Категории скоро появятся</div>
+        </GlassCard>
+      ) : (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: theme.spacing.md }}>
         {!tiles.length ? (
           [...Array(4)].map((_, i) => (
@@ -109,6 +124,7 @@ const Categories: React.FC = () => {
           </GlassCard>
         ))}
       </div>
+      )}
     </div>
   );
 };

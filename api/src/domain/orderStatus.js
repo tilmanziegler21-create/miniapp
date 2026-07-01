@@ -14,7 +14,12 @@ export function isAllowedAdminOrderStatus(status) {
 
 export function isAllowedCourierOrderStatus(status) {
   const s = normalizeOrderStatus(status);
-  return s === 'assigned' || s === 'picked_up' || s === 'delivered' || s === 'cancelled';
+  return s === 'delivered';
+}
+
+/** Binary view for courier/admin UI: an order is either issued (delivered) or not. */
+export function isOrderIssued(status) {
+  return normalizeOrderStatus(status) === 'delivered';
 }
 
 export function isOrderStatusProgressing(current, next) {

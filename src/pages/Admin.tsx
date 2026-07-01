@@ -74,9 +74,9 @@ const Admin: React.FC = () => {
     activePromos: 0,
   });
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       if (!city) {
         setOrders([]);
         setCouriers([]);
@@ -93,7 +93,20 @@ const Admin: React.FC = () => {
       
       setOrders(ordersRes.data.orders || []);
       setCouriers(couriersRes.data.couriers || []);
-      setPromos(promosRes.data.promos || []);
+      const rawPromos: any[] = promosRes.data.promos || [];
+      setPromos(
+        rawPromos.map((p) => ({
+          id: String(p.id || ''),
+          title: String(p.title || ''),
+          description: String(p.description || ''),
+          discount: Number(p.value || 0),
+          type: p.type === 'percent' ? 'percentage' : p.type === 'gift' ? 'gift' : 'fixed',
+          validUntil: String(p.endsAt || ''),
+          isActive: Boolean(p.active),
+          terms: p.minTotal ? [`Минимальная сумма заказа ${formatCurrency(Number(p.minTotal || 0))}`] : [],
+          minOrderAmount: Number(p.minTotal || 0) || undefined,
+        })),
+      );
       setStats(statsRes.data.stats || {
         totalOrders: 0,
         totalRevenue: 0,
@@ -105,14 +118,22 @@ const Admin: React.FC = () => {
       });
     } catch (error) {
       console.error('Failed to load admin data:', error);
-      toast.push('Ошибка загрузки данных', 'error');
+      if (!silent) toast.push('Ошибка загрузки данных', 'error');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
+  }, [city, selectedDate]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadData(true);
+    }, 20000);
+    return () => window.clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city, selectedDate]);
 
   const updateOrderStatus = async (orderId: string, newStatus: AdminOrder['status']) => {
@@ -157,25 +178,13 @@ const Admin: React.FC = () => {
   };
 
   const getStatusColor = (status: AdminOrder['status']) => {
-    switch (status) {
-      case 'pending': return '#38bdf8';
-      case 'assigned': return '#60a5fa';
-      case 'picked_up': return '#2563eb';
-      case 'delivered': return '#22c55e';
-      case 'cancelled': return '#ef4444';
-      default: return '#94a3b8';
-    }
+    if (status === 'cancelled') return '#ef4444';
+    return status === 'delivered' ? '#22c55e' : '#f59e0b';
   };
 
   const getStatusText = (status: AdminOrder['status']) => {
-    switch (status) {
-      case 'pending': return 'Ожидает';
-      case 'assigned': return 'Назначен';
-      case 'picked_up': return 'В пути';
-      case 'delivered': return 'Доставлен';
-      case 'cancelled': return 'Отменен';
-      default: return 'Неизвестно';
-    }
+    if (status === 'cancelled') return 'Отменён';
+    return status === 'delivered' ? 'Выдан' : 'Не выдан';
   };
 
   const styles = {
@@ -581,37 +590,21 @@ const Admin: React.FC = () => {
 
                   {/* Action Buttons */}
                   <div style={styles.actionButtons}>
-                    {order.status === 'pending' && (
-                      <PrimaryButton
-                        size="sm"
-                        onClick={() => updateOrderStatus(order.id, 'assigned')}
-                      >
-                        Назначить курьера
-                      </PrimaryButton>
-                    )}
-                    {order.status === 'assigned' && (
-                      <PrimaryButton
-                        size="sm"
-                        onClick={() => updateOrderStatus(order.id, 'picked_up')}
-                      >
-                        В пути
-                      </PrimaryButton>
-                    )}
-                    {order.status === 'picked_up' && (
-                      <PrimaryButton
-                        size="sm"
-                        onClick={() => updateOrderStatus(order.id, 'delivered')}
-                      >
-                        Доставлено
-                      </PrimaryButton>
-                    )}
-                    {(order.status === 'pending' || order.status === 'assigned') && (
-                      <SecondaryButton
-                        size="sm"
-                        onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                      >
-                        Отменить
-                      </SecondaryButton>
+                    {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                      <>
+                        <PrimaryButton
+                          size="sm"
+                          onClick={() => updateOrderStatus(order.id, 'delivered')}
+                        >
+                          Отметить выданным
+                        </PrimaryButton>
+                        <SecondaryButton
+                          size="sm"
+                          onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                        >
+                          Отменить
+                        </SecondaryButton>
+                      </>
                     )}
                   </div>
                 </GlassCard>
@@ -748,7 +741,7 @@ const Admin: React.FC = () => {
                   </div>
                   
                   <div style={styles.promoTerms}>
-                    <strong>Действует до:</strong> {new Date(promo.validUntil).toLocaleDateString()}
+                    <strong>Действует до:</strong> {promo.validUntil ? new Date(promo.validUntil).toLocaleDateString() : 'Бессрочно'}
                     {promo.minOrderAmount && (
                       <div><strong>Минимальный заказ:</strong> {formatCurrency(promo.minOrderAmount)}</div>
                     )}

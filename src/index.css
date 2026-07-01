@@ -23,11 +23,12 @@
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(ellipse 90% 70% at 18% 16%, rgba(56, 189, 248, 0.16) 0%, transparent 56%),
-    radial-gradient(ellipse 82% 62% at 84% 80%, rgba(37, 99, 235, 0.14) 0%, transparent 54%),
+    radial-gradient(ellipse 95% 75% at 18% 14%, rgba(56, 189, 248, 0.24) 0%, transparent 58%),
+    radial-gradient(ellipse 88% 68% at 86% 82%, rgba(99, 102, 241, 0.20) 0%, transparent 56%),
+    radial-gradient(ellipse 70% 55% at 50% 50%, rgba(37, 99, 235, 0.10) 0%, transparent 60%),
     linear-gradient(180deg, #08070a 0%, #0f172a 55%, #081121 100%);
   will-change: transform;
-  animation: ambientShift 30s ease-in-out infinite alternate;
+  animation: ambientShift 22s ease-in-out infinite alternate;
 }
 
 .bg-app::after {
@@ -37,28 +38,48 @@
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 28% 38%, rgba(125, 211, 252, 0.12) 0%, transparent 30%),
-    radial-gradient(circle at 72% 62%, rgba(59, 130, 246, 0.11) 0%, transparent 34%),
-    linear-gradient(115deg, rgba(96,165,250,0.05) 0%, rgba(125,211,252,0.1) 45%, rgba(37,99,235,0.05) 100%);
-  background-size: 160% 160%, 160% 160%, 240% 240%;
+    radial-gradient(circle at 28% 38%, rgba(125, 211, 252, 0.20) 0%, transparent 32%),
+    radial-gradient(circle at 72% 62%, rgba(129, 140, 248, 0.18) 0%, transparent 36%),
+    linear-gradient(115deg, rgba(96,165,250,0.08) 0%, rgba(125,211,252,0.16) 45%, rgba(99,102,241,0.08) 100%);
+  background-size: 180% 180%, 180% 180%, 260% 260%;
   will-change: background-position, transform, opacity;
-  animation: ambientDrift 34s ease-in-out infinite alternate-reverse, ambientShimmer 20s ease-in-out infinite alternate;
+  animation: ambientDrift 18s ease-in-out infinite alternate-reverse, ambientShimmer 13s ease-in-out infinite alternate;
 }
 
 @keyframes ambientShift {
   0% { transform: scale(1) translate3d(0, 0, 0); }
-  100% { transform: scale(1.05) translate3d(0, -1.5%, 0); }
+  100% { transform: scale(1.08) translate3d(0, -3%, 0); }
 }
 
 @keyframes ambientDrift {
-  0% { transform: translate3d(-1.5%, 0, 0); }
-  100% { transform: translate3d(1.5%, 1.5%, 0); }
+  0% { transform: translate3d(-3%, -1%, 0); }
+  100% { transform: translate3d(3%, 3%, 0); }
 }
 
 @keyframes ambientShimmer {
-  0% { background-position: 0% 50%, 100% 0%, 0% 50%; opacity: 0.55; }
-  50% { opacity: 0.8; }
-  100% { background-position: 100% 50%, 0% 100%, 100% 50%; opacity: 0.6; }
+  0% { background-position: 0% 50%, 100% 0%, 0% 50%; opacity: 0.6; }
+  50% { opacity: 0.95; }
+  100% { background-position: 100% 50%, 0% 100%, 100% 50%; opacity: 0.65; }
+}
+
+/* Persistent subtle animated sheen on chrome (header/footer bars) -
+   always visible regardless of how much content covers the page background. */
+.chrome-aurora {
+  background:
+    linear-gradient(120deg,
+      rgba(8,10,20,0.95) 0%,
+      rgba(20,24,44,0.93) 30%,
+      rgba(13,17,30,0.95) 52%,
+      rgba(28,22,46,0.93) 74%,
+      rgba(8,10,20,0.95) 100%);
+  background-size: 300% 300%;
+  animation: chromeAurora 16s ease-in-out infinite;
+}
+
+@keyframes chromeAurora {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .glass {
@@ -588,6 +609,7 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .bg-app::before,
   .bg-app::after,
+  .chrome-aurora,
   .liquid-deal-card,
   .liquid-deal-card::before,
   .page-transition,

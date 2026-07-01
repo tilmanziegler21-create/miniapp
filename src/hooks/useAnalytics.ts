@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import WebApp from '@twa-dev/sdk';
 import { analyticsAPI } from '../services/api';
 
 const CURRENCY = 'EUR';
@@ -7,18 +6,11 @@ const CURRENCY = 'EUR';
 export const useAnalytics = () => {
   const trackEvent = useCallback((event: string, params?: Record<string, any>) => {
     try {
+      // NOTE: WebApp.sendData() must NOT be used here - per Telegram WebApp API
+      // it immediately closes the mini app and sends data to the bot. Calling it
+      // on every analytics event (menu clicks, product views, filters, etc.)
+      // was causing the app to randomly close during normal navigation.
       analyticsAPI.event(event, params).catch(() => {});
-
-      // Send to Telegram WebApp analytics
-      if (WebApp.sendData) {
-        WebApp.sendData(JSON.stringify({
-          type: 'analytics',
-          event,
-          params,
-          timestamp: Date.now(),
-          user_id: WebApp.initDataUnsafe?.user?.id
-        }));
-      }
     } catch (error) {
       console.error('Analytics tracking error:', error);
     }

@@ -90,10 +90,12 @@ router.get('/', requireAuth, async (req, res) => {
         effectivePrice = qty > 0 ? lineTotal / qty : 0;
         appliedLiquidsDiscount += itemDiscount;
       } else {
-        // Fallback to old logic for non-liquids
-        effectivePrice = qty >= 3 && price > 40 ? 40 : price;
+        // Non-liquid categories are sold at catalog price (no bundle discount).
+        // Must stay consistent with calculateOrderPricing() in liquidPricing.js,
+        // which only discounts liquids - otherwise the cart preview would show a
+        // lower total than what actually gets charged when the order is created.
+        effectivePrice = price;
         lineTotal = effectivePrice * qty;
-        quantityDiscount += Math.max(0, lineSubtotal - lineTotal);
       }
 
       subtotal += lineSubtotal;

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { configAPI } from '../services/api';
 
 export type AppConfig = {
+  botUsername?: string;
   branding?: {
     name: string;
     subtitle: string;

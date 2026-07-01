@@ -1,9 +1,10 @@
 import type { CatalogProduct } from '../store/useCatalogStore';
 import type { CartItem } from '../store/useCartStore';
 
+// Keep in sync with api/src/services/liquidPricing.js isLiquidCategory.
 export function isLiquidCategory(category: string) {
   const raw = String(category || '').trim().toLowerCase();
-  return raw === 'liquids' || raw === 'жидкости';
+  return raw === 'liquids' || raw === 'liquid' || raw.includes('жидк');
 }
 
 export function countLiquidItems(items: CartItem[]) {

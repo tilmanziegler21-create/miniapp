@@ -196,7 +196,7 @@ const Promotions: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
               <Clock size={16} color={theme.colors.dark.textSecondary} />
               <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.dark.textSecondary }}>
-                До {new Date(promotion.validUntil).toLocaleDateString()}
+                {promotion.validUntil ? `До ${new Date(promotion.validUntil).toLocaleDateString()}` : 'Бессрочно'}
               </span>
             </div>
             <PrimaryButton
@@ -230,12 +230,6 @@ const Promotions: React.FC = () => {
             </div>
             <h4 style={styles.title}>{contest.title}</h4>
             <p style={styles.description}>{contest.description}</p>
-            <div style={styles.participants}>
-              <TrendingUp size={16} color={theme.colors.dark.primary} />
-              <span style={{ fontSize: theme.typography.fontSize.sm }}>
-                Уже участвуют: {contest.participants} человек
-              </span>
-            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
               <Clock size={16} color={theme.colors.dark.textSecondary} />
               <span style={{ fontSize: theme.typography.fontSize.xs, color: theme.colors.dark.textSecondary }}>

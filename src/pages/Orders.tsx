@@ -4,11 +4,14 @@ import { orderAPI } from '../services/api';
 import { GlassCard, SectionDivider, theme } from '../ui';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
+import { getOrderStatusLabel } from '../lib/orderStatus';
 
 type OrderItem = {
   id: string;
   status: string;
   totalAmount: number;
+  finalAmount?: number;
+  bonusApplied?: number;
   deliveryMethod?: string;
   createdAt?: string;
   itemCount?: number;
@@ -165,8 +168,8 @@ const Orders: React.FC = () => {
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: theme.spacing.sm }}>
-                    <div style={styles.status(o.status)}>{o.status}</div>
-                    <div style={styles.amount}>{formatCurrency(Number(o.totalAmount || 0))}</div>
+                    <div style={styles.status(o.status)}>{getOrderStatusLabel(o.status)}</div>
+                    <div style={styles.amount}>{formatCurrency(Number(o.finalAmount || o.totalAmount || 0))}</div>
                   </div>
                 </div>
               </GlassCard>

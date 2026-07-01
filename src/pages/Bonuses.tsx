@@ -6,6 +6,7 @@ import { useToastStore } from '../store/useToastStore';
 import { Gift, Users, Crown, Star } from 'lucide-react';
 import { formatCurrency } from '../lib/currency';
 import { bonusesAPI, referralAPI } from '../services/api';
+import { useConfigStore } from '../store/useConfigStore';
 
 interface BonusTransaction {
   id: string;
@@ -33,6 +34,7 @@ const Bonuses: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [referralCode, setReferralCode] = useState('');
   const [referralLink, setReferralLink] = useState('');
+  const [referralBonusAmount, setReferralBonusAmount] = useState(20);
 
   const userStatuses: UserStatus[] = [
     {
@@ -88,7 +90,9 @@ const Bonuses: React.FC = () => {
       setLoading(true);
       const [bal, hist, ref] = await Promise.all([bonusesAPI.balance(), bonusesAPI.history(), referralAPI.info()]);
       const balance = Number(bal.data?.balance || 0);
-      if (user && token) setUser({ ...user, bonusBalance: balance }, token);
+      const currentUser = useAuthStore.getState().user;
+      const currentToken = useAuthStore.getState().token;
+      if (currentUser && currentToken) setUser({ ...currentUser, bonusBalance: balance }, currentToken);
 
       const events = Array.isArray(hist.data?.history) ? hist.data.history : [];
       const mapped: BonusTransaction[] = events.map((e: any) => {
@@ -105,9 +109,15 @@ const Bonuses: React.FC = () => {
       });
       setTransactions(mapped);
 
-      const code = String(ref.data?.referralCode || user?.tgId || '');
+      const code = String(ref.data?.referralCode || currentUser?.tgId || '');
       setReferralCode(code);
-      setReferralLink(`${window.location.origin}/home?ref=${encodeURIComponent(code)}`);
+      setReferralBonusAmount(Number(ref.data?.bonusAmount) || 20);
+      const botUsername = String(useConfigStore.getState().config?.botUsername || '').trim();
+      setReferralLink(
+        botUsername
+          ? `https://t.me/${botUsername}?startapp=ref_${encodeURIComponent(code || 'unknown')}`
+          : `${window.location.origin}/home?ref=${encodeURIComponent(code || 'unknown')}`,
+      );
     } catch (error) {
       pushToast('Ошибка загрузки данных', 'error');
     } finally {
@@ -334,7 +344,7 @@ const Bonuses: React.FC = () => {
         </div>
 
         <div style={{ fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.md }}>
-          Получите 50 🍒 за каждого друга, который сделает первый заказ
+          Получите {referralBonusAmount} 🍒 за каждого друга, который сделает первый заказ
         </div>
 
         <div style={styles.referralCode}>

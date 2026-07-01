@@ -40,13 +40,13 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <div
+      className="chrome-aurora"
       style={{
         position: 'sticky',
         top: 0,
         zIndex: theme.zIndex.header,
         height: '64px',
         padding: `0 ${theme.padding.screen}`,
-        background: 'rgba(8, 10, 18, 0.92)',
         borderBottom: theme.border.glass,
         display: 'flex',
         alignItems: 'center',

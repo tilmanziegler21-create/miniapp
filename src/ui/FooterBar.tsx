@@ -27,6 +27,7 @@ export const FooterBar: React.FC = () => {
 
   return (
     <div
+      className="chrome-aurora"
       style={{
         position: 'fixed',
         left: 0,
@@ -37,7 +38,6 @@ export const FooterBar: React.FC = () => {
         paddingBottom: `calc(${theme.spacing.sm} + var(--safe-area-bottom, 0px))`,
         display: 'flex',
         justifyContent: 'center',
-        background: 'rgba(8, 10, 18, 0.94)',
         borderTop: '1px solid rgba(96,165,250,0.12)',
         boxShadow: '0 -10px 24px rgba(0,0,0,0.24)',
       }}

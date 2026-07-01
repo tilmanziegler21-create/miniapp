@@ -26,25 +26,30 @@ const Favorites: React.FC = () => {
   const { city } = useCityStore();
   const favorites = useFavoritesStore();
 
-  const load = async () => {
-    try {
-      if (!city) {
-        toast.push('Выберите город', 'error');
-        return;
-      }
-      await favorites.load(city);
-    } catch (e) {
-      console.error('Favorites load error:', e);
-      try {
-        WebApp.showAlert('Ошибка загрузки избранного');
-      } catch {
-        toast.push('Ошибка загрузки избранного', 'error');
-      }
-    }
-  };
-
   React.useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        if (!city) {
+          if (!cancelled) toast.push('Выберите город', 'error');
+          return;
+        }
+        await favorites.load(city);
+      } catch (e) {
+        console.error('Favorites load error:', e);
+        if (cancelled) return;
+        try {
+          WebApp.showAlert('Ошибка загрузки избранного');
+        } catch {
+          toast.push('Ошибка загрузки избранного', 'error');
+        }
+      }
+    };
     load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city]);
 
   const remove = async (productId: string) => {

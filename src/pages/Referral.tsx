@@ -5,11 +5,13 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useToastStore } from '../store/useToastStore';
 import { referralAPI } from '../services/api';
 import { useBranding } from '../hooks/useBranding';
+import { useConfigStore } from '../store/useConfigStore';
 
 const Referral: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const toast = useToastStore();
   const branding = useBranding();
+  const config = useConfigStore((state) => state.config);
   const [loading, setLoading] = React.useState(true);
   const [info, setInfo] = React.useState<{ referralCode: string; conversions: number; required: number; bonusAmount: number } | null>(null);
 
@@ -28,8 +30,12 @@ const Referral: React.FC = () => {
   }, []);
 
   const refCode = String(info?.referralCode || user?.tgId || '');
-  const ref = refCode ? `ref=${encodeURIComponent(refCode)}` : 'ref=unknown';
-  const link = `${window.location.origin}/home?${ref}`;
+  const botUsername = String(config?.botUsername || '').trim();
+  // Prefer a real Telegram deep link (startapp param survives launch via WebApp.initDataUnsafe.start_param).
+  // A plain https URL would open in an external browser and lose Telegram auth context.
+  const link = botUsername
+    ? `https://t.me/${botUsername}?startapp=ref_${encodeURIComponent(refCode || 'unknown')}`
+    : `${window.location.origin}/home?ref=${encodeURIComponent(refCode || 'unknown')}`;
 
   const share = async () => {
     const text = `${branding.referralShareText} ${link}`;

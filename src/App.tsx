@@ -37,6 +37,14 @@ function App() {
   const [isFadingOut, setIsFadingOut] = React.useState(false);
   const mountTimeRef = React.useRef(Date.now());
 
+  const startParam = React.useMemo(() => {
+    try {
+      return String(WebApp.initDataUnsafe?.start_param || '').trim();
+    } catch {
+      return '';
+    }
+  }, []);
+
   const safeAlert = (message: string) => {
     try {
       WebApp.showAlert(message);
@@ -250,7 +258,19 @@ function App() {
               }
             >
               <Routes>
-                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route
+                  path="/"
+                  element={
+                    <Navigate
+                      to={
+                        startParam === 'courier' && (user.status === 'courier' || user.status === 'admin')
+                          ? '/courier'
+                          : '/home'
+                      }
+                      replace
+                    />
+                  }
+                />
                 <Route path="/home" element={<AppShell><Home /></AppShell>} />
                 <Route path="/categories" element={<AppShell><Categories /></AppShell>} />
                 <Route path="/catalog" element={<AppShell><Catalog /></AppShell>} />

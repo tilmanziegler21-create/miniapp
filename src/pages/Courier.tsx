@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { courierAPI } from '../services/api';
-import { GlassCard, SectionDivider, PrimaryButton, SecondaryButton, theme } from '../ui';
+import { GlassCard, SectionDivider, PrimaryButton, theme } from '../ui';
 import { useCityStore } from '../store/useCityStore';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
-import { Package, MapPin, Clock, Phone, CheckCircle, XCircle, Truck, User } from 'lucide-react';
+import { Package, MapPin, Clock, Phone, CheckCircle2, User } from 'lucide-react';
 
 type CourierOrder = {
   id: string;
@@ -28,65 +28,95 @@ type CourierOrder = {
   notes?: string;
 };
 
+const REFRESH_INTERVAL_MS = 12000;
+
+const isIssued = (status: CourierOrder['status']) => status === 'delivered';
+
 const Courier: React.FC = () => {
   const toast = useToastStore();
   const city = useCityStore((state) => state.city);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<CourierOrder[]>([]);
   const [selectedDate, setSelectedDate] = useState<'today' | 'tomorrow' | 'day_after'>('today');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const isFirstLoadRef = useRef(true);
 
-  const loadOrders = async () => {
-    try {
-      setLoading(true);
-      if (!city) {
-        setOrders([]);
-        return;
+  const loadOrders = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) setLoading(true);
+        if (!city) {
+          setOrders([]);
+          return;
+        }
+        const resp = await courierAPI.orders(city);
+        const next: CourierOrder[] = resp.data.orders || [];
+
+        if (!isFirstLoadRef.current) {
+          const prevIds = knownOrderIdsRef.current;
+          const freshOnes = next.filter((o) => !prevIds.has(o.id));
+          if (freshOnes.length > 0) {
+            toast.push(
+              freshOnes.length === 1 ? `Новый заказ #${freshOnes[0].id}` : `Новые заказы: ${freshOnes.length}`,
+              'success',
+            );
+          }
+        }
+        knownOrderIdsRef.current = new Set(next.map((o) => o.id));
+        isFirstLoadRef.current = false;
+        setOrders(next);
+      } catch (error) {
+        console.error('Failed to load courier orders:', error);
+        if (!silent) toast.push('Ошибка загрузки заказов', 'error');
+      } finally {
+        if (!silent) setLoading(false);
       }
-      const resp = await courierAPI.orders(city);
-      setOrders(resp.data.orders || []);
-    } catch (error) {
-      console.error('Failed to load courier orders:', error);
-      toast.push('Ошибка загрузки заказов', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [city, toast],
+  );
 
   useEffect(() => {
-    loadOrders();
-  }, [city]);
+    isFirstLoadRef.current = true;
+    loadOrders(false);
+  }, [city, loadOrders]);
 
-  const updateOrderStatus = async (orderId: string, newStatus: CourierOrder['status']) => {
+  useEffect(() => {
+    const interval = window.setInterval(() => loadOrders(true), REFRESH_INTERVAL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadOrders(true);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [loadOrders]);
+
+  const markIssued = async (orderId: string) => {
+    setUpdatingId(orderId);
     try {
-      await courierAPI.updateOrderStatus(orderId, newStatus, city);
-      toast.push('Статус заказа обновлен', 'success');
-      loadOrders(); // Refresh orders
+      await courierAPI.updateOrderStatus(orderId, 'delivered', city);
+      toast.push('Заказ отмечен как выданный', 'success');
+      loadOrders(true);
     } catch (error) {
       console.error('Failed to update order status:', error);
       toast.push('Ошибка обновления статуса', 'error');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
   const getStatusColor = (status: CourierOrder['status']) => {
-    switch (status) {
-      case 'pending': return '#38bdf8';
-      case 'assigned': return '#60a5fa';
-      case 'picked_up': return '#2563eb';
-      case 'delivered': return '#22c55e';
-      case 'cancelled': return '#ef4444';
-      default: return '#94a3b8';
-    }
+    if (status === 'cancelled') return '#ef4444';
+    return isIssued(status) ? '#22c55e' : '#f59e0b';
   };
 
   const getStatusText = (status: CourierOrder['status']) => {
-    switch (status) {
-      case 'pending': return 'Ожидает';
-      case 'assigned': return 'Назначен';
-      case 'picked_up': return 'В пути';
-      case 'delivered': return 'Доставлен';
-      case 'cancelled': return 'Отменен';
-      default: return 'Неизвестно';
-    }
+    if (status === 'cancelled') return 'Отменён';
+    return isIssued(status) ? 'Выдан' : 'Не выдан';
   };
 
   const filterOrdersByDate = (orders: CourierOrder[]) => {
@@ -376,45 +406,23 @@ const Courier: React.FC = () => {
 
               {/* Action Buttons */}
               <div style={styles.actionButtons}>
-                {order.status === 'pending' && (
-                  <PrimaryButton
-                    size="sm"
-                    onClick={() => updateOrderStatus(order.id, 'assigned')}
-                  >
-                    <Truck size={16} style={{ marginRight: '4px' }} />
-                    Взять заказ
-                  </PrimaryButton>
-                )}
-                {order.status === 'assigned' && (
-                  <PrimaryButton
-                    size="sm"
-                    onClick={() => updateOrderStatus(order.id, 'picked_up')}
-                  >
-                    <Package size={16} style={{ marginRight: '4px' }} />
-                    В пути
-                  </PrimaryButton>
-                )}
-                {order.status === 'picked_up' && (
-                  <PrimaryButton
-                    size="sm"
-                    onClick={() => updateOrderStatus(order.id, 'delivered')}
-                  >
-                    <CheckCircle size={16} style={{ marginRight: '4px' }} />
-                    Доставлено
-                  </PrimaryButton>
-                )}
-                {(order.status === 'pending' || order.status === 'assigned') && (
-                  <SecondaryButton
-                    size="sm"
-                    onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                  >
-                    <XCircle size={16} style={{ marginRight: '4px' }} />
-                    Отменить
-                  </SecondaryButton>
-                )}
-                {order.status === 'delivered' && (
-                  <div style={{ 
-                    background: 'rgba(76,175,80,0.1)', 
+                {order.status === 'cancelled' ? (
+                  <div style={{
+                    background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    borderRadius: theme.radius.md,
+                    padding: theme.spacing.sm,
+                    textAlign: 'center' as const,
+                    color: '#ef4444',
+                    fontSize: theme.typography.fontSize.sm,
+                    fontWeight: theme.typography.fontWeight.bold,
+                    width: '100%',
+                  }}>
+                    Заказ отменён
+                  </div>
+                ) : isIssued(order.status) ? (
+                  <div style={{
+                    background: 'rgba(76,175,80,0.1)',
                     border: '1px solid rgba(76,175,80,0.3)',
                     borderRadius: theme.radius.md,
                     padding: theme.spacing.sm,
@@ -422,10 +430,20 @@ const Courier: React.FC = () => {
                     color: '#4caf50',
                     fontSize: theme.typography.fontSize.sm,
                     fontWeight: theme.typography.fontWeight.bold,
-                    width: '100%'
+                    width: '100%',
                   }}>
-                    ✓ Заказ доставлен
+                    ✓ Заказ выдан
                   </div>
+                ) : (
+                  <PrimaryButton
+                    size="sm"
+                    fullWidth
+                    onClick={() => markIssued(order.id)}
+                    disabled={updatingId === order.id}
+                  >
+                    <CheckCircle2 size={16} style={{ marginRight: '6px' }} />
+                    {updatingId === order.id ? 'Обновление…' : 'Отметить выданным'}
+                  </PrimaryButton>
                 )}
               </div>
             </GlassCard>
