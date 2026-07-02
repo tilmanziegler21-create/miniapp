@@ -9,6 +9,7 @@ import { useAnalytics } from '../hooks/useAnalytics';
 import { GlassCard, PrimaryButton, theme, CartLiquidUpsell, CartLiquidTierBanner, CartLiquidFlavorPicker } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
+import { triggerCartFly } from '../lib/cartFeedback';
 import { useCityStore } from '../store/useCityStore';
 import { useConfigStore } from '../store/useConfigStore';
 import { useCatalogStore } from '../store/useCatalogStore';
@@ -31,8 +32,15 @@ const Cart: React.FC = () => {
   const addItemOptimistic = useCartStore((state) => state.addItemOptimistic);
   const updateQuantityOptimistic = useCartStore((state) => state.updateQuantityOptimistic);
   const removeItemOptimistic = useCartStore((state) => state.removeItemOptimistic);
+  const restoreCart = useCartStore((state) => state.restoreCart);
   const scheduleSync = useCartStore((state) => state.scheduleSync);
   const syncCart = useCartStore((state) => state.syncCart);
+  const storeLiquidPrices = useCartStore((state) => state.liquidPrices);
+  const promoCode = useCartStore((state) => state.promoCode);
+  const promoDiscount = useCartStore((state) => state.promoDiscount);
+  const promoMessage = useCartStore((state) => state.promoMessage);
+  const setPromo = useCartStore((state) => state.setPromo);
+  const clearPromo = useCartStore((state) => state.clearPromo);
   const { trackRemoveFromCart, trackCheckout, trackOrderComplete } = useAnalytics();
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
@@ -40,8 +48,11 @@ const Cart: React.FC = () => {
   const { city } = useCityStore();
   const { config } = useConfigStore();
   const catalogEntry = useCatalogStore((state) => (city ? state.byCity[city] : undefined));
-  const [promoCode] = React.useState('');
+  const [promoInput, setPromoInput] = React.useState('');
+  const [promoBusy, setPromoBusy] = React.useState(false);
   const [comment] = React.useState('');
+  const [priceDrop, setPriceDrop] = React.useState(false);
+  const prevTotalRef = React.useRef<number | null>(null);
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>('cash');
   const [bonusBalance, setBonusBalance] = React.useState(0);
   const [bonusWant] = React.useState<string>('');
@@ -51,7 +62,10 @@ const Cart: React.FC = () => {
   const cityTitle =
     config?.cities?.find((entry) => String(entry.code) === String(city || ''))?.title || city || 'Ваш город';
 
-  const liquidPrices = config?.liquidPrices || { 1: 18, 2: 16, 3: 15, extra: 15 };
+  const liquidPrices =
+    storeLiquidPrices && Object.keys(storeLiquidPrices).length
+      ? storeLiquidPrices
+      : (config?.liquidPrices || { 1: 18, 2: 16, 3: 15, extra: 15 });
   const liquidQty = countLiquidItems(cart?.items || []);
 
   const upsellProducts = React.useMemo(
@@ -106,61 +120,116 @@ const Cart: React.FC = () => {
     })();
   }, []);
 
+  React.useEffect(() => {
+    if (promoCode) setPromoInput(promoCode);
+  }, [promoCode]);
+
   const setQty = async (itemId: string, nextQty: number) => {
-    if (nextQty <= 0) return;
+    if (nextQty <= 0) {
+      await removeItem(itemId);
+      return;
+    }
+    if (!city) {
+      pushToast('Выберите город', 'error');
+      return;
+    }
+
+    const snapshot = updateQuantityOptimistic(itemId, nextQty);
+    if (itemId.startsWith('tmp_')) {
+      scheduleSync(city, 280);
+      return;
+    }
+
     try {
-      if (!city) {
-        pushToast('Выберите город', 'error');
-        return;
-      }
-      if (itemId.startsWith('tmp_')) {
-        scheduleSync(city, 0);
-        pushToast('Секунду, корзина синхронизируется', 'info');
-        return;
-      }
-      updateQuantityOptimistic(itemId, nextQty);
       await cartAPI.updateItem(itemId, nextQty);
       scheduleSync(city);
     } catch (e) {
       console.error('Failed to update qty:', e);
+      restoreCart(snapshot);
       scheduleSync(city, 0);
     }
   };
 
   const removeItem = async (itemId: string) => {
+    if (!city) {
+      pushToast('Выберите город', 'error');
+      return;
+    }
+
+    const item = cart?.items.find((i) => i.id === itemId);
+    if (item) trackRemoveFromCart(item.productId, item.name, item.price, item.quantity);
+
+    const snapshot = removeItemOptimistic(itemId);
+    if (itemId.startsWith('tmp_')) {
+      scheduleSync(city, 280);
+      return;
+    }
+
     try {
-      if (!city) {
-        pushToast('Выберите город', 'error');
-        return;
-      }
-      if (itemId.startsWith('tmp_')) {
-        scheduleSync(city, 0);
-        pushToast('Секунду, корзина синхронизируется', 'info');
-        return;
-      }
-      const item = cart?.items.find((i) => i.id === itemId);
-      if (item) trackRemoveFromCart(item.productId, item.name, item.price, item.quantity);
-      removeItemOptimistic(itemId);
       await cartAPI.removeItem(itemId);
       scheduleSync(city);
     } catch (e) {
       console.error('Failed to remove item:', e);
+      restoreCart(snapshot);
+      pushToast('Не удалось удалить товар', 'error');
       scheduleSync(city, 0);
     }
   };
 
-  const addUpsellProduct = async (product: CatalogProduct, variant?: string) => {
+  const applyPromo = async () => {
+    const code = String(promoInput || '').trim();
+    if (!code) {
+      clearPromo();
+      return;
+    }
+    if (!city) {
+      pushToast('Выберите город', 'error');
+      return;
+    }
+
+    setPromoBusy(true);
+    try {
+      const resp = await cartAPI.validatePromo(code, city);
+      const data = resp.data || {};
+      if (data.valid) {
+        setPromo({ code, discount: Number(data.discount || 0), message: String(data.message || 'Промокод применён') });
+        pushToast(String(data.message || 'Промокод применён'), 'success');
+      } else {
+        clearPromo();
+        pushToast(String(data.message || 'Промокод недействителен'), 'error');
+      }
+    } catch {
+      pushToast('Не удалось проверить промокод', 'error');
+    } finally {
+      setPromoBusy(false);
+    }
+  };
+
+  const addUpsellProduct = async (product: CatalogProduct, event?: React.MouseEvent<HTMLButtonElement>) => {
     if (!city) {
       pushToast('Выберите город', 'error');
       return;
     }
     setUpsellBusyId(product.id);
+    const prevTotal = cart?.pricing?.total ?? cart?.total ?? 0;
+
     try {
       try { WebApp.HapticFeedback.impactOccurred('light'); } catch { /* ignore */ }
+
+      if (event?.currentTarget) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        triggerCartFly({
+          startX: rect.left + rect.width / 2,
+          startY: rect.top + rect.height / 2,
+          image: product.image,
+          label: product.name,
+        });
+      }
+
       addItemOptimistic({
         city,
         quantity: 1,
-        variant: variant || product.name,
+        variant: product.name,
         product: {
           id: product.id,
           name: product.name,
@@ -171,8 +240,22 @@ const Cart: React.FC = () => {
         },
         source: 'upsell',
       });
-      await cartAPI.addItem({ productId: product.id, quantity: 1, city, price: product.price, source: 'upsell', variant: variant || product.name });
+
+      await cartAPI.addItem({
+        productId: product.id,
+        quantity: 1,
+        city,
+        price: product.price,
+        source: 'upsell',
+        variant: product.name,
+      });
       scheduleSync(city);
+
+      const nextTotal = useCartStore.getState().cart?.pricing?.total ?? useCartStore.getState().cart?.total ?? prevTotal;
+      if (nextTotal < prevTotal) {
+        setPriceDrop(true);
+        window.setTimeout(() => setPriceDrop(false), 900);
+      }
     } catch {
       scheduleSync(city, 0);
       pushToast('Не удалось добавить товар', 'error');
@@ -198,6 +281,17 @@ const Cart: React.FC = () => {
   };
 
   const pricing = calculatePricing();
+
+  React.useEffect(() => {
+    const total = pricing.total;
+    if (prevTotalRef.current !== null && total < prevTotalRef.current) {
+      setPriceDrop(true);
+      const timer = window.setTimeout(() => setPriceDrop(false), 900);
+      prevTotalRef.current = total;
+      return () => window.clearTimeout(timer);
+    }
+    prevTotalRef.current = total;
+  }, [pricing.total]);
 
   const createOrder = async () => {
     if (!cart?.items?.length) {
@@ -335,7 +429,7 @@ const Cart: React.FC = () => {
 
       <div style={{ padding: `0 ${theme.padding.screen}`, display: 'grid', gap: theme.spacing.md, marginBottom: theme.spacing.lg }}>
         {(cart.items || []).map((item) => (
-          <div key={item.id} className="cart-item">
+          <div key={item.id} className="cart-item cart-item--instant">
             <div className="cart-item-top">
               <div
                 style={{
@@ -351,9 +445,6 @@ const Cart: React.FC = () => {
               <div style={{ minWidth: 0 }}>
                 <div className="cart-item-name">{item.name}</div>
                 {item.variant ? <div className="cart-item-meta">{item.variant}</div> : null}
-                {item.id.startsWith('tmp_') ? (
-                  <div className="cart-item-meta" style={{ color: theme.colors.dark.primary }}>Синхронизация...</div>
-                ) : null}
               </div>
               <div className="cart-item-price">
                 {formatCurrency(item.total ?? (item.effectivePrice ?? item.price) * item.quantity)}
@@ -366,7 +457,7 @@ const Cart: React.FC = () => {
                   type="button"
                   className="cart-qty-btn"
                   onClick={() => setQty(item.id, item.quantity - 1)}
-                  disabled={item.id.startsWith('tmp_') || item.quantity <= 1}
+                  disabled={item.quantity <= 1}
                   aria-label="Уменьшить количество"
                 >
                   <Minus size={14} />
@@ -376,7 +467,6 @@ const Cart: React.FC = () => {
                   type="button"
                   className="cart-qty-btn"
                   onClick={() => setQty(item.id, item.quantity + 1)}
-                  disabled={item.id.startsWith('tmp_')}
                   aria-label="Увеличить количество"
                 >
                   <Plus size={14} />
@@ -387,7 +477,6 @@ const Cart: React.FC = () => {
                 className="cart-remove-btn"
                 onClick={() => removeItem(item.id)}
                 aria-label={`Удалить ${item.name}`}
-                disabled={item.id.startsWith('tmp_')}
               >
                 <Trash2 size={14} />
               </button>
@@ -396,7 +485,7 @@ const Cart: React.FC = () => {
               item={item}
               catalog={catalogEntry?.products || []}
               busyId={upsellBusyId}
-              onAddFlavor={(product) => addUpsellProduct(product, product.name)}
+              onAddFlavor={(product) => addUpsellProduct(product)}
             />
           </div>
         ))}
@@ -406,9 +495,10 @@ const Cart: React.FC = () => {
 
       <CartLiquidUpsell
         products={upsellProducts}
+        catalog={catalogEntry?.products || []}
         stage={upsellStage}
         busyId={upsellBusyId}
-        onAdd={(product) => addUpsellProduct(product, product.name)}
+        onAdd={addUpsellProduct}
       />
 
       <div
@@ -506,6 +596,39 @@ const Cart: React.FC = () => {
           <span>-{formatCurrency(pricing.discount)}</span>
         </div>
       ) : null}
+      {promoDiscount > 0 ? (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            padding: `0 ${theme.padding.screen}`,
+            marginBottom: theme.spacing.sm,
+            fontSize: 14,
+            color: theme.colors.dark.primary,
+          }}
+        >
+          <span>Промокод</span>
+          <span>-{formatCurrency(promoDiscount)}</span>
+        </div>
+      ) : null}
+
+      <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.lg }}>
+        <div className="cart-promo-row">
+          <input
+            className="cart-promo-input"
+            value={promoInput}
+            onChange={(e) => setPromoInput(e.target.value)}
+            placeholder="Промокод"
+          />
+          <button type="button" className="cart-promo-btn" onClick={applyPromo} disabled={promoBusy}>
+            {promoBusy ? '…' : 'Применить'}
+          </button>
+        </div>
+        {promoMessage ? (
+          <div className="cart-promo-hint">{promoMessage}</div>
+        ) : null}
+      </div>
+
       <div
         style={{
           display: 'flex',
@@ -518,15 +641,7 @@ const Cart: React.FC = () => {
         }}
       >
         <span>Итого</span>
-        <div
-          style={{
-            background: 'rgba(16,15,18,0.84)',
-            border: '1px solid rgba(96,165,250,0.3)',
-            padding: '8px 16px',
-            borderRadius: 999,
-            color: theme.colors.dark.primary,
-          }}
-        >
+        <div className={`cart-total-pill${priceDrop ? ' cart-price-drop' : ''}`}>
           {formatCurrency(pricing.total)}
         </div>
       </div>

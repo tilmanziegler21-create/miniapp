@@ -2,17 +2,34 @@ import React from 'react';
 import { Plus } from 'lucide-react';
 import { GlassCard, theme } from './index';
 import { formatCurrency } from '../lib/currency';
+import { getBrandLiquidFlavors } from '../lib/liquidUpsell';
 import type { CatalogProduct } from '../store/useCatalogStore';
 import type { LiquidUpsellStage } from '../lib/liquidUpsell';
 
 type Props = {
   products: CatalogProduct[];
+  catalog: CatalogProduct[];
   stage: LiquidUpsellStage | null;
   busyId: string | null;
-  onAdd: (product: CatalogProduct) => void;
+  onAdd: (product: CatalogProduct, event?: React.MouseEvent<HTMLButtonElement>) => void;
 };
 
-export const CartLiquidUpsell: React.FC<Props> = ({ products, stage, busyId, onAdd }) => {
+export const CartLiquidUpsell: React.FC<Props> = ({ products, catalog, stage, busyId, onAdd }) => {
+  const [selectedByBrand, setSelectedByBrand] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const product of products) {
+      const brand = String(product.brand || 'Другие');
+      if (!selectedByBrand[brand]) {
+        next[brand] = String(product.id);
+      }
+    }
+    if (Object.keys(next).length) {
+      setSelectedByBrand((prev) => ({ ...next, ...prev }));
+    }
+  }, [products]);
+
   if (!products.length || !stage) return null;
 
   return (
@@ -26,21 +43,38 @@ export const CartLiquidUpsell: React.FC<Props> = ({ products, stage, busyId, onA
           {stage.subtitle}
         </div>
         <div style={{ display: 'grid', gap: theme.spacing.sm }}>
-          {products.map((product) => (
-            <button
-              key={product.id}
-              type="button"
-              className="cart-upsell-row"
-              onClick={() => onAdd(product)}
-              disabled={busyId === product.id}
-            >
-              <span className="cart-upsell-row__name">{product.name}</span>
-              <span className="cart-upsell-row__price">{formatCurrency(product.price)}</span>
-              <span className="cart-upsell-row__action">
-                <Plus size={16} />
-              </span>
-            </button>
-          ))}
+          {products.map((product) => {
+            const brand = String(product.brand || 'Другие');
+            const flavors = getBrandLiquidFlavors(catalog, brand);
+            const selectedId = selectedByBrand[brand] || String(product.id);
+            const selected = flavors.find((f) => String(f.id) === selectedId) || product;
+
+            return (
+              <div key={brand} className="cart-upsell-row cart-upsell-row--select">
+                <div className="cart-upsell-row__brand">{brand}</div>
+                <select
+                  className="app-flavor-select"
+                  value={selectedId}
+                  onChange={(e) => setSelectedByBrand((prev) => ({ ...prev, [brand]: e.target.value }))}
+                >
+                  {flavors.map((flavor) => (
+                    <option key={flavor.id} value={flavor.id}>
+                      {flavor.name} — {formatCurrency(flavor.price)}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="cart-upsell-row__add"
+                  onClick={(e) => onAdd(selected, e)}
+                  disabled={busyId === selected.id}
+                  aria-label={`Добавить ${selected.name}`}
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       </GlassCard>
     </div>

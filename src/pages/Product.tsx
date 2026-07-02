@@ -306,24 +306,20 @@ const Product: React.FC = () => {
         {isLiquid && brandFlavors.length > 0 ? (
           <div style={{ marginBottom: theme.spacing.md }}>
             <div className="product-flavor-label">Выберите вкус</div>
-            <div className="product-flavor-grid">
+            <select
+              className="app-flavor-select app-flavor-select--full"
+              value={selectedFlavorId}
+              onChange={(e) => setSelectedFlavorId(e.target.value)}
+            >
               {brandFlavors.map((flavor) => {
-                const active = String(flavor.id) === String(selectedFlavorId);
                 const soldOut = Number(flavor.qtyAvailable || 0) <= 0;
                 return (
-                  <button
-                    key={flavor.id}
-                    type="button"
-                    className={`product-flavor-chip${active ? ' product-flavor-chip--active' : ''}${soldOut ? ' product-flavor-chip--disabled' : ''}`}
-                    disabled={soldOut}
-                    onClick={() => setSelectedFlavorId(String(flavor.id))}
-                  >
-                    <span>{flavor.name}</span>
-                    <strong>{formatCurrency(flavor.price)}</strong>
-                  </button>
+                  <option key={flavor.id} value={flavor.id} disabled={soldOut}>
+                    {flavor.name} — {formatCurrency(flavor.price)}{soldOut ? ' (нет в наличии)' : ''}
+                  </option>
                 );
               })}
-            </div>
+            </select>
           </div>
         ) : null}
 

@@ -29,13 +29,25 @@ export function pickLiquidUpsellProducts(
 
   if (!pool.length) return [];
 
-  const shuffled = [...pool];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  const byBrand = new Map<string, CatalogProduct[]>();
+  for (const product of pool) {
+    const brand = String(product.brand || 'Другие').trim() || 'Другие';
+    const list = byBrand.get(brand) || [];
+    list.push(product);
+    byBrand.set(brand, list);
   }
 
-  return shuffled.slice(0, limit);
+  const brands = Array.from(byBrand.keys());
+  for (let i = brands.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [brands[i], brands[j]] = [brands[j], brands[i]];
+  }
+
+  return brands.slice(0, limit).map((brand) => {
+    const flavors = byBrand.get(brand) || [];
+    flavors.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    return flavors[0];
+  });
 }
 
 function numericTiers(liquidPrices: Record<string, number>) {

@@ -17,9 +17,9 @@
   position: relative;
   isolation: isolate;
   background:
-    linear-gradient(135deg, #06070d 0%, #0f172a 22%, #1e3a8a 48%, #0c4a6e 72%, #06070d 100%);
-  background-size: 360% 360%;
-  animation: bgGradientFlow 18s ease infinite;
+    linear-gradient(135deg, #04050a 0%, #0f172a 18%, #1e40af 42%, #0369a1 58%, #312e81 78%, #04050a 100%);
+  background-size: 400% 400%;
+  animation: bgGradientFlow 14s ease infinite;
 }
 
 .bg-app::before {
@@ -29,26 +29,26 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 95% 75% at 18% 14%, rgba(56, 189, 248, 0.38) 0%, transparent 58%),
-    radial-gradient(ellipse 88% 68% at 86% 82%, rgba(99, 102, 241, 0.32) 0%, transparent 56%),
-    radial-gradient(ellipse 70% 55% at 50% 50%, rgba(37, 99, 235, 0.18) 0%, transparent 60%);
+    radial-gradient(ellipse 100% 80% at 15% 12%, rgba(56, 189, 248, 0.52) 0%, transparent 55%),
+    radial-gradient(ellipse 92% 72% at 88% 85%, rgba(129, 140, 248, 0.46) 0%, transparent 54%),
+    radial-gradient(ellipse 75% 60% at 50% 48%, rgba(59, 130, 246, 0.28) 0%, transparent 62%);
   will-change: transform, opacity;
-  animation: ambientShift 22s ease-in-out infinite alternate, ambientPulse 14s ease-in-out infinite;
+  animation: ambientShift 16s ease-in-out infinite alternate, ambientPulse 10s ease-in-out infinite;
 }
 
 .bg-app::after {
   content: '';
   position: fixed;
-  inset: -20%;
+  inset: -25%;
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 28% 38%, rgba(125, 211, 252, 0.28) 0%, transparent 34%),
-    radial-gradient(circle at 72% 62%, rgba(129, 140, 248, 0.26) 0%, transparent 38%),
-    linear-gradient(115deg, rgba(96,165,250,0.12) 0%, rgba(125,211,252,0.24) 45%, rgba(99,102,241,0.12) 100%);
-  background-size: 180% 180%, 180% 180%, 260% 260%;
+    radial-gradient(circle at 25% 35%, rgba(125, 211, 252, 0.38) 0%, transparent 32%),
+    radial-gradient(circle at 75% 65%, rgba(167, 139, 250, 0.34) 0%, transparent 36%),
+    linear-gradient(115deg, rgba(96,165,250,0.16) 0%, rgba(125,211,252,0.32) 45%, rgba(99,102,241,0.16) 100%);
+  background-size: 200% 200%, 200% 200%, 280% 280%;
   will-change: background-position, transform, opacity;
-  animation: ambientDrift 18s ease-in-out infinite alternate-reverse, ambientShimmer 13s ease-in-out infinite alternate;
+  animation: ambientDrift 14s ease-in-out infinite alternate-reverse, ambientShimmer 11s ease-in-out infinite alternate;
 }
 
 .app-content-layer {
@@ -209,7 +209,7 @@ body {
 }
 
 .page-transition {
-  animation-duration: 220ms;
+  animation-duration: 320ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   animation-fill-mode: both;
 }
@@ -232,7 +232,7 @@ body {
 }
 
 @keyframes pageEnterForward {
-  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
@@ -664,6 +664,140 @@ a {
   margin-top: 4px;
   padding-top: 10px;
   border-top: 1px solid rgba(147, 197, 253, 0.12);
+}
+
+.cart-flavor-picker__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.cart-flavor-picker__add {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(96,165,250,0.35);
+  background: linear-gradient(180deg, #2563eb 0%, #172554 100%);
+  color: #eff6ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.app-flavor-select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 14px;
+  border: 1px solid rgba(96,165,250,0.28);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(23, 37, 84, 0.92) 100%);
+  color: #f4f1ea;
+  padding: 12px 36px 12px 14px;
+  font-size: 14px;
+  line-height: 1.35;
+  background-image:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(23, 37, 84, 0.92) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2393c5fd' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, no-repeat;
+  background-position: 0 0, calc(100% - 14px) 50%;
+}
+
+.app-flavor-select--full {
+  margin-top: 8px;
+}
+
+.cart-upsell-row--select {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid rgba(96,165,250,0.14);
+  border-radius: 16px;
+  background: rgba(8,17,31,0.42);
+}
+
+.cart-upsell-row__brand {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(191, 219, 254, 0.88);
+}
+
+.cart-upsell-row__add {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #1d4ed8 0%, #172554 100%);
+  color: #eff6ff;
+  cursor: pointer;
+}
+
+.cart-item--instant {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.cart-promo-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.cart-promo-input {
+  border-radius: 14px;
+  border: 1px solid rgba(96,165,250,0.22);
+  background: rgba(16,15,18,0.84);
+  color: #f4f1ea;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.cart-promo-btn {
+  border-radius: 14px;
+  border: 1px solid rgba(96,165,250,0.35);
+  background: rgba(37, 99, 235, 0.22);
+  color: #bfdbfe;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cart-promo-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(147, 197, 253, 0.88);
+}
+
+.cart-total-pill {
+  background: rgba(16,15,18,0.84);
+  border: 1px solid rgba(96,165,250,0.3);
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: #93c5fd;
+  transition: transform 220ms ease, box-shadow 220ms ease, color 220ms ease;
+}
+
+.cart-price-drop {
+  animation: cartPriceDrop 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  color: #4ade80 !important;
+  border-color: rgba(74, 222, 128, 0.45) !important;
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.18), 0 0 24px rgba(74, 222, 128, 0.22);
+}
+
+@keyframes cartPriceDrop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.08); }
+  100% { transform: scale(1); }
 }
 
 .cart-flavor-picker__hint {

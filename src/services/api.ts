@@ -120,6 +120,9 @@ export const cartAPI = {
   updateItem: (itemId: string, quantity: number) =>
     api.post('/cart/update', { itemId, quantity }),
 
+  validatePromo: (promoCode: string, city: string) =>
+    api.post('/cart/promo/validate', { promoCode, city }),
+
   clear: (city: string) =>
     api.post('/cart/clear', { city }),
 };

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import WebApp from '@twa-dev/sdk';
 import { useAuthStore } from './store/useAuthStore';
 import { authAPI } from './services/api';
-import { SafeAreaProvider, AppShell, SplashScreen } from './ui';
+import { SafeAreaProvider, AppLayout, SplashScreen } from './ui';
 import { useBootStore } from './store/useBootStore';
 import { useConfigStore } from './store/useConfigStore';
 import { runBootPipeline } from './lib/boot';
@@ -272,23 +272,25 @@ function App() {
                     />
                   }
                 />
-                <Route path="/home" element={<AppShell><Home /></AppShell>} />
-                <Route path="/categories" element={<AppShell><Categories /></AppShell>} />
-                <Route path="/catalog" element={<AppShell><Catalog /></AppShell>} />
-                <Route path="/product/:id" element={<AppShell showMenu={false}><Product /></AppShell>} />
-                <Route path="/cart" element={<AppShell showMenu={false}><Cart /></AppShell>} />
-                <Route path="/orders" element={<AppShell><Orders /></AppShell>} />
-                <Route path="/order/:id" element={<AppShell showMenu={false}><OrderDetails /></AppShell>} />
-                <Route path="/favorites" element={<AppShell><Favorites /></AppShell>} />
-                <Route path="/referral" element={<AppShell><Referral /></AppShell>} />
-                <Route path="/support" element={<AppShell><Support /></AppShell>} />
-                <Route path="/promotions" element={<AppShell><Promotions /></AppShell>} />
-                <Route path="/bonuses" element={<AppShell><Bonuses /></AppShell>} />
-                <Route path="/fortune" element={<AppShell><FortuneWheel /></AppShell>} />
-                <Route path="/profile" element={<AppShell><Profile /></AppShell>} />
-                <Route path="/courier" element={(user.status === 'courier' || user.status === 'admin') ? <AppShell><Courier /></AppShell> : <Navigate to="/home" replace />} />
-                <Route path="/admin" element={user.status === 'admin' ? <AppShell><Admin /></AppShell> : <Navigate to="/home" replace />} />
-                <Route path="/courier-registration" element={user.status === 'admin' ? <AppShell><CourierRegistration /></AppShell> : <Navigate to="/home" replace />} />
+                <Route element={<AppLayout />}>
+                  <Route path="/home" element={<Home />} />
+                  <Route path="/categories" element={<Categories />} />
+                  <Route path="/catalog" element={<Catalog />} />
+                  <Route path="/product/:id" element={<Product />} />
+                  <Route path="/cart" element={<Cart />} />
+                  <Route path="/orders" element={<Orders />} />
+                  <Route path="/order/:id" element={<OrderDetails />} />
+                  <Route path="/favorites" element={<Favorites />} />
+                  <Route path="/referral" element={<Referral />} />
+                  <Route path="/support" element={<Support />} />
+                  <Route path="/promotions" element={<Promotions />} />
+                  <Route path="/bonuses" element={<Bonuses />} />
+                  <Route path="/fortune" element={<FortuneWheel />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/courier" element={<Courier />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/courier-registration" element={<CourierRegistration />} />
+                </Route>
                 <Route path="*" element={<Navigate to="/home" replace />} />
               </Routes>
             </Suspense>

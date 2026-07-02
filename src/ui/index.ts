@@ -1,4 +1,5 @@
 export { AppShell } from './AppShell';
+export { AppLayout } from './AppLayout';
 export { CartLiquidUpsell } from './CartLiquidUpsell';
 export { CartLiquidTierBanner } from './CartLiquidTierBanner';
 export { CartLiquidFlavorPicker } from './CartLiquidFlavorPicker';

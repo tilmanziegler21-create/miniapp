@@ -5,6 +5,7 @@ import { getCouriers, getLiquidPrices, getProducts, updateProductStockBatch, app
 import { normalizeOrderStatus } from '../domain/orderStatus.js';
 import { notifyCouriersAboutNewOrder } from '../services/telegramNotify.js';
 import { calculateOrderPricing } from '../services/liquidPricing.js';
+import { evaluatePromoCode } from '../domain/promo.js';
 import { resolveCourierContact } from '../services/courierContact.js';
 
 const router = express.Router();
@@ -286,17 +287,13 @@ router.post('/create', requireAuth, async (req, res) => {
     let discountAmount = pricing.discount;
 
     const promo = String(promoCode || '').trim();
-    const promoObj = promo ? db.getPromoById(promo) : null;
-    const now = Date.now();
-    const inWindow =
-      promoObj &&
-      (!promoObj.startsAt || Date.parse(promoObj.startsAt) <= now) &&
-      (!promoObj.endsAt || Date.parse(promoObj.endsAt) >= now);
-    const discountedSubtotal = Math.max(0, subtotalAmount - discountAmount);
-    if (promoObj && promoObj.active && inWindow && discountedSubtotal >= Number(promoObj.minTotal || 0)) {
-      if (String(promoObj.type || '') === 'percent') {
-        discountAmount += (discountedSubtotal * Number(promoObj.value || 0)) / 100;
+    const afterLiquidDiscount = Math.max(0, subtotalAmount - discountAmount);
+    if (promo) {
+      const promoResult = evaluatePromoCode(promo, afterLiquidDiscount);
+      if (!promoResult.valid) {
+        return res.status(400).json({ error: promoResult.message || 'INVALID_PROMO' });
       }
+      discountAmount += promoResult.discount;
     }
 
     discountAmount = Math.round(discountAmount * 100) / 100;
@@ -310,7 +307,7 @@ router.post('/create', requireAuth, async (req, res) => {
       total_amount: totalAmount,
       subtotal_amount: subtotalAmount,
       discount_amount: discountAmount,
-      promo_code: promoObj && promoObj.active ? promo : '',
+      promo_code: promo || '',
       delivery_method: null,
       courier_data: null,
       stock_committed: false,
@@ -347,7 +344,7 @@ router.post('/create', requireAuth, async (req, res) => {
         total_amount: totalAmount,
         subtotal_amount: subtotalAmount,
         discount_amount: discountAmount,
-        promo_code: promoObj && promoObj.active ? promo : '',
+        promo_code: promo || '',
         courier_id: '',
         delivery_date: '',
         delivery_time: '',

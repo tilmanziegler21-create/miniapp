@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import db from '../services/database.js';
 import { getProducts, getLiquidPrices } from '../services/sheets.js';
 import { calculateLiquidBundleTotal, isLiquidCategory } from '../services/liquidPricing.js';
+import { evaluatePromoCode } from '../domain/promo.js';
 
 const router = express.Router();
 
@@ -132,7 +133,8 @@ router.get('/', requireAuth, async (req, res) => {
           total,
         },
         total,
-      }
+      },
+      liquidPrices: dynamicLiquidPrices,
     });
   } catch (error) {
     console.error('Cart fetch error:', error);
@@ -282,6 +284,57 @@ router.post('/update', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Update cart item error:', error);
     res.status(500).json({ error: 'Failed to update cart item' });
+  }
+});
+
+router.post('/promo/validate', requireAuth, async (req, res) => {
+  try {
+    const { tgId } = req.user;
+    const { promoCode, city } = req.body || {};
+    const cityStr = String(city || '').trim();
+    if (!cityStr) return res.status(400).json({ error: 'City is required' });
+
+    let cart = db.prepare('SELECT * FROM carts WHERE user_id = ? AND city = ?').get(tgId, cityStr);
+    if (!cart) {
+      return res.json({ valid: false, discount: 0, message: 'Корзина пуста' });
+    }
+
+    const products = await getProducts(cityStr);
+    const bySku = new Map(products.map((p) => [String(p.sku), p]));
+    const items = [];
+    for (const item of db.cartItems.values()) {
+      if (item.cart_id !== cart.id) continue;
+      const p = bySku.get(String(item.product_id));
+      items.push({
+        ...item,
+        category: p?.category || '',
+        product_price: Number(p?.price || item.price || 0),
+      });
+    }
+
+    let totalLiquidsQty = 0;
+    let totalLiquidsBasePrice = 0;
+    let subtotal = 0;
+    for (const item of items) {
+      const qty = Number(item.quantity || 0);
+      const price = Number(item.product_price || item.price || 0);
+      subtotal += qty * price;
+      if (isLiquidCategory(item.category)) {
+        totalLiquidsQty += qty;
+        totalLiquidsBasePrice += qty * price;
+      }
+    }
+
+    const liquidPrices = await getLiquidPrices(cityStr);
+    const liquidsFinalPrice = calculateLiquidBundleTotal(totalLiquidsQty, liquidPrices, totalLiquidsBasePrice);
+    const liquidDiscount = totalLiquidsQty > 0 ? Math.max(0, totalLiquidsBasePrice - liquidsFinalPrice) : 0;
+    const afterLiquid = Math.max(0, subtotal - liquidDiscount);
+
+    const result = evaluatePromoCode(promoCode, afterLiquid);
+    return res.json(result);
+  } catch (error) {
+    console.error('Promo validate error:', error);
+    return res.status(500).json({ error: 'Failed to validate promo' });
   }
 });
 

@@ -5,7 +5,6 @@ import { formatCurrency } from '../lib/currency';
 import { getBrandLiquidFlavors, isLiquidCategory } from '../lib/liquidUpsell';
 import type { CatalogProduct } from '../store/useCatalogStore';
 import type { CartItem } from '../store/useCartStore';
-import { theme } from './theme';
 
 type Props = {
   item: CartItem;
@@ -15,49 +14,47 @@ type Props = {
 };
 
 export const CartLiquidFlavorPicker: React.FC<Props> = ({ item, catalog, busyId, onAddFlavor }) => {
+  const [selectedId, setSelectedId] = React.useState('');
+
   if (!isLiquidCategory(item.category)) return null;
 
   const flavors = getBrandLiquidFlavors(catalog, item.brand || '');
   if (flavors.length <= 1) return null;
 
-  const inCartVariants = new Set(
-    catalog
-      .filter((p) => String(p.brand) === String(item.brand || ''))
-      .map((p) => String(p.id)),
-  );
+  const available = flavors.filter((f) => String(f.id) !== String(item.productId));
+  if (!available.length) return null;
+
+  const pickId = selectedId || String(available[0].id);
+  const selected = available.find((f) => String(f.id) === pickId) || available[0];
 
   return (
     <div className="cart-flavor-picker">
-      <div className="cart-flavor-picker__label">Все вкусы {item.brand || 'бренда'}</div>
-      <div className="cart-flavor-picker__grid">
-        {flavors.map((flavor) => {
-          const active = String(flavor.id) === String(item.productId);
-          return (
-            <button
-              key={flavor.id}
-              type="button"
-              className={`cart-flavor-chip${active ? ' cart-flavor-chip--active' : ''}`}
-              disabled={busyId === flavor.id || active}
-              onClick={() => {
-                try { WebApp.HapticFeedback.impactOccurred('light'); } catch { /* ignore */ }
-                onAddFlavor(flavor);
-              }}
-            >
-              <span>{flavor.name}</span>
-              {!active ? (
-                <span className="cart-flavor-chip__add">
-                  <Plus size={12} />
-                </span>
-              ) : (
-                <span className="cart-flavor-chip__price">{formatCurrency(flavor.price)}</span>
-              )}
-            </button>
-          );
-        })}
+      <div className="cart-flavor-picker__label">Добавить другой вкус {item.brand || 'бренда'}</div>
+      <div className="cart-flavor-picker__row">
+        <select
+          className="app-flavor-select"
+          value={pickId}
+          onChange={(e) => setSelectedId(e.target.value)}
+        >
+          {available.map((flavor) => (
+            <option key={flavor.id} value={flavor.id}>
+              {flavor.name} — {formatCurrency(flavor.price)}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="cart-flavor-picker__add"
+          disabled={busyId === selected.id}
+          onClick={() => {
+            try { WebApp.HapticFeedback.impactOccurred('light'); } catch { /* ignore */ }
+            onAddFlavor(selected);
+          }}
+          aria-label={`Добавить ${selected.name}`}
+        >
+          <Plus size={14} />
+        </button>
       </div>
-      {inCartVariants.size > 0 ? (
-        <div className="cart-flavor-picker__hint">Нажмите вкус, чтобы добавить ещё одну жидкость в корзину</div>
-      ) : null}
     </div>
   );
 };

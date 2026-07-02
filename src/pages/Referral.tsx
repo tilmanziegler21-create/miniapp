@@ -39,22 +39,25 @@ const Referral: React.FC = () => {
 
   const share = async () => {
     const text = `${branding.referralShareText} ${link}`;
+
+    try {
+      if (WebApp.openTelegramLink) {
+        WebApp.openTelegramLink(
+          `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`,
+        );
+        return;
+      }
+    } catch (e) {
+      console.error('Open Telegram share failed:', e);
+    }
+
     if (navigator.share) {
       try {
         await navigator.share({ title: branding.name, text, url: link });
         return;
       } catch {
-        // fallback to Telegram/copy
+        // fallback to copy
       }
-    }
-
-    try {
-      if (WebApp.openTelegramLink) {
-        WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
-        return;
-      }
-    } catch (e) {
-      console.error('Open Telegram share failed:', e);
     }
 
     try {
