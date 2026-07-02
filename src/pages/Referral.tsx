@@ -6,6 +6,7 @@ import { useToastStore } from '../store/useToastStore';
 import { referralAPI } from '../services/api';
 import { useBranding } from '../hooks/useBranding';
 import { useConfigStore } from '../store/useConfigStore';
+import { buildReferralBotLink } from '../lib/referralLink';
 
 const Referral: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -31,11 +32,8 @@ const Referral: React.FC = () => {
 
   const refCode = String(info?.referralCode || user?.tgId || '');
   const botUsername = String(config?.botUsername || '').trim();
-  // Prefer a real Telegram deep link (startapp param survives launch via WebApp.initDataUnsafe.start_param).
-  // A plain https URL would open in an external browser and lose Telegram auth context.
-  const link = botUsername
-    ? `https://t.me/${botUsername}?startapp=ref_${encodeURIComponent(refCode || 'unknown')}`
-    : `${window.location.origin}/home?ref=${encodeURIComponent(refCode || 'unknown')}`;
+  const link = buildReferralBotLink(botUsername, refCode)
+    || `${window.location.origin}/home?ref=${encodeURIComponent(refCode || 'unknown')}`;
 
   const share = async () => {
     const text = `${branding.referralShareText} ${link}`;

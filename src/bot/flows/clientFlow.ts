@@ -17,6 +17,8 @@ import { getLiquidUnitPrice } from "../../services/PriceService";
 import { carts as cartsStore, userStates, userRerollCount } from "../../infra/storage/InMemoryStorage";
 import { showHybridUpsellWithGuidance } from "../handlers/fortuneHandler";
 import { showUpsellCatalog } from "../handlers/catalogHandler";
+import { buildMiniAppStartUrl, resolveStartLogoPath } from "../telegramLinks";
+import fs from "fs";
 
 const carts: Map<number, OrderItem[]> = cartsStore as Map<number, OrderItem[]>;
 const lastMainMsg: Map<number, number> = new Map();
@@ -44,17 +46,50 @@ function buildCommunityButton(label = "👥 Наш канал"): TelegramBot.Inl
   return { text: "📞 Поддержка", callback_data: encodeCb("how_to_order") };
 }
 
-function buildMainMenuRows(userId: number): TelegramBot.InlineKeyboardButton[][] {
-  const rows: TelegramBot.InlineKeyboardButton[][] = [
+function buildMainMenuRows(userId: number, startPayload?: string): TelegramBot.InlineKeyboardButton[][] {
+  const rows: TelegramBot.InlineKeyboardButton[][] = [];
+  const miniAppUrl = buildMiniAppStartUrl(startPayload);
+  if (miniAppUrl) {
+    rows.push([{ text: "🛍 Открыть магазин", url: miniAppUrl }]);
+  }
+  rows.push(
     [{ text: "💧 Жидкости", callback_data: encodeCb("catalog_liquids") }],
     [{ text: "⚡️ Одноразки", callback_data: encodeCb("catalog_electronics") }],
     [{ text: "🛒 Моя корзина", callback_data: encodeCb("view_cart") }],
     [{ text: "❓ Как заказать?", callback_data: encodeCb("how_to_order") }],
     [buildCommunityButton()],
-  ];
+  );
   const admins = (env.TELEGRAM_ADMIN_IDS || "").split(",").map((s) => Number(s.trim())).filter((x) => x);
   if (admins.includes(userId)) rows.push([{ text: "Админ", callback_data: "admin_open" }]);
   return rows;
+}
+
+async function sendWelcomeScreen(bot: TelegramBot, chatId: number, userId: number, startPayload?: string) {
+  const shopName = shopConfig.shopName || "Магазин";
+  const invited = String(startPayload || "").startsWith("ref_");
+  const caption = invited
+    ? `<b>${shopName}</b>\n\nВас пригласили в магазин.\nОткройте mini app, чтобы продолжить и получить бонусы.\n\n👇 Нажмите кнопку ниже`
+    : `<b>${shopName}</b>\n\nДобро пожаловать!\nОткройте mini app, чтобы выбрать товары и оформить заказ.\n\n👇 Нажмите кнопку ниже`;
+
+  const rows = buildMainMenuRows(userId, startPayload);
+  const prev = lastMainMsg.get(userId);
+  if (prev) {
+    try { await bot.deleteMessage(chatId, prev); } catch {}
+  }
+
+  const logoPath = resolveStartLogoPath();
+  const sent = logoPath
+    ? await bot.sendPhoto(chatId, fs.createReadStream(logoPath), {
+        caption,
+        parse_mode: "HTML",
+        reply_markup: { inline_keyboard: rows },
+      })
+    : await bot.sendMessage(chatId, caption, {
+        parse_mode: "HTML",
+        reply_markup: { inline_keyboard: rows },
+      });
+
+  lastMainMsg.set(userId, sent.message_id);
 }
 
 function addToCart(user_id: number, p: Product, isUpsell: boolean, priceOverride?: number) {
@@ -104,20 +139,13 @@ async function recalcLiquidPrices(user_id: number) {
 }
 
 export function registerClientFlow(bot: TelegramBot) {
-  bot.onText(/\/start/, async (msg) => {
+  bot.onText(/\/start(?:@\w+)?(?:\s+(.+))?/, async (msg, match) => {
     const user_id = msg.from?.id || 0;
+    const startPayload = String(match?.[1] || "").trim();
     try {
       const username = msg.from?.username || "";
       await ensureUser(user_id, username);
-      const rows = buildMainMenuRows(user_id);
-      const prev = lastMainMsg.get(user_id);
-      if (prev) { try { await bot.deleteMessage(msg.chat.id, prev); } catch {} }
-      const sent = await bot.sendMessage(
-        msg.chat.id,
-        shopConfig.welcomeMessage,
-        { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" }
-      );
-      lastMainMsg.set(user_id, sent.message_id);
+      await sendWelcomeScreen(bot, msg.chat.id, user_id, startPayload);
     } catch (error) {
       logger.error("Client start handler failed", { error: String(error), user_id });
       try {
@@ -142,12 +170,11 @@ export function registerClientFlow(bot: TelegramBot) {
       const messageId = q.message?.message_id as number;
       const user_id = q.from.id;
       if (data === "back:main" || data === "start") {
-        const rows = buildMainMenuRows(user_id);
         try {
-        try { await bot.deleteMessage(chatId, messageId); } catch {}
-        await bot.sendMessage(chatId, shopConfig.welcomeMessage, { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" });
+          try { await bot.deleteMessage(chatId, messageId); } catch {}
+          await sendWelcomeScreen(bot, chatId, user_id);
         } catch {
-          await bot.sendMessage(chatId, shopConfig.welcomeMessage, { reply_markup: { inline_keyboard: rows }, parse_mode: "HTML" });
+          await sendWelcomeScreen(bot, chatId, user_id);
         }
         return;
       }

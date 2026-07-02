@@ -5,7 +5,7 @@ import { Heart, ArrowLeft } from 'lucide-react';
 import { cartAPI, productAPI } from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { GlassCard, IconButton, ProductCard, SectionDivider, theme, TasteProfile, TrustIndicators, FlavorSelectField } from '../ui';
+import { GlassCard, IconButton, ProductCard, SectionDivider, theme, TasteProfile, TrustIndicators } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
@@ -30,14 +30,6 @@ type ProductEntity = {
   image: string;
   tasteProfile?: unknown;
   favorite?: boolean;
-};
-
-type BrandFlavor = {
-  id: string;
-  name: string;
-  price: number;
-  qtyAvailable: number;
-  image?: string;
 };
 
 type SocialProof = {
@@ -78,8 +70,6 @@ const Product: React.FC = () => {
   const scheduleSync = useCartStore((state) => state.scheduleSync);
   const { trackProductView, trackAddToCart } = useAnalytics();
   const [product, setProduct] = React.useState<ProductEntity | null>(null);
-  const [brandFlavors, setBrandFlavors] = React.useState<BrandFlavor[]>([]);
-  const [selectedFlavorId, setSelectedFlavorId] = React.useState('');
   const [social, setSocial] = React.useState<SocialProof | null>(null);
   const [similar, setSimilar] = React.useState<SimilarProduct[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -90,36 +80,8 @@ const Product: React.FC = () => {
   const [addedToCart, setAddedToCart] = React.useState(false);
   const requestRef = React.useRef(0);
 
-  const selectedFlavor = React.useMemo(() => {
-    if (!brandFlavors.length) return null;
-    return brandFlavors.find((f) => String(f.id) === String(selectedFlavorId)) || brandFlavors[0];
-  }, [brandFlavors, selectedFlavorId]);
-
   const isLiquid = product ? isLiquidCategory(product.category) : false;
-  const activeProduct = React.useMemo(() => {
-    if (!product) return null;
-    if (!isLiquid || !selectedFlavor) return product;
-    return {
-      ...product,
-      id: selectedFlavor.id,
-      name: selectedFlavor.name,
-      price: selectedFlavor.price,
-      qtyAvailable: selectedFlavor.qtyAvailable,
-      image: selectedFlavor.image || product.image,
-    };
-  }, [product, isLiquid, selectedFlavor]);
-
-  const canAddToCart = activeProduct ? Number(activeProduct.qtyAvailable || 0) > 0 : false;
-  const allFlavorsSoldOut = brandFlavors.length > 0 && brandFlavors.every((f) => Number(f.qtyAvailable || 0) <= 0);
-  const selectedSoldOut = selectedFlavor ? Number(selectedFlavor.qtyAvailable || 0) <= 0 : false;
-
-  React.useEffect(() => {
-    if (!brandFlavors.length) return;
-    const current = brandFlavors.find((f) => String(f.id) === String(selectedFlavorId));
-    if (current && Number(current.qtyAvailable || 0) > 0) return;
-    const firstAvailable = brandFlavors.find((f) => Number(f.qtyAvailable || 0) > 0);
-    if (firstAvailable) setSelectedFlavorId(String(firstAvailable.id));
-  }, [brandFlavors, selectedFlavorId]);
+  const canAddToCart = product ? Number(product.qtyAvailable || 0) > 0 : false;
   const normalizedTasteProfile = React.useMemo(
     () => (product ? normalizeTasteProfile(product.tasteProfile) : null),
     [product],
@@ -130,7 +92,6 @@ const Product: React.FC = () => {
     try {
       setLoading(true);
       setProduct(null);
-      setBrandFlavors([]);
       setSocial(null);
       setSimilar([]);
       if (!city) {
@@ -144,10 +105,7 @@ const Product: React.FC = () => {
         setProduct(null);
         return;
       }
-      const flavors: BrandFlavor[] = Array.isArray(resp.data?.brandFlavors) ? resp.data.brandFlavors : [];
       setProduct(p);
-      setBrandFlavors(flavors.length ? flavors : [{ id: p.id, name: p.name, price: p.price, qtyAvailable: p.qtyAvailable, image: p.image }]);
-      setSelectedFlavorId(String(p.id));
       setSocial(resp.data?.social || null);
       setSimilar(Array.isArray(resp.data?.similar) ? resp.data.similar : []);
       trackProductView(p.id, p.name, p.category);
@@ -170,10 +128,10 @@ const Product: React.FC = () => {
     if (city) favorites.load(city);
   }, [id, city]);
 
-  const isFavorite = product ? favorites.isFavorite(String(activeProduct?.id || product.id)) : false;
+  const isFavorite = product ? favorites.isFavorite(String(product.id)) : false;
 
   const toggleFavorite = async () => {
-    if (!activeProduct || !product) return;
+    if (!product) return;
     const next = !isFavorite;
     try {
       if (!city) {
@@ -183,12 +141,12 @@ const Product: React.FC = () => {
       await favorites.toggle({
         city,
         product: {
-          id: String(activeProduct.id),
-          name: activeProduct.name,
+          id: String(product.id),
+          name: product.name,
           category: product.category,
           brand: product.brand,
-          price: activeProduct.price,
-          image: activeProduct.image,
+          price: product.price,
+          image: product.image,
         },
         enabled: next,
       });
@@ -199,41 +157,41 @@ const Product: React.FC = () => {
   };
 
   const addToCart = async (quantity: number, variantName?: string) => {
-    if (!activeProduct || !product) return;
+    if (!product) return;
     if (!city) {
       pushToast('Выберите город', 'error');
       return;
     }
-    if (Number(activeProduct.qtyAvailable || 0) <= 0) {
+    if (Number(product.qtyAvailable || 0) <= 0) {
       pushToast('Товар закончился', 'info');
       return;
     }
-    const variant = variantName || activeProduct.name;
+    const variant = variantName || product.name;
     try { WebApp.HapticFeedback.impactOccurred('medium'); } catch { /* ignore */ }
     addItemOptimistic({
       city,
       quantity,
       variant,
       product: {
-        id: activeProduct.id,
-        name: activeProduct.name,
+        id: product.id,
+        name: product.name,
         category: product.category,
         brand: product.brand,
-        price: activeProduct.price,
-        image: activeProduct.image,
+        price: product.price,
+        image: product.image,
       },
     });
     try {
-      await cartAPI.addItem({ productId: activeProduct.id, quantity, city, variant });
+      await cartAPI.addItem({ productId: product.id, quantity, city, variant });
       scheduleSync(city);
-      trackAddToCart(activeProduct.id, activeProduct.name, activeProduct.price, quantity);
+      trackAddToCart(product.id, product.name, product.price, quantity);
     } catch (e) {
       console.error('Add to cart failed:', e);
       rollbackOptimisticAdd({
         city,
         quantity,
         variant,
-        productId: activeProduct.id,
+        productId: product.id,
       });
       scheduleSync(city, 0);
     }
@@ -249,7 +207,7 @@ const Product: React.FC = () => {
     );
   }
 
-  if (!product || !activeProduct) {
+  if (!product) {
     return (
       <div style={{ padding: theme.padding.screen }}>
         <GlassCard padding="lg" variant="elevated">
@@ -260,7 +218,7 @@ const Product: React.FC = () => {
   }
 
   const posterToken = product.brand || product.name;
-  const posterImage = resolveProductImage(posterToken, activeProduct.image || product.image);
+  const posterImage = resolveProductImage(posterToken, product.image);
   const posterGradient = getBrandGradient(posterToken);
 
   return (
@@ -282,13 +240,13 @@ const Product: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'flex-start', marginBottom: theme.spacing.md }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.15, color: NAVY.text }}>
-              {isLiquid ? product.brand : activeProduct.name}
+              {isLiquid ? product.brand : product.name}
             </div>
             <div style={{ color: NAVY.muted, marginTop: theme.spacing.xs, fontSize: theme.typography.fontSize.sm }}>
-              {isLiquid ? activeProduct.name : product.brand}
+              {isLiquid ? product.name : product.brand}
             </div>
           </div>
-          <div className="product-price-pill">{formatCurrency(activeProduct.price)}</div>
+          <div className="product-price-pill">{formatCurrency(product.price)}</div>
         </div>
 
         {normalizedTasteProfile ? (
@@ -313,26 +271,9 @@ const Product: React.FC = () => {
           {product.description}
         </div>
 
-        {isLiquid && brandFlavors.length > 0 ? (
-          <div style={{ marginBottom: theme.spacing.md }}>
-            {(selectedSoldOut || allFlavorsSoldOut) ? (
-              <div className="product-stock-warning">Нет в наличии — выберите другое</div>
-            ) : null}
-            <FlavorSelectField
-              fullWidth
-              label="Выберите вкус"
-              hint="Нажмите, чтобы открыть список"
-              value={selectedFlavorId}
-              onChange={setSelectedFlavorId}
-              options={brandFlavors.map((flavor) => {
-                const soldOut = Number(flavor.qtyAvailable || 0) <= 0;
-                return {
-                  id: String(flavor.id),
-                  label: `${flavor.name} — ${formatCurrency(flavor.price)}${soldOut ? ' (нет в наличии)' : ''}`,
-                  disabled: soldOut,
-                };
-              })}
-            />
+        {!canAddToCart ? (
+          <div className="product-stock-warning" style={{ marginBottom: theme.spacing.md }}>
+            Нет в наличии — выберите другое
           </div>
         ) : null}
 
@@ -346,11 +287,11 @@ const Product: React.FC = () => {
               startX: rect.left + rect.width / 2,
               startY: rect.top + rect.height / 2,
               image: posterImage,
-              label: activeProduct.name,
+              label: product.name,
             });
             setAddedToCart(true);
             setTimeout(() => setAddedToCart(false), 2000);
-            addToCart(1, activeProduct.name);
+            addToCart(1, product.name);
           }}
           disabled={!canAddToCart}
         >

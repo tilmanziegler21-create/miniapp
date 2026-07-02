@@ -1,17 +1,24 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import WebApp from '@twa-dev/sdk';
 import { theme, GlassCard, PrimaryButton, ProductCard, ProductCardSkeleton, SectionDivider } from '../ui';
 import { Search } from 'lucide-react';
 import { formatCurrency } from '../lib/currency';
 import { useHomePage } from '../hooks/useHomePage';
-
 import { useConfigStore } from '../store/useConfigStore';
 import { useBranding } from '../hooks/useBranding';
+import { useCityStore } from '../store/useCityStore';
+import { useCatalogStore } from '../store/useCatalogStore';
+import { categoryFilterMatches, getCategoryLabel } from '../lib/categories';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const config = useConfigStore((state) => state.config);
   const branding = useBranding();
+  const { city } = useCityStore();
+  const catalogEntry = useCatalogStore((state) => (city ? state.byCity[city] : undefined));
+  const [activeCategory, setActiveCategory] = React.useState<string | null>(null);
+  const catalogSectionRef = React.useRef<HTMLDivElement | null>(null);
   const {
     products,
     loading,
@@ -22,6 +29,23 @@ const Home: React.FC = () => {
     toggleFavorite,
     reload,
   } = useHomePage();
+
+  const displayedProducts = React.useMemo(() => {
+    const all = catalogEntry?.products || [];
+    if (!activeCategory) return products;
+    return all.filter((product) => categoryFilterMatches(activeCategory, product.category)).slice(0, 12);
+  }, [activeCategory, catalogEntry?.products, products]);
+
+  const handleCategoryClick = (slug: string) => {
+    const next = activeCategory === slug ? null : slug;
+    setActiveCategory(next);
+    try { WebApp.HapticFeedback.impactOccurred('light'); } catch { /* ignore */ }
+    if (next) {
+      window.setTimeout(() => {
+        catalogSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+    }
+  };
 
   const liquidPrices = config?.liquidPrices || {
     1: 18,
@@ -158,8 +182,9 @@ const Home: React.FC = () => {
           {categories.map((category, index) => (
             <div
               key={category.slug || `cat_${index}`}
+              className={`home-category-chip${activeCategory === category.slug ? ' home-category-chip--active' : ''}`}
               style={styles.categoryCard}
-              onClick={() => navigate(`/catalog?category=${encodeURIComponent(category.slug)}`)}
+              onClick={() => handleCategoryClick(category.slug)}
               role="button"
             >
               <div style={styles.categoryTitle}>{category.name}</div>
@@ -170,8 +195,8 @@ const Home: React.FC = () => {
 
       <div style={styles.categoryHint}>Листай категории влево и вправо</div>
 
-      <div className="stagger-item" style={{ ['--stagger-i' as string]: 4 }}>
-        <SectionDivider title="Наш каталог" />
+      <div className="stagger-item" style={{ ['--stagger-i' as string]: 4 }} ref={catalogSectionRef}>
+        <SectionDivider title={activeCategory ? getCategoryLabel(activeCategory) : 'Наш каталог'} />
       </div>
 
       {loadError ? (
@@ -191,9 +216,17 @@ const Home: React.FC = () => {
             </div>
           ))}
         </div>
+      ) : displayedProducts.length === 0 && activeCategory ? (
+        <div style={{ padding: `0 ${theme.padding.screen}`, marginBottom: theme.spacing.lg }}>
+          <GlassCard padding="lg" variant="elevated">
+            <div style={{ textAlign: 'center', color: theme.colors.dark.textSecondary }}>
+              В этой категории пока нет товаров
+            </div>
+          </GlassCard>
+        </div>
       ) : (
         <div style={styles.productGrid}>
-          {products.map((product, index) => (
+          {displayedProducts.map((product, index) => (
             <div key={product.id} className="stagger-item" style={{ ['--stagger-i' as string]: 5 + index }}>
             <ProductCard
               {...product}
@@ -205,6 +238,7 @@ const Home: React.FC = () => {
             />
             </div>
           ))}
+          {!activeCategory ? (
           <div className="stagger-item liquid-deal-card" style={{ ['--stagger-i' as string]: 9, padding: theme.spacing.lg, minHeight: 320, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div className="liquid-deal-badge">Premium offer</div>
@@ -234,6 +268,7 @@ const Home: React.FC = () => {
               </div>
             </div>
           </div>
+          ) : null}
         </div>
       )}
 
