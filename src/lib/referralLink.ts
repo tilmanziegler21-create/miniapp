@@ -1,8 +1,13 @@
-export function buildReferralBotLink(botUsername: string, refCode: string) {
+export function buildReferralShareLink(botUsername: string, refCode: string) {
   const bot = String(botUsername || '').trim().replace(/^@/, '');
   const code = String(refCode || '').trim();
   if (!bot || !code) return '';
-  return `https://t.me/${bot}?start=ref_${encodeURIComponent(code)}`;
+  return `https://t.me/${bot}?startapp=ref_${encodeURIComponent(code)}`;
+}
+
+/** @deprecated Use buildReferralShareLink — share must open mini app, not bot chat */
+export function buildReferralBotLink(botUsername: string, refCode: string) {
+  return buildReferralShareLink(botUsername, refCode);
 }
 
 export function buildMiniAppDeepLink(botUsername: string, startappPayload?: string) {

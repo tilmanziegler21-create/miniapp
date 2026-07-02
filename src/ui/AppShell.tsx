@@ -76,6 +76,14 @@ export const AppShell: React.FC<Props> = ({ children, showMenu = true }) => {
   }, [cart, city, syncCart, user?.tgId]);
 
   React.useEffect(() => {
+    if (!user?.tgId) return;
+    const startParam = String(WebApp.initDataUnsafe?.start_param || '').trim();
+    if (startParam === 'referral' && location.pathname !== '/referral') {
+      navigate('/referral', { replace: true });
+    }
+  }, [location.pathname, navigate, user?.tgId]);
+
+  React.useEffect(() => {
     (async () => {
       try {
         if (!user?.tgId) return;

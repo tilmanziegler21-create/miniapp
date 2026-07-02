@@ -7,7 +7,7 @@ import { Gift, Users, Crown, Star } from 'lucide-react';
 import { formatCurrency } from '../lib/currency';
 import { bonusesAPI, referralAPI } from '../services/api';
 import { useConfigStore } from '../store/useConfigStore';
-import { buildReferralBotLink } from '../lib/referralLink';
+import { buildReferralShareLink } from '../lib/referralLink';
 
 interface BonusTransaction {
   id: string;
@@ -115,7 +115,7 @@ const Bonuses: React.FC = () => {
       setReferralBonusAmount(Number(ref.data?.bonusAmount) || 20);
       const botUsername = String(useConfigStore.getState().config?.botUsername || '').trim();
       setReferralLink(
-        buildReferralBotLink(botUsername, code)
+        buildReferralShareLink(botUsername, code)
           || `${window.location.origin}/home?ref=${encodeURIComponent(code || 'unknown')}`,
       );
     } catch (error) {

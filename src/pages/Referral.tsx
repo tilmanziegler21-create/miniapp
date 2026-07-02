@@ -6,7 +6,7 @@ import { useToastStore } from '../store/useToastStore';
 import { referralAPI } from '../services/api';
 import { useBranding } from '../hooks/useBranding';
 import { useConfigStore } from '../store/useConfigStore';
-import { buildReferralBotLink } from '../lib/referralLink';
+import { buildReferralShareLink } from '../lib/referralLink';
 
 const Referral: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -32,7 +32,7 @@ const Referral: React.FC = () => {
 
   const refCode = String(info?.referralCode || user?.tgId || '');
   const botUsername = String(config?.botUsername || '').trim();
-  const link = buildReferralBotLink(botUsername, refCode)
+  const link = buildReferralShareLink(botUsername, refCode)
     || `${window.location.origin}/home?ref=${encodeURIComponent(refCode || 'unknown')}`;
 
   const share = async () => {

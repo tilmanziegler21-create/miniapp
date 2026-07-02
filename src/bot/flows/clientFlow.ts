@@ -18,6 +18,7 @@ import { carts as cartsStore, userStates, userRerollCount } from "../../infra/st
 import { showHybridUpsellWithGuidance } from "../handlers/fortuneHandler";
 import { showUpsellCatalog } from "../handlers/catalogHandler";
 import { buildMiniAppStartUrl, resolveStartLogoPath } from "../telegramLinks";
+import { buildWelcomeCaption, buildReferralPromoCaption } from "../welcomeMessages";
 import fs from "fs";
 
 const carts: Map<number, OrderItem[]> = cartsStore as Map<number, OrderItem[]>;
@@ -46,50 +47,60 @@ function buildCommunityButton(label = "👥 Наш канал"): TelegramBot.Inl
   return { text: "📞 Поддержка", callback_data: encodeCb("how_to_order") };
 }
 
-function buildMainMenuRows(userId: number, startPayload?: string): TelegramBot.InlineKeyboardButton[][] {
-  const rows: TelegramBot.InlineKeyboardButton[][] = [];
-  const miniAppUrl = buildMiniAppStartUrl(startPayload);
-  if (miniAppUrl) {
-    rows.push([{ text: "🛍 Открыть магазин", url: miniAppUrl }]);
-  }
-  rows.push(
-    [{ text: "💧 Жидкости", callback_data: encodeCb("catalog_liquids") }],
-    [{ text: "⚡️ Одноразки", callback_data: encodeCb("catalog_electronics") }],
-    [{ text: "🛒 Моя корзина", callback_data: encodeCb("view_cart") }],
-    [{ text: "❓ Как заказать?", callback_data: encodeCb("how_to_order") }],
-    [buildCommunityButton()],
-  );
-  const admins = (env.TELEGRAM_ADMIN_IDS || "").split(",").map((s) => Number(s.trim())).filter((x) => x);
-  if (admins.includes(userId)) rows.push([{ text: "Админ", callback_data: "admin_open" }]);
-  return rows;
-}
-
 async function sendWelcomeScreen(bot: TelegramBot, chatId: number, userId: number, startPayload?: string) {
-  const shopName = shopConfig.shopName || "Магазин";
-  const invited = String(startPayload || "").startsWith("ref_");
-  const caption = invited
-    ? `<b>${shopName}</b>\n\nВас пригласили в магазин.\nОткройте mini app, чтобы продолжить и получить бонусы.\n\n👇 Нажмите кнопку ниже`
-    : `<b>${shopName}</b>\n\nДобро пожаловать!\nОткройте mini app, чтобы выбрать товары и оформить заказ.\n\n👇 Нажмите кнопку ниже`;
+  const logoPath = resolveStartLogoPath();
+  const startappPayload = String(startPayload || "").trim();
+  const miniAppUrl = buildMiniAppStartUrl(startappPayload || undefined);
+  const referralAppUrl = buildMiniAppStartUrl("referral");
 
-  const rows = buildMainMenuRows(userId, startPayload);
   const prev = lastMainMsg.get(userId);
   if (prev) {
     try { await bot.deleteMessage(chatId, prev); } catch {}
   }
 
-  const logoPath = resolveStartLogoPath();
-  const sent = logoPath
-    ? await bot.sendPhoto(chatId, fs.createReadStream(logoPath), {
-        caption,
-        parse_mode: "HTML",
-        reply_markup: { inline_keyboard: rows },
-      })
-    : await bot.sendMessage(chatId, caption, {
-        parse_mode: "HTML",
-        reply_markup: { inline_keyboard: rows },
-      });
+  const photoSource = logoPath ? fs.createReadStream(logoPath) : null;
+  if (!photoSource) {
+    const fallback = await bot.sendMessage(chatId, buildWelcomeCaption(), { parse_mode: "HTML" });
+    lastMainMsg.set(userId, fallback.message_id);
+    return;
+  }
 
-  lastMainMsg.set(userId, sent.message_id);
+  const welcomeCaption = buildWelcomeCaption();
+  const welcome = await bot.sendPhoto(chatId, photoSource, {
+    caption: startappPayload.startsWith("ref_")
+      ? `${welcomeCaption}\n\n🎉 Вас пригласили — откройте магазин, чтобы получить бонусы.`
+      : welcomeCaption,
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [[
+        {
+          text: "💨 Посетить магазин 🛍️",
+          url: miniAppUrl || buildMiniAppStartUrl() || "https://t.me",
+        },
+      ]],
+    },
+  });
+
+  try {
+    await bot.pinChatMessage(chatId, welcome.message_id, { disable_notification: true });
+  } catch {
+    // Bot may lack pin rights in some chats — ignore.
+  }
+
+  await bot.sendPhoto(chatId, fs.createReadStream(logoPath), {
+    caption: buildReferralPromoCaption(),
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [[
+        {
+          text: "Подробнее",
+          url: referralAppUrl || miniAppUrl || buildMiniAppStartUrl() || "https://t.me",
+        },
+      ]],
+    },
+  });
+
+  lastMainMsg.set(userId, welcome.message_id);
 }
 
 function addToCart(user_id: number, p: Product, isUpsell: boolean, priceOverride?: number) {
