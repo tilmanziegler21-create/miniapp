@@ -8,7 +8,7 @@ import { useConfigStore } from '../store/useConfigStore';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { resolveProductImage } from '../lib/productMedia';
-import { getOrderStatusLabel } from '../lib/orderStatus';
+import { getOrderStatusLabel, getDeliveryMethodLabel } from '../lib/orderStatus';
 import { buildOrderManagerMessage, openCourierTelegramChat, type CourierContact } from '../lib/orderManagerMessage';
 
 type OrderDetailsResponse = {
@@ -156,7 +156,7 @@ const OrderDetails: React.FC = () => {
           </div>
           <div style={{ display: 'grid', gap: 6, color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm }}>
             <div>Статус: <span style={{ color: theme.colors.dark.text }}>{getOrderStatusLabel(order.status)}</span></div>
-            <div>Доставка: <span style={{ color: theme.colors.dark.text }}>{order.deliveryMethod || '—'}</span></div>
+            <div>Доставка: <span style={{ color: theme.colors.dark.text }}>{getDeliveryMethodLabel(order.deliveryMethod)}</span></div>
             <div>Оплата: <span style={{ color: theme.colors.dark.text }}>{order.paymentMethod || '—'}</span></div>
             {order.deliveryAddress ? (
               <div>Адрес: <span style={{ color: theme.colors.dark.text }}>{order.deliveryAddress}</span></div>

@@ -8,6 +8,7 @@ import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
 import { useToastStore } from '../store/useToastStore';
 import { resolveProductImage } from '../lib/productMedia';
+import { getDeliveryMethodLabel } from '../lib/orderStatus';
 
 interface Order {
   id: string;
@@ -301,7 +302,7 @@ const Profile: React.FC = () => {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-400">Доставка:</span>
-                        <span>{order.deliveryMethod === 'courier' ? 'Курьер' : 'Самовывоз'}</span>
+                        <span>{getDeliveryMethodLabel(order.deliveryMethod)}</span>
                       </div>
                     </div>
                     

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
-import { GlassCard, theme } from './index';
+import { GlassCard, theme, FlavorSelectField } from './index';
 import { formatCurrency } from '../lib/currency';
 import { getBrandLiquidFlavors } from '../lib/liquidUpsell';
 import type { CatalogProduct } from '../store/useCatalogStore';
@@ -21,9 +21,7 @@ export const CartLiquidUpsell: React.FC<Props> = ({ products, catalog, stage, bu
     const next: Record<string, string> = {};
     for (const product of products) {
       const brand = String(product.brand || 'Другие');
-      if (!selectedByBrand[brand]) {
-        next[brand] = String(product.id);
-      }
+      next[brand] = next[brand] || String(product.id);
     }
     if (Object.keys(next).length) {
       setSelectedByBrand((prev) => ({ ...next, ...prev }));
@@ -42,6 +40,9 @@ export const CartLiquidUpsell: React.FC<Props> = ({ products, catalog, stage, bu
         <div style={{ color: theme.colors.dark.textSecondary, fontSize: theme.typography.fontSize.sm, marginBottom: theme.spacing.md, lineHeight: 1.45 }}>
           {stage.subtitle}
         </div>
+        <div style={{ fontSize: 12, color: theme.colors.dark.textSecondary, marginBottom: theme.spacing.sm }}>
+          Другие бренды жидкостей — выберите вкус и добавьте в корзину
+        </div>
         <div style={{ display: 'grid', gap: theme.spacing.sm }}>
           {products.map((product) => {
             const brand = String(product.brand || 'Другие');
@@ -52,17 +53,16 @@ export const CartLiquidUpsell: React.FC<Props> = ({ products, catalog, stage, bu
             return (
               <div key={brand} className="cart-upsell-row cart-upsell-row--select">
                 <div className="cart-upsell-row__brand">{brand}</div>
-                <select
-                  className="app-flavor-select"
+                <FlavorSelectField
+                  label="Вкус"
+                  hint=""
                   value={selectedId}
-                  onChange={(e) => setSelectedByBrand((prev) => ({ ...prev, [brand]: e.target.value }))}
-                >
-                  {flavors.map((flavor) => (
-                    <option key={flavor.id} value={flavor.id}>
-                      {flavor.name} — {formatCurrency(flavor.price)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setSelectedByBrand((prev) => ({ ...prev, [brand]: value }))}
+                  options={flavors.map((flavor) => ({
+                    id: String(flavor.id),
+                    label: `${flavor.name} — ${formatCurrency(flavor.price)}`,
+                  }))}
+                />
                 <button
                   type="button"
                   className="cart-upsell-row__add"

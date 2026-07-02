@@ -8,6 +8,7 @@ export { CityPickerModal } from './CityPickerModal';
 export { DrawerMenu } from './DrawerMenu';
 export { ErrorBoundary } from './ErrorBoundary';
 export { FadeImage } from './FadeImage';
+export { FlavorSelectField } from './FlavorSelectField';
 export { FooterBar } from './FooterBar';
 export { GlassCard } from './GlassCard';
 export { IconButton } from './IconButton';

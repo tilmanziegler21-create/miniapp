@@ -5,7 +5,7 @@ import { Heart, ArrowLeft } from 'lucide-react';
 import { cartAPI, productAPI } from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { GlassCard, IconButton, ProductCard, SectionDivider, theme, TasteProfile, TrustIndicators } from '../ui';
+import { GlassCard, IconButton, ProductCard, SectionDivider, theme, TasteProfile, TrustIndicators, FlavorSelectField } from '../ui';
 import { useToastStore } from '../store/useToastStore';
 import { formatCurrency } from '../lib/currency';
 import { useCityStore } from '../store/useCityStore';
@@ -110,6 +110,16 @@ const Product: React.FC = () => {
   }, [product, isLiquid, selectedFlavor]);
 
   const canAddToCart = activeProduct ? Number(activeProduct.qtyAvailable || 0) > 0 : false;
+  const allFlavorsSoldOut = brandFlavors.length > 0 && brandFlavors.every((f) => Number(f.qtyAvailable || 0) <= 0);
+  const selectedSoldOut = selectedFlavor ? Number(selectedFlavor.qtyAvailable || 0) <= 0 : false;
+
+  React.useEffect(() => {
+    if (!brandFlavors.length) return;
+    const current = brandFlavors.find((f) => String(f.id) === String(selectedFlavorId));
+    if (current && Number(current.qtyAvailable || 0) > 0) return;
+    const firstAvailable = brandFlavors.find((f) => Number(f.qtyAvailable || 0) > 0);
+    if (firstAvailable) setSelectedFlavorId(String(firstAvailable.id));
+  }, [brandFlavors, selectedFlavorId]);
   const normalizedTasteProfile = React.useMemo(
     () => (product ? normalizeTasteProfile(product.tasteProfile) : null),
     [product],
@@ -305,21 +315,24 @@ const Product: React.FC = () => {
 
         {isLiquid && brandFlavors.length > 0 ? (
           <div style={{ marginBottom: theme.spacing.md }}>
-            <div className="product-flavor-label">Выберите вкус</div>
-            <select
-              className="app-flavor-select app-flavor-select--full"
+            {(selectedSoldOut || allFlavorsSoldOut) ? (
+              <div className="product-stock-warning">Нет в наличии — выберите другое</div>
+            ) : null}
+            <FlavorSelectField
+              fullWidth
+              label="Выберите вкус"
+              hint="Нажмите, чтобы открыть список"
               value={selectedFlavorId}
-              onChange={(e) => setSelectedFlavorId(e.target.value)}
-            >
-              {brandFlavors.map((flavor) => {
+              onChange={setSelectedFlavorId}
+              options={brandFlavors.map((flavor) => {
                 const soldOut = Number(flavor.qtyAvailable || 0) <= 0;
-                return (
-                  <option key={flavor.id} value={flavor.id} disabled={soldOut}>
-                    {flavor.name} — {formatCurrency(flavor.price)}{soldOut ? ' (нет в наличии)' : ''}
-                  </option>
-                );
+                return {
+                  id: String(flavor.id),
+                  label: `${flavor.name} — ${formatCurrency(flavor.price)}${soldOut ? ' (нет в наличии)' : ''}`,
+                  disabled: soldOut,
+                };
               })}
-            </select>
+            />
           </div>
         ) : null}
 
@@ -341,7 +354,7 @@ const Product: React.FC = () => {
           }}
           disabled={!canAddToCart}
         >
-          {!canAddToCart ? 'Нет в наличии' : addedToCart ? '✓ Добавлено' : 'Добавить в корзину'}
+          {!canAddToCart ? 'Нет в наличии — выберите другое' : addedToCart ? '✓ Добавлено' : 'Добавить в корзину'}
         </button>
       </GlassCard>
 

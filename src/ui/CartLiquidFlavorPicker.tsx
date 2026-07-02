@@ -5,6 +5,7 @@ import { formatCurrency } from '../lib/currency';
 import { getBrandLiquidFlavors, isLiquidCategory } from '../lib/liquidUpsell';
 import type { CatalogProduct } from '../store/useCatalogStore';
 import type { CartItem } from '../store/useCartStore';
+import { FlavorSelectField } from './FlavorSelectField';
 
 type Props = {
   item: CartItem;
@@ -29,32 +30,29 @@ export const CartLiquidFlavorPicker: React.FC<Props> = ({ item, catalog, busyId,
 
   return (
     <div className="cart-flavor-picker">
-      <div className="cart-flavor-picker__label">Добавить другой вкус {item.brand || 'бренда'}</div>
-      <div className="cart-flavor-picker__row">
-        <select
-          className="app-flavor-select"
-          value={pickId}
-          onChange={(e) => setSelectedId(e.target.value)}
-        >
-          {available.map((flavor) => (
-            <option key={flavor.id} value={flavor.id}>
-              {flavor.name} — {formatCurrency(flavor.price)}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="cart-flavor-picker__add"
-          disabled={busyId === selected.id}
-          onClick={() => {
-            try { WebApp.HapticFeedback.impactOccurred('light'); } catch { /* ignore */ }
-            onAddFlavor(selected);
-          }}
-          aria-label={`Добавить ${selected.name}`}
-        >
-          <Plus size={14} />
-        </button>
-      </div>
+      <FlavorSelectField
+        label={`Добавить другой вкус ${item.brand || 'бренда'}`}
+        hint="Нажмите, чтобы открыть список"
+        value={pickId}
+        onChange={setSelectedId}
+        options={available.map((flavor) => ({
+          id: String(flavor.id),
+          label: `${flavor.name} — ${formatCurrency(flavor.price)}`,
+        }))}
+      />
+      <button
+        type="button"
+        className="cart-flavor-picker__add-inline"
+        disabled={busyId === selected.id}
+        onClick={() => {
+          try { WebApp.HapticFeedback.impactOccurred('light'); } catch { /* ignore */ }
+          onAddFlavor(selected);
+        }}
+        aria-label={`Добавить ${selected.name}`}
+      >
+        <Plus size={14} />
+        <span>Добавить</span>
+      </button>
     </div>
   );
 };

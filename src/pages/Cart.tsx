@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebApp from '@twa-dev/sdk';
-import { Minus, Plus, Trash2, Store } from 'lucide-react';
+import { Minus, Plus, Trash2, Store, Mail } from 'lucide-react';
 import { bonusesAPI, cartAPI, orderAPI } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
@@ -17,11 +17,18 @@ import { countLiquidItems, getLiquidUpsellStage, pickLiquidUpsellProducts } from
 import type { CatalogProduct } from '../store/useCatalogStore';
 
 type PaymentMethod = 'cash' | 'card' | 'crypto';
+type FulfillmentMethod = 'pickup' | 'mail';
+type MailDestination = 'post_office' | 'home';
 
 const PAYMENT_OPTIONS: Array<{ id: PaymentMethod; title: string; desc: string; icon: string }> = [
   { id: 'cash', title: 'Наличные', desc: 'Оплата при получении', icon: '💵' },
   { id: 'card', title: 'Картой', desc: 'Перевод или терминал', icon: '💳' },
   { id: 'crypto', title: 'Криптовалюта', desc: 'USDT / BTC по договорённости', icon: '₿' },
+];
+
+const FULFILLMENT_OPTIONS: Array<{ id: FulfillmentMethod; title: string; desc: string; icon: React.ReactNode }> = [
+  { id: 'pickup', title: 'Самовывоз', desc: 'Забрать в городе', icon: <Store size={20} /> },
+  { id: 'mail', title: 'Почта', desc: 'Доставка по адресу', icon: <Mail size={20} /> },
 ];
 
 const Cart: React.FC = () => {
@@ -54,6 +61,9 @@ const Cart: React.FC = () => {
   const [priceDrop, setPriceDrop] = React.useState(false);
   const prevTotalRef = React.useRef<number | null>(null);
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>('cash');
+  const [fulfillmentMethod, setFulfillmentMethod] = React.useState<FulfillmentMethod>('pickup');
+  const [mailDestination, setMailDestination] = React.useState<MailDestination>('post_office');
+  const [mailAddress, setMailAddress] = React.useState('');
   const [bonusBalance, setBonusBalance] = React.useState(0);
   const [bonusWant] = React.useState<string>('');
 
@@ -119,6 +129,25 @@ const Cart: React.FC = () => {
       }
     })();
   }, []);
+
+  React.useEffect(() => {
+    if (fulfillmentMethod === 'mail' && paymentMethod === 'cash') {
+      setPaymentMethod('card');
+    }
+  }, [fulfillmentMethod, paymentMethod]);
+
+  const visiblePaymentOptions = React.useMemo(
+    () => (fulfillmentMethod === 'mail' ? PAYMENT_OPTIONS.filter((option) => option.id !== 'cash') : PAYMENT_OPTIONS),
+    [fulfillmentMethod],
+  );
+
+  const buildDeliveryAddress = () => {
+    if (fulfillmentMethod === 'pickup') {
+      return `Самовывоз · ${cityTitle}`;
+    }
+    const destLabel = mailDestination === 'post_office' ? 'Отделение' : 'На дом';
+    return `Почта · ${destLabel} · ${String(mailAddress || '').trim()}`;
+  };
 
   React.useEffect(() => {
     if (promoCode) setPromoInput(promoCode);
@@ -309,6 +338,9 @@ const Cart: React.FC = () => {
 
     if (bonusInputValue > bonusBalance) errors.push('Бонусов больше, чем на балансе');
     if (bonusInputValue > bonusApplyLimit) errors.push('Бонусами можно оплатить до 50% заказа');
+    if (fulfillmentMethod === 'mail' && String(mailAddress || '').trim().length < 5) {
+      errors.push('Укажите адрес доставки');
+    }
     if (errors.length) {
       pushToast(errors.join(' • '), 'error');
       return;
@@ -350,14 +382,15 @@ const Cart: React.FC = () => {
 
       await orderAPI.confirmOrder({
         orderId,
-        deliveryMethod: 'pickup',
+        deliveryMethod: fulfillmentMethod === 'mail' ? 'mail' : 'pickup',
         city,
         promoCode,
         courier_id: '',
         delivery_date: '',
         delivery_time: '',
         courierData: {
-          address: `Самовывоз · ${cityTitle}`,
+          address: buildDeliveryAddress(),
+          mailDestination: fulfillmentMethod === 'mail' ? mailDestination : '',
           comment: String(comment || '').slice(0, 500),
           user: {
             tgId: user?.tgId || '',
@@ -513,26 +546,73 @@ const Cart: React.FC = () => {
       >
         Получение
       </div>
-      <div
-        style={{
-          margin: `0 ${theme.padding.screen} ${theme.spacing.md}`,
-          padding: theme.spacing.md,
-          borderRadius: theme.radius.md,
-          border: '1px solid rgba(96,165,250,0.35)',
-          background: 'rgba(16,15,18,0.84)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.md,
-        }}
-      >
-        <Store size={20} color={theme.colors.dark.primary} />
-        <div>
-          <div style={{ fontSize: 15, fontWeight: theme.typography.fontWeight.bold }}>Самовывоз</div>
-          <div style={{ fontSize: 12, color: theme.colors.dark.textSecondary, marginTop: 2 }}>
-            Город: {cityTitle}. Адрес и детали пришлём в личные сообщения.
+      <div className="cart-delivery-grid">
+        {FULFILLMENT_OPTIONS.map((option) => {
+          const active = fulfillmentMethod === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              className={`cart-delivery-option${active ? ' cart-delivery-option--active' : ''}`}
+              onClick={() => setFulfillmentMethod(option.id)}
+            >
+              <span style={{ color: theme.colors.dark.primary }}>{option.icon}</span>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: theme.typography.fontWeight.bold, color: theme.colors.dark.text }}>
+                  {option.title}
+                </div>
+                <div style={{ fontSize: 12, color: theme.colors.dark.textSecondary, marginTop: 2 }}>{option.desc}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {fulfillmentMethod === 'pickup' ? (
+        <div
+          style={{
+            margin: `0 ${theme.padding.screen} ${theme.spacing.md}`,
+            padding: theme.spacing.md,
+            borderRadius: theme.radius.md,
+            border: '1px solid rgba(96,165,250,0.35)',
+            background: 'rgba(16,15,18,0.84)',
+            fontSize: 12,
+            color: theme.colors.dark.textSecondary,
+            lineHeight: 1.45,
+          }}
+        >
+          Город: {cityTitle}. Адрес и детали самовывоза пришлём в личные сообщения.
+        </div>
+      ) : (
+        <div className="cart-mail-panel">
+          <div style={{ fontSize: 13, fontWeight: 700, color: theme.colors.dark.text }}>Куда доставить</div>
+          <div className="cart-mail-dest-grid">
+            <button
+              type="button"
+              className={`cart-mail-dest-btn${mailDestination === 'post_office' ? ' cart-mail-dest-btn--active' : ''}`}
+              onClick={() => setMailDestination('post_office')}
+            >
+              Отделение
+            </button>
+            <button
+              type="button"
+              className={`cart-mail-dest-btn${mailDestination === 'home' ? ' cart-mail-dest-btn--active' : ''}`}
+              onClick={() => setMailDestination('home')}
+            >
+              На дом
+            </button>
+          </div>
+          <textarea
+            className="cart-mail-address"
+            value={mailAddress}
+            onChange={(e) => setMailAddress(e.target.value)}
+            placeholder={mailDestination === 'post_office' ? 'Адрес отделения, индекс, город' : 'Улица, дом, квартира, индекс, город'}
+          />
+          <div style={{ fontSize: 12, color: theme.colors.dark.textSecondary, lineHeight: 1.4 }}>
+            При доставке почтой оплата наличными недоступна.
           </div>
         </div>
-      </div>
+      )}
 
       <div
         style={{
@@ -547,7 +627,7 @@ const Cart: React.FC = () => {
         Способ оплаты
       </div>
       <div className="cart-payment-grid">
-        {PAYMENT_OPTIONS.map((option) => {
+        {visiblePaymentOptions.map((option) => {
           const active = paymentMethod === option.id;
           return (
             <button

@@ -14,12 +14,19 @@ export function countLiquidItems(items: CartItem[]) {
 export function pickLiquidUpsellProducts(
   items: CartItem[],
   catalog: CatalogProduct[],
-  limit = 3,
+  limit = 12,
 ): CatalogProduct[] {
   const liquidQty = countLiquidItems(items);
   if (liquidQty < 1) return [];
 
   const inCart = new Set(items.map((item) => String(item.productId)));
+  const brandsInCart = new Set(
+    items
+      .filter((item) => isLiquidCategory(item.category))
+      .map((item) => String(item.brand || '').trim())
+      .filter(Boolean),
+  );
+
   const pool = catalog.filter(
     (product) =>
       isLiquidCategory(product.category) &&
@@ -32,20 +39,16 @@ export function pickLiquidUpsellProducts(
   const byBrand = new Map<string, CatalogProduct[]>();
   for (const product of pool) {
     const brand = String(product.brand || 'Другие').trim() || 'Другие';
+    if (brandsInCart.has(brand)) continue;
     const list = byBrand.get(brand) || [];
     list.push(product);
     byBrand.set(brand, list);
   }
 
-  const brands = Array.from(byBrand.keys());
-  for (let i = brands.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [brands[i], brands[j]] = [brands[j], brands[i]];
-  }
-
+  const brands = Array.from(byBrand.keys()).sort((a, b) => a.localeCompare(b, 'ru'));
   return brands.slice(0, limit).map((brand) => {
     const flavors = byBrand.get(brand) || [];
-    flavors.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    flavors.sort((a, b) => String(a.name).localeCompare(String(b.name), 'ru'));
     return flavors[0];
   });
 }
